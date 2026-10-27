@@ -178,6 +178,7 @@ async function refreshNcaBadge() {
 
 let currentBlob = null;
 let currentFileInfo = null;
+let savedSignerDetails = { signerType: "", requisites: { data: {} } };
 
 function renderDone(signer, contract, parties) {
   const fileInfo = currentFileInfo;
@@ -240,12 +241,12 @@ async function render(data) {
          <button class="btn" id="dl">Скачать файл «${esc(contract.fileName)}»</button>
        </div>`;
 
-  const r = signer.requisites?.data || {};
-  const storedType = signer.signerType || signer.requisites?.type || "";
-  // Старые записи сохранялись как `ip`. В интерфейсе объединяем ИП и
-  // юридические лица в понятный для подписанта вариант «Компания».
-  const type = storedType === "ip" ? "company" : storedType;
-  const val = (k) => esc(r[k] || "");
+  // Старые реквизиты сохраняем, но не просим клиента вводить их повторно.
+  savedSignerDetails = {
+    signerType: signer.signerType || signer.requisites?.type || "",
+    requisites: { ...(signer.requisites || {}), data: { ...(signer.requisites?.data || {}) } },
+  };
+  const name = signer.fullName || signer.requisites?.data?.name || "";
 
   const partiesHtml = partiesBlock(data.parties, "Кто уже подписал");
 
@@ -263,50 +264,19 @@ async function render(data) {
     ${preview}
 
     <div class="req-form" id="req-form">
-      <h2 class="req-title">Шаг 1. Ваши реквизиты</h2>
-      <p class="req-sub">Заполните данные, как вы будете указаны в договоре, затем переходите к подписанию.</p>
-      <div class="seg" id="type-seg">
-        <button type="button" class="seg-btn ${type === "company" ? "on" : ""}" data-type="company">Компания</button>
-        <button type="button" class="seg-btn ${type === "individual" ? "on" : ""}" data-type="individual">Физическое лицо</button>
+      <h2 class="req-title">Подписание договора</h2>
+      <p class="req-sub">Реквизиты уже указаны в договоре. Введите имя и выберите способ подписания.</p>
+      <label class="fld"><span>Имя подписанта</span><input data-f="name" autocomplete="name" maxlength="200" placeholder="Ваше имя и фамилия" value="${esc(name)}" required></label>
+      <div class="sign-actions">
+        <button class="btn bronze" id="btn-sign">Подписать ЭЦП</button>
+        <button class="btn" id="btn-egov">eGov Mobile</button>
       </div>
-      <div class="req-grid">
-        <label class="fld"><span id="lbl-name">Наименование / ФИО</span><input data-f="name" value="${val("name")}"></label>
-        <label class="fld"><span id="lbl-iin">ИИН / БИН</span><input data-f="iinBin" maxlength="12" value="${val("iinBin")}"></label>
-        <label class="fld indiv-only"><span>Уд. личности №</span><input data-f="idNumber" value="${val("idNumber")}"></label>
-        <label class="fld indiv-only"><span>Дата выдачи</span><input data-f="idDate" placeholder="дд.мм.гггг" value="${val("idDate")}"></label>
-        <label class="fld"><span id="lbl-address">Адрес жительства (прописки)</span><input data-f="address" placeholder="город, улица, дом, кв." value="${val("address")}"></label>
-        <label class="fld"><span>Контакт (тел./e-mail)</span><input data-f="contact" value="${val("contact")}"></label>
-        <label class="fld"><span>Банк</span><input data-f="bank" value="${val("bank")}"></label>
-        <label class="fld"><span>IBAN счёт</span><input data-f="iban" value="${val("iban")}"></label>
-      </div>
-    </div>
-
-    <div class="hint" style="margin-top:18px">
-      <b>Шаг 2.</b> На телефоне выберите «Подписать через eGov». На компьютере можно отсканировать QR из eGov или использовать <a href="https://pki.gov.kz/" target="_blank" rel="noopener">NCALayer</a> и ваш ключ ЭЦП.
-      Для NCALayer запустите программу на компьютере, нажмите «Подписать через NCALayer» и выберите ключ.
+      <p class="req-sub" style="margin:12px 0 0">ЭЦП — через NCALayer на компьютере. eGov Mobile — в приложении или по QR-коду.</p>
     </div>
     <div class="sign-actions">
-      <button class="btn bronze" id="btn-egov">Подписать через eGov</button>
-      <button class="btn" id="btn-sign">Подписать через NCALayer</button>
       <button class="btn" id="btn-download">Скачать договор</button>
       ${universal ? "" : `<button class="btn danger" id="btn-decline">Отказаться</button>`}
     </div>`;
-
-  const formEl = $("#req-form");
-  function applyType(t) {
-    formEl.dataset.type = t;
-    [...$("#type-seg").querySelectorAll(".seg-btn")].forEach((b) => b.classList.toggle("on", b.dataset.type === t));
-    $("#lbl-name").textContent = t === "company" ? "Наименование компании / ИП" : "ФИО";
-    $("#lbl-iin").textContent = t === "company" ? "БИН / ИИН" : "ИИН";
-    const la = $("#lbl-address");
-    if (la) la.textContent = t === "company" ? "Юридический адрес" : "Адрес жительства (прописки)";
-    formEl.classList.toggle("is-company", t === "company");
-  }
-  $("#type-seg").addEventListener("click", (e) => {
-    const b = e.target.closest(".seg-btn");
-    if (b) applyType(b.dataset.type);
-  });
-  if (type) applyType(type);
 
   const dl = $("#dl");
   if (dl) dl.addEventListener("click", downloadFile);
@@ -316,8 +286,8 @@ async function render(data) {
   $("#btn-sign").addEventListener("click", () => onSign(contract));
   $("#btn-egov").addEventListener("click", () => onSign(contract, true));
   if (pendingEgov(signApi())) {
-    $("#btn-egov").textContent = "Продолжить подписание eGov";
-    toast("Вернулись из eGov? Нажмите «Продолжить подписание eGov».");
+    $("#btn-egov").textContent = "Продолжить в eGov Mobile";
+    toast("Вернулись из eGov? Нажмите «Продолжить в eGov Mobile».");
   }
 
   function downloadFile() {
@@ -338,22 +308,13 @@ function blobToBase64(blob) {
 }
 
 function collectRequisites() {
-  const form = $("#req-form");
-  if (!form) return { signerType: "", requisites: { data: {} } };
-  const signerType = form.dataset.type || "";
-  const data = {};
-  form.querySelectorAll("[data-f]").forEach((el) => {
-    const v = el.value.trim();
-    if (v) data[el.dataset.f] = v;
-  });
-  if (!signerType) throw new Error("Выберите, кто подписывает договор: компания или физическое лицо");
-  if (!data.name) throw new Error("Укажите наименование / ФИО");
-  if (!data.iinBin) throw new Error("Укажите ИИН / БИН");
-  if (!data.address) throw new Error(signerType === "company" ? "Укажите юридический адрес" : "Укажите адрес жительства");
-  // API прежних версий хранит организацию как `ip`; интерфейс при этом
-  // показывает пользователю более общее и понятное название «Компания».
-  const persistedSignerType = signerType === "company" ? "ip" : signerType;
-  return { signerType: persistedSignerType, requisites: { data } };
+  const input = document.querySelector('#req-form [data-f="name"]');
+  const name = input?.value.trim();
+  if (!name) { input?.focus(); throw new Error("Укажите имя подписанта"); }
+  return {
+    signerType: savedSignerDetails.signerType === "company" ? "ip" : savedSignerDetails.signerType,
+    requisites: { ...savedSignerDetails.requisites, data: { ...savedSignerDetails.requisites.data, name } },
+  };
 }
 
 async function onSign(contract, egov = false) {
@@ -384,7 +345,7 @@ async function onSign(contract, egov = false) {
     toast(msg, true);
     $("#btn-sign").disabled = false; $("#btn-egov").disabled = false;
     if ($("#btn-decline")) $("#btn-decline").disabled = false;
-    btn.textContent = egov ? "Продолжить подписание eGov" : "Подписать через NCALayer";
+    btn.textContent = egov ? "Продолжить в eGov Mobile" : "Подписать ЭЦП";
   }
 }
 
