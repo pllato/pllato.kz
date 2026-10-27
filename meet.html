@@ -1210,7 +1210,7 @@ function handleWsMessage(m){
       presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
       for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
       participantNames.add(state.name);
-      if(state.admitted){ onAdmitted(); connectToAdmittedPeers();if(state.isHost&&state.recorderPeer===peerId)startRecording(); }
+      if(state.admitted){ onAdmitted(); connectToAdmittedPeers();reconcileRecordingOwner(); }
       else{ showWaitingPreview(); }
       break;
     }
@@ -1230,10 +1230,7 @@ function handleWsMessage(m){
     case 'recording-owner': {
       state.recorderPeer=m.peer;state.remoteRecording=!!m.active;
       $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
-      if(state.isHost&&state.admitted){
-        if(m.peer===peerId)startRecording();
-        else {clearTimeout(recordingRetryTimer);Promise.resolve(recStarting).then(()=>{if(state.recording&&state.recorderPeer!==peerId)return stopRecording();}).catch(e=>recordingProblem('Не удалось сохранить свою часть: '+e.message));}
-      }
+      reconcileRecordingOwner();
       renderPeopleList();break;
     }
     case 'recording-transfer-failed':toast('Передача записи не состоялась. Прежний администратор продолжает запись.',8000);break;
@@ -2011,6 +2008,17 @@ function drawRecTile(ctx, tile, x,y,w,h){
   ctx.restore();
 }
 
+async function reconcileRecordingOwner(){
+  if(!state.isHost||!state.admitted||state._leaving)return;
+  clearTimeout(recordingRetryTimer);
+  try{
+    if(recStarting)await recStarting;
+    if(recSaving)await recSaving;
+    if(state._leaving)return;
+    if(state.recorderPeer===peerId){if(!state.recording)await retryRecording();}
+    else if(state.recording)await stopRecording();
+  }catch(e){recordingProblem('Не удалось сохранить свою часть: '+e.message);}
+}
 async function prepareRecordingTransfer(){
   try{await (recStarting||startRecording());wsSend({t:state.recording?'recording-ready':'recording-failed'});}
   catch{wsSend({t:'recording-failed'});}
