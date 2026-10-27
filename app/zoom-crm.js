@@ -12,6 +12,7 @@ export function groupMeetingFiles(rows=[]){
     const key=f.meeting_uuid||f.id;
     if(!groups.has(key))groups.set(key,{id:key,title:f.topic||'Видеовстреча',date:f.recording_start,files:[],hasTranscript:false});
     const group=groups.get(key);group.files.push(f);
+    if(f.recording_start && (!group.date || f.recording_start<group.date))group.date=f.recording_start;
     if(f.status==='stored' && !f.deleted_at && /^(VTT|TXT)$/i.test(f.extension))group.hasTranscript=true;
   }
   return [...groups.values()].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
@@ -87,8 +88,10 @@ export function zoomClient({ base, getToken, compact = false }) {
           <button type="button" class="tbtn tbtn-a" data-host>${isMeet(meeting)?'Войти как организатор':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка встречи: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
         const invitation=zoomInvitation(meeting);
-        const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
-        container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{e.target.textContent='Скопируйте приглашение ниже';}};
+        const preview=document.createElement('details');preview.style.cssText='font-size:13px;margin:12px 0';
+        const summary=document.createElement('summary');summary.textContent='Текст приглашения';
+        const inviteText=document.createElement('div');inviteText.style.cssText='white-space:pre-wrap;margin-top:8px';inviteText.textContent=invitation;preview.append(summary,inviteText);container.append(preview);
+        container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{preview.open=true;e.target.textContent='Скопируйте приглашение ниже';}};
         container.querySelector('[data-copy]').onclick = async e => { try { await navigator.clipboard.writeText(meeting.join_url); e.target.textContent='Скопировано'; } catch { e.target.textContent='Скопируйте ссылку ниже'; } };
         container.querySelector('[data-host]').onclick=async e=>{
           const b=e.currentTarget,box=container.querySelector('[data-host-status]');b.disabled=true;
@@ -147,31 +150,38 @@ export function zoomClient({ base, getToken, compact = false }) {
     try {
       const {files:loadedRows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
       if(!container.isConnected)return;
-      const rows=groupMeetingFiles(loadedRows).flatMap(g=>g.files.map((f,i)=>({...f,groupHeading:i===0?g:null})));
-      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4><p role="status"><b>${esc(meetingProgress(f.groupHeading.files))}</b></p>${f.groupHeading.hasTranscript || f.groupHeading.files.some(x=>x.kind==='transcript'&&x.status!=='deleted')?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
-        <b>${esc(f.topic || 'Видеовстреча')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
-        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${materialStatus(f)}</span>`}
-        ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
-        ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов встреч пока нет.';
-      // Show playable previews immediately, without opening a separate window.
-      const mediaFiles=rows.filter(f=>f.status==='stored' && /^(MP4|WEBM|M4A|MP3|WAV)$/i.test(f.extension || ''));
-      if(mediaFiles.length){
-        const token=await getToken();
-        if(!container.isConnected)return;
-        for(const f of mediaFiles){
-          const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
-          const video=/^(MP4|WEBM)$/i.test(f.extension);
-          const player=document.createElement(video?'video':'audio');
-          player.controls=true;player.preload='none';player.setAttribute('playsinline','');
-          player.setAttribute('aria-label',video?'Видеозапись встречи':'Аудиозапись встречи');
-          player.style.cssText=video?'display:block;width:100%;max-width:720px;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:8px;margin:12px 0':'display:block;width:100%;max-width:720px;margin:12px 0';
-          const status=document.createElement('div');status.setAttribute('role','status');
-          player.onerror=()=>{status.textContent='Не удалось загрузить превью. Откройте запись кнопкой выше.';};
-
-          player.addEventListener('click',e=>e.stopPropagation());
-          player.src=base+'/api/zoom/files/'+encodeURIComponent(f.id)+'?auth='+encodeURIComponent(token);
-          box.replaceChildren(player,status);
-        }
+      const groups=groupMeetingFiles(loadedRows);
+      const rows=groups.flatMap(g=>g.files);
+      const dateLabel=value=>{const d=new Date(value);return isNaN(d)?'Дата не указана':new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d)+' · Алматы';};
+      const isText=f=>/^(VTT|TXT)$/i.test(f.extension||'');
+      const fileLabel=f=>isText(f)?'Расшифровка':/^(MP4|WEBM)$/i.test(f.extension||'')?'Видеозапись':f.extension==='JSON'?'Чат и сведения':'Аудио / файл';
+      const actions=f=>`<button type="button" class="tbtn" data-open="${esc(f.id)}">${isText(f)?'Читать расшифровку':/^(MP4|WEBM)$/i.test(f.extension||'')?'Смотреть видео':fileLabel(f)}</button>${isText(f)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}`;
+      container.innerHTML=groups.length?`<h3 style="margin:24px 0 8px">История встреч · ${groups.length}</h3><p style="font-size:13px;color:var(--t3)">Статусы обновляются автоматически. Записи и расшифровки каждой встречи сохраняются отдельно.</p>`+groups.map((g,i)=>{
+        const active=g.files.filter(f=>!f.deleted_at&&f.status!=='deleted');
+        const transcript=active.find(f=>isText(f)&&f.status==='stored');
+        const primary=active.filter(f=>f.status==='stored'&&(isText(f)||/^(MP4|WEBM)$/i.test(f.extension||'')));
+        return `<section aria-label="Встреча ${esc(dateLabel(g.date))}" style="margin:16px 0;padding:18px;border:1px solid var(--b1,#ddd);border-radius:14px;background:var(--bg2,#fff)">
+          <h4 style="margin:0 0 12px;font-size:16px">${esc(dateLabel(g.date))}</h4>
+          ${!dealId?`<p>${esc(g.title)}</p>`:''}
+          <div role="status" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${meetingProgress(active).split(' · ').map(t=>`<span style="padding:7px 10px;border-radius:8px;background:var(--bg3,#f1f3f7);font-weight:600">${esc(t)}</span>`).join('')}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">${primary.sort((a,b)=>Number(isText(b))-Number(isText(a))).map(actions).join('')}</div>
+          ${active.filter(f=>f.error).map(f=>`<p role="status" style="color:var(--rd,#a32)">${esc(fileLabel(f))}: ${esc(f.error)}</p>`).join('')}
+          ${transcript?`<details ${i===0?'open':''} style="margin-top:16px" data-transcript="${esc(transcript.id)}"><summary style="cursor:pointer;font-weight:600">Текст расшифровки</summary><div data-transcript-content style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;line-height:1.65;padding-top:12px" role="status">Загружаем текст…</div></details>`:''}
+          <details style="margin-top:16px"><summary style="cursor:pointer;color:var(--t3)">Чат, файлы и управление</summary>${active.map(f=>`<div style="padding:10px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>${fileLabel(f)}${f.size>1048576?' · '+(f.size/1048576).toFixed(1)+' МБ':''}</span>${f.status==='stored'?actions(f):`<span>${esc(materialStatus(f))}</span>`}${canDelete&&f.status==='stored'?`<button type="button" class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}${!dealId?`<button type="button" class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}</div>`).join('')}</details>
+        </section>`;
+      }).join(''):'<p style="padding:20px 0">Встреч пока нет. После начала встречи здесь появятся статусы записи и расшифровки.</p>';
+      for(const detail of container.querySelectorAll('[data-transcript]')){
+        let loaded=false,busy=false;
+        const read=async()=>{
+          if(!detail.open||loaded||busy)return;busy=true;
+          const box=detail.querySelector('[data-transcript-content]');
+          try{
+            const r=await fetch(base+'/api/zoom/files/'+encodeURIComponent(detail.dataset.transcript),{headers:{Authorization:'Bearer '+await getToken()}});
+            if(!r.ok)throw new Error('Не удалось загрузить текст. Закройте и раскройте этот блок для повторной попытки.');
+            const text=transcriptText(await r.text());box.textContent=text.trim()||'Файл расшифровки пуст. Текст речи пока не получен.';loaded=true;
+          }catch(e){box.textContent=e.message;}finally{busy=false;}
+        };
+        detail.addEventListener('toggle',read);if(detail.open)void read();
       }
       if(dealId){
         const signature=JSON.stringify(loadedRows);
@@ -205,7 +215,7 @@ export function zoomClient({ base, getToken, compact = false }) {
           const tag=/^(MP4|WEBM)$/.test(ext)?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
           if(tag){
             const player=document.createElement(tag);player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
-            player.style.cssText='display:block;width:100%;max-height:65vh;margin:12px 0';
+            player.style.cssText='display:block;width:100%;max-height:65vh;object-fit:contain;background:#111;margin:12px 0';
             player.onerror=()=>{status.textContent='Не удалось воспроизвести запись. Закройте окно и откройте снова, чтобы обновить доступ.';};
             player.src=path+'?auth='+encodeURIComponent(token);box.replaceChildren(player);
           }else if(/^(VTT|TXT|JSON)$/.test(ext)) {

@@ -1,7 +1,7 @@
 import {initMeetingProgress} from './meeting-progress.js?v=20261027-progress';
-import {mountProjectMeetings} from './project-meetings.js?v=20261027-compact';
+import {mountProjectMeetings} from './project-meetings.js?v=20261027-clear';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261027-delivery';
-import {transcriptText} from './zoom-crm.js?v=20261008-transcript-recovery';
+import {transcriptText} from './zoom-crm.js?v=20261027-clear';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const when=v=>v?new Date(v).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',dateStyle:'short',timeStyle:'short'}):'Дата не указана';
