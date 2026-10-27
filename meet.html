@@ -123,7 +123,7 @@ button{font-family:inherit;cursor:pointer}
 .grid{display:grid;gap:10px;flex:1;min-height:0;grid-auto-rows:1fr}
 .screen-area{display:none;min-height:0}
 .tile{position:relative;background:#0d1322;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);min-height:120px}
-.tile video{width:100%;height:100%;object-fit:cover}
+.tile video{width:100%;height:100%;object-fit:contain;background:#0b0f1a}
 .tile.local video{transform:scaleX(-1)}
 .tile.screen video{transform:none} /* демонстрация экрана НИКОГДА не зеркалится (в т.ч. свой превью) */
 .tile.host{box-shadow:0 0 0 2px var(--bronze)} /* ведущий — бронзовая рамка */
@@ -475,6 +475,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-ratio';
 import { createMeetStorage } from "/meet-storage.js";
 const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionStorage);
 import { EdgeMaskRenderer } from '/meet-edge-mask.js';
@@ -1951,24 +1952,18 @@ async function retryRecording(){
 }
 $('rec-retry').onclick=()=>{recordingRetryCount=0;retryRecording();};
 
-function drawRecTile(ctx, tile, x,y,w,h, contain){
-  const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
-  const hasVid=v && v.srcObject && v.srcObject.getVideoTracks().length;
-  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
-  try{
-    if(hasVid && contain){
-      const vw=v.videoWidth||16, vh=v.videoHeight||9, sc=Math.min(w/vw,h/vh), dw=vw*sc, dh=vh*sc;
-      ctx.fillStyle='#000'; ctx.fillRect(x,y,w,h); ctx.drawImage(v,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
-    }
-    else if(hasVid){ ctx.drawImage(v,x,y,w,h); }
-    else{ ctx.fillStyle='#0d1322'; ctx.fillRect(x,y,w,h);
-      const r=Math.min(w,h)*0.18; ctx.fillStyle='#b8895a'; ctx.beginPath(); ctx.arc(x+w/2,y+h/2,r,0,7); ctx.fill();
-      ctx.fillStyle='#1a1206'; ctx.font=`700 ${r}px Inter,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(initials(name),x+w/2,y+h/2); }
-  }catch{}
+function drawRecTile(ctx, tile, x,y,w,h){
+  const v=tile.querySelector('video'),name=tile.querySelector('.nm')?.textContent||'';
+  const imageHeight=Math.max(1,h-24);
+  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+  ctx.fillStyle='#111827';ctx.fillRect(x,y,w,h);
+  const fit=v?.readyState>=2?containRect(v.videoWidth,v.videoHeight,x,y,w,imageHeight):null;
+  if(fit){try{ctx.drawImage(v,fit.x,fit.y,fit.width,fit.height);}catch{}}
+  else{ctx.fillStyle='#b8895a';ctx.font='600 22px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(initials(name),x+w/2,y+imageHeight/2);}
+  ctx.fillStyle='#111827';ctx.fillRect(x,y+imageHeight,w,24);
+  ctx.font='600 14px system-ui';ctx.fillStyle='#fff';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText(name,x+8,y+imageHeight+12);
   ctx.restore();
-  if(name){ ctx.save(); ctx.font='600 15px Inter,sans-serif'; const tw=Math.min(ctx.measureText(name).width,w-20);
-    ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(x+8,y+h-28,tw+14,22);
-    ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(name,x+15,y+h-17); ctx.restore(); }
 }
 
 function startRecording(){
@@ -1986,19 +1981,18 @@ async function beginRecording(){
       const tiles=[...$('screen-area').children, ...meetingGrid.children].filter(tile=>tile.classList.contains('tile'));
       const screens=tiles.filter(t=>t.dataset.kind==='screen');
       const cams=tiles.filter(t=>t.dataset.kind!=='screen');
-      if(screens.length){ // презентация: экран крупно + лица снизу
-        drawRecTile(ctx, screens[0], 0,0,1280,556, true);
-        const m=cams.length||1; const cw=Math.min(1280/m, 230); const startx=(1280-cw*m)/2;
-        cams.forEach((t,i)=> drawRecTile(ctx,t, startx+i*cw+2, 562, cw-4, 150, false));
-      }else{
-        const n=cams.length||1, cols=Math.ceil(Math.sqrt(n)), cw=1280/cols, chh=720/Math.ceil(n/cols);
-        cams.forEach((t,i)=> drawRecTile(ctx,t,(i%cols)*cw,Math.floor(i/cols)*chh,cw,chh,false));
+      for(const box of recordingLayout(cams.length,screens.length)){
+        const tile=(box.kind==='screen'?screens:cams)[box.index];
+        drawRecTile(ctx,tile,box.x,box.y,box.w,box.h);
       }
+      // Dedicated caption strip: never obscure faces, names or shared content.
       if(lastCaption && Date.now()-lastCaption.ts<6000){
-        ctx.font='600 22px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
-        const line=`${lastCaption.name}: ${lastCaption.text}`; const tw=Math.min(ctx.measureText(line).width,1180);
-        ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(640-tw/2-16,690-30,tw+32,38);
-        ctx.fillStyle='#fff'; ctx.fillText(line,640,716);
+        ctx.save();ctx.beginPath();ctx.rect(16,676,1248,40);ctx.clip();
+        ctx.font='600 20px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';
+        let line=`${lastCaption.name}: ${lastCaption.text}`;
+        while(line.length && ctx.measureText(line).width>1230)line=line.slice(0,-1);
+        if(line!==`${lastCaption.name}: ${lastCaption.text}`)line=line.slice(0,-1)+'…';
+        ctx.fillStyle='#fff';ctx.fillText(line,24,696);ctx.restore();
       }
       recRAF=setTimeout(draw,1000/MEDIA_PROFILE.recordingFps);
     };
