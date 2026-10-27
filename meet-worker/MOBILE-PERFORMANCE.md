@@ -57,3 +57,23 @@ RMSE 27.10 before, 17.36 after (~36% lower). This is an antialiasing regression
 check, not a claim of perfect segmentation or measured mobile battery savings.
 Actual hair, hands, chair discrimination and thermals still require live-camera
 checks. The current model can still misclassify background objects.
+
+### Source-guided contour reconstruction and self-view
+
+The previous alpha-only smoothing could not follow a skin/background edge in
+camera RGB. `meet-edge-mask.js` now performs joint bilateral upsampling of the
+cleaned mask using the original camera frame as guidance, in one WebGL pass.
+The nine-neighbour filter uses colour similarity and spatial distance; no extra
+model, frame loop or full-frame CPU readback is introduced. Unsupported/lost
+WebGL falls back to alpha smoothing. Contexts/textures are released on stop.
+FPS limits remain unchanged. GPU work increases and real phone thermals still
+need checking; synthetic tests do not establish real-camera segmentation quality.
+
+`guided-edge.browser-test.js` checks a shifted RGB edge against plain mask
+upsampling, untouched opaque/transparent areas, resource release, local office
+mirroring and unchanged remote orientation. Chromium edge error: 867 → 0 for
+that synthetic high-contrast case. A separate top/bottom test verified texture
+orientation. Existing Node tests also cover the fallback pipeline.
+
+All self-view previews/tiles are mirrored, including office backgrounds. Mirror
+is display-only; recorded and transmitted pixels keep their original orientation.
