@@ -1,4 +1,4 @@
-import {zoomClient} from './zoom-crm.js?v=20261027-progress';
+import {zoomClient} from './zoom-crm.js?v=20261027-compact';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const panels=new Set(),queue=[],clients=new WeakMap();let active=0;
 // Only visible cards fetch links, at most two at a time. Videos load on play.
@@ -12,7 +12,7 @@ window.addEventListener('focus',()=>{
 });
 export function mountProjectMeetings(root,dealId,getToken){
   root.classList.add('project-meetings');
-  if(!clients.has(getToken))clients.set(getToken,zoomClient({base:BASE,getToken}));
+  if(!clients.has(getToken))clients.set(getToken,zoomClient({base:BASE,getToken,compact:true}));
   const client=clients.get(getToken);
   const room=document.createElement('div'),details=document.createElement('details'),summary=document.createElement('summary'),files=document.createElement('div');
   room.textContent='Постоянная ссылка встречи';summary.textContent='Записи и расшифровки всех встреч';

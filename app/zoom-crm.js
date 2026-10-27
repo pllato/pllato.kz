@@ -35,7 +35,7 @@ export function zoomInvitation(meeting) {
   return [(isMeet(meeting)?'Pllato приглашает вас на видеовстречу Pllato Meet.':'Pllato приглашает вас на встречу в Zoom.'),meeting.topic ? 'Тема: '+meeting.topic : '',time ? 'Дата и время: '+time+' (Алматы, UTC+5)' : '', 'Подключиться к встрече:',meeting.join_url].filter(Boolean).join('\n');
 }
 // UI Zoom: все материалы открываются через авторизованный API CRM.
-export function zoomClient({ base, getToken }) {
+export function zoomClient({ base, getToken, compact = false }) {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function api(path, options = {}) {
     const r = await fetch(base + '/api/zoom' + path, { ...options, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+await getToken(), ...options.headers } });
@@ -71,6 +71,16 @@ export function zoomClient({ base, getToken }) {
       if (!container.isConnected) return;
       if(meeting?.status==='cancelled'){container.textContent='Встреча отменена';return;}
       if (meetingUrl(meeting?.join_url)) {
+        if(compact){
+          const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать ссылку';
+          copy.onclick=async e=>{
+            e.stopPropagation();
+            try{await navigator.clipboard.writeText(meeting.join_url);copy.textContent='Скопировано ✓';}
+            catch{window.prompt('Скопируйте ссылку встречи',meeting.join_url);}
+          };
+          container.replaceChildren(copy);
+          return;
+        }
         container.innerHTML = ` ${isMeet(meeting)?'':`<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>`}
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
