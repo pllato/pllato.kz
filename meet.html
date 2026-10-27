@@ -472,6 +472,10 @@ import { RecordingUpload, pendingRecordings, recoverRecording, localRecordingBlo
 // Адрес сигналинг-воркера (Cloudflare). Разверни meet-worker/ командой `wrangler deploy`.
 const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
+const MOBILE_MEDIA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const MEDIA_PROFILE = MOBILE_MEDIA
+  ? { width:960, height:540, cameraFps:24, backgroundFps:15, recordingFps:15, bitrate:1_200_000 }
+  : { width:1280, height:720, cameraFps:30, backgroundFps:24, recordingFps:25, bitrate:2_000_000 };
 const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
 const ICE_SERVERS = [
@@ -631,7 +635,7 @@ async function startPreview(){
 // чтобы отсутствие/занятость микрофона НЕ мешала камере (и наоборот). Никогда не бросает.
 async function getLocalMedia(){
   if(state.rawStream){ state.rawStream.getTracks().forEach(t=>t.stop()); }
-  const vBase = { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} };
+  const vBase = { width:{ideal:MEDIA_PROFILE.width}, height:{ideal:MEDIA_PROFILE.height}, frameRate:{ideal:MEDIA_PROFILE.cameraFps, max:MEDIA_PROFILE.cameraFps} };
   const vc = state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase;
   const ac = state.selMic ? { deviceId:{exact:state.selMic}, echoCancellation:true, noiseSuppression:true, autoGainControl:true } : { echoCancellation:true, noiseSuppression:true, autoGainControl:true };
   let stream=null, camErr=null, micErr=null;
@@ -801,6 +805,7 @@ class BgPipeline{
   setMode(m){ this.mode=m; }
   async init(){
     const ok=await ensureMediaPipe();
+    if(!this.running) return;
     if(!ok){ this.fallbackLoop(); return; }
     this.seg=new SelfieSegmentation({ locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
     this.seg.setOptions({ modelSelection:0, selfieMode:false });
@@ -810,27 +815,33 @@ class BgPipeline{
   update(stream){ if(stream && stream!==this.stream){ this.stream=stream; this.video.srcObject=stream; this.video.play().catch(()=>{}); } }
   async loop(){
     if(!this.running) return;
-    if(this.video.readyState>=2 && this.seg){ try{ await this.seg.send({image:this.video}); }catch{} }
-    requestAnimationFrame(()=>this.loop());
+    if(this.stream.getVideoTracks().some(t=>t.enabled && t.readyState!=='ended') && this.video.readyState>=2 && this.seg){ try{ await this.seg.send({image:this.video}); }catch{} }
+    if(this.running) this.timer=setTimeout(()=>this.loop(),1000/MEDIA_PROFILE.backgroundFps);
   }
   fallbackLoop(){
     if(!this.running) return;
     const w=this.video.videoWidth||1280, h=this.video.videoHeight||720;
-    if(w){ this.canvas.width=w; this.canvas.height=h; this.ctx.drawImage(this.video,0,0,w,h); }
-    requestAnimationFrame(()=>this.fallbackLoop());
+    if(this.video.readyState>=2){
+      if(this.canvas.width!==w || this.canvas.height!==h){ this.canvas.width=w; this.canvas.height=h; }
+      this.ctx.drawImage(this.video,0,0,w,h);
+    }
+    this.timer=setTimeout(()=>this.fallbackLoop(),1000/MEDIA_PROFILE.backgroundFps);
   }
   onResults(results){
+    if(!this.running) return;
     const w=results.image.width, h=results.image.height; if(!w) return;
     if(this.canvas.width!==w || this.canvas.height!==h){ this.canvas.width=w; this.canvas.height=h; }
-    if(this.mask.width!==w || this.mask.height!==h){ this.mask.width=w; this.mask.height=h; }
+    const mw=Math.min(256,w), mh=Math.max(1,Math.round(h*mw/w));
+    if(this.mask.width!==mw || this.mask.height!==mh){ this.mask.width=mw; this.mask.height=mh; }
     const ctx=this.ctx, mctx=this.mctx;
     // Маска хранит вероятность человека в alpha. CSS brightness/contrast
     // меняют RGB, но не alpha: вместе с blur(11px) это давало широкий ореол.
-    // Сглаживаем только узкую границу вероятности, сами пиксели камеры не трогаем.
-    mctx.clearRect(0,0,w,h);
+    // Уточняем alpha на маске шириной 256px, затем плавно масштабируем.
+    // Пиксели самого человека берём из исходного видео без уменьшения.
+    mctx.clearRect(0,0,mw,mh);
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
-    mctx.drawImage(results.segmentationMask,0,0,w,h);
-    const maskPixels=mctx.getImageData(0,0,w,h);
+    mctx.drawImage(results.segmentationMask,0,0,mw,mh);
+    const maskPixels=mctx.getImageData(0,0,mw,mh);
     refinePersonAlpha(maskPixels.data);
     mctx.putImageData(maskPixels,0,0);
     // 2) человек по маске
@@ -856,8 +867,13 @@ class BgPipeline{
     }
     ctx.restore();
   }
-  getStream(fps=30){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
-  stop(){ this.running=false; try{this.seg?.close();}catch{} try{this.video.srcObject=null;}catch{} }
+  getStream(fps=MEDIA_PROFILE.backgroundFps){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
+  stop(){
+    this.running=false; clearTimeout(this.timer);
+    try{ Promise.resolve(this.seg?.close()).catch(()=>{}); }catch{}
+    this._cs?.getTracks().forEach(t=>t.stop());
+    try{this.video.pause();this.video.srcObject=null;}catch{}
+  }
 }
 
 /* ============================================================
@@ -867,6 +883,7 @@ let outBg=null, outCanvas=null;
 async function buildOutStream(){
   // Превью больше не видно: не запускаем вторую модель параллельно с видеозвонком.
   if(previewBg){ previewBg.stop(); previewBg=null; }
+  $('pre-video').pause(); $('pre-video').srcObject=null;
   const audio = state.rawStream.getAudioTracks();
   const hasCam = state.rawStream.getVideoTracks().length>0;
   let videoTrack;
@@ -875,7 +892,7 @@ async function buildOutStream(){
     if(!outBg){ outBg=new BgPipeline(state.rawStream, outCanvas, state.bgMode); }
     else { outBg.setMode(state.bgMode); outBg.update(state.rawStream); }
     await new Promise(r=>setTimeout(r,500));
-    videoTrack=outBg.getStream(30).getVideoTracks()[0];
+    videoTrack=outBg.getStream().getVideoTracks()[0];
   }else{
     if(outBg){ outBg.stop(); outBg=null; }
     videoTrack=state.rawStream.getVideoTracks()[0]; // может быть undefined — тогда входим без камеры
@@ -887,7 +904,7 @@ async function buildOutStream(){
 
 // текущий исходящий видео-трек камеры (с учётом фона)
 function currentCamVideoTrack(){
-  return (state.bgMode!=='none' && outBg) ? outBg.getStream(30).getVideoTracks()[0] : state.rawStream.getVideoTracks()[0];
+  return (state.bgMode!=='none' && outBg) ? outBg.getStream().getVideoTracks()[0] : state.rawStream.getVideoTracks()[0];
 }
 
 // сменить фон во время встречи
@@ -921,7 +938,7 @@ async function tuneVideoSender(sender, { maxBitrate, maxFramerate=30, hint='moti
   try{ await apply(true); } catch(e){ try{ await apply(false); }catch{} }
 }
 // битрейты подобраны под 2–4 участника: камера ~2 Мбит/с, экран ~4 Мбит/с (чёткий текст)
-function tuneCamSender(sender){ return tuneVideoSender(sender, { maxBitrate: 2_000_000, maxFramerate: 30, hint:'motion' }); }
+function tuneCamSender(sender){ return tuneVideoSender(sender, { maxBitrate: MEDIA_PROFILE.bitrate, maxFramerate: MEDIA_PROFILE.cameraFps, hint:'motion' }); }
 function tuneScreenSender(sender){ return tuneVideoSender(sender, { maxBitrate: 4_000_000, maxFramerate: 30, hint:'detail' }); }
 
 // заменить исходящий видео-трек камеры у всех пиров
@@ -1230,8 +1247,8 @@ function monitorLocalAudio(){
     const src=ac.createMediaStreamSource(state.rawStream);
     const an=ac.createAnalyser(); an.fftSize=512; src.connect(an);
     const buf=new Uint8Array(an.frequencyBinCount);
-    const tick=()=>{ if(!localTile){ localMeterOn=false; return; } an.getByteFrequencyData(buf);
-      const v=buf.reduce((a,b)=>a+b,0)/buf.length; localTile.classList.toggle('speaking', state.micOn && v>22); requestAnimationFrame(tick); };
+    const tick=()=>{ if(!localTile || !state._joined){ localMeterOn=false; src.disconnect(); an.disconnect(); return; } an.getByteFrequencyData(buf);
+      const v=buf.reduce((a,b)=>a+b,0)/buf.length; localTile.classList.toggle('speaking', state.micOn && v>22); setTimeout(tick,150); };
     tick();
   }catch{}
 }
@@ -1290,7 +1307,7 @@ function monitorAudioLevel(peer){
     const src=ac.createMediaStreamSource(peer.camStream);
     const an=ac.createAnalyser(); an.fftSize=512; src.connect(an);
     const buf=new Uint8Array(an.frequencyBinCount); peer._meter=an;
-    const tick=()=>{ if(!peers.has(peerIdOf(peer))) return; an.getByteFrequencyData(buf); const v=buf.reduce((a,b)=>a+b,0)/buf.length; peer.tile?.classList.toggle('speaking', v>22); requestAnimationFrame(tick); };
+    const tick=()=>{ if(!peers.has(peerIdOf(peer))){ src.disconnect(); an.disconnect(); return; } an.getByteFrequencyData(buf); const v=buf.reduce((a,b)=>a+b,0)/buf.length; peer.tile?.classList.toggle('speaking', v>22); setTimeout(tick,150); };
     tick();
   }catch{}
 }
@@ -1586,6 +1603,7 @@ function connectRecordingAudio(stream){
   }
 }
 function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window.webkitAudioContext)(); return mixAC; }
+let recMixed=null;
 let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
 let recUpload=null, recStarting=null, recSaving=null, recordingSaved=false;
 function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording().catch(e=>toast(e.message)); }
@@ -1618,8 +1636,9 @@ function startRecording(){
 }
 async function beginRecording(){
   try{
-    recCanvas=document.createElement('canvas'); recCanvas.width=1280; recCanvas.height=720;
+    recCanvas=document.createElement('canvas'); recCanvas.width=MEDIA_PROFILE.width; recCanvas.height=MEDIA_PROFILE.height;
     const ctx=recCanvas.getContext('2d');
+    ctx.scale(recCanvas.width/1280,recCanvas.height/720);
     const draw=()=>{
       ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,1280,720);
       const tiles=[...document.querySelectorAll('#screen-area .tile, #video-grid .tile')];
@@ -1639,17 +1658,18 @@ async function beginRecording(){
         ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(640-tw/2-16,690-30,tw+32,38);
         ctx.fillStyle='#fff'; ctx.fillText(line,640,716);
       }
-      recRAF=requestAnimationFrame(draw);
+      recRAF=setTimeout(draw,1000/MEDIA_PROFILE.recordingFps);
     };
     draw();
-    const canvasStream=recCanvas.captureStream(25);
+    const canvasStream=recCanvas.captureStream(MEDIA_PROFILE.recordingFps);
     const ac=getMixAudioContext(); await ac.resume(); recDest=ac.createMediaStreamDestination();
     const addAudio=connectRecordingAudio;
     addAudio(state.rawStream); addAudio(state.screenStream);
     for(const peer of peers.values()) addAudio(peer.camStream);
 
     const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
-    recMime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+    recMixed=mixed;
+    recMime=['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/mp4','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
 
     recStartTs=Date.now(); recordingSaved=false;
     const id=state.roomId+'-'+recStartTs;
@@ -1667,7 +1687,7 @@ async function beginRecording(){
     $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
     toast('Запись включена. После выхода встреча появится в архиве.');
   }catch(e){
-    if(recRAF) cancelAnimationFrame(recRAF);
+    releaseRecordingMedia();
     recUpload=null;
     toast('Запись не началась: '+e.message+'. Чат и расшифровка сохранятся при выходе.',15000);
   }
@@ -1677,12 +1697,18 @@ function stopRecording(){
   if(!state.recording) return Promise.resolve();
   state.recording=false;
   recSaving=new Promise((resolve,reject)=>{
-    mediaRecorder.onstop=()=>finalizeRecording().then(resolve,reject);
+    mediaRecorder.onstop=()=>{ releaseRecordingMedia(); finalizeRecording().then(resolve,reject); };
     try{ mediaRecorder.stop(); }catch(e){ reject(e); }
   }).finally(()=>{recSaving=null;});
-  if(recRAF)cancelAnimationFrame(recRAF);
+  if(recRAF)clearTimeout(recRAF);
   $('rec-indicator').classList.add('hidden'); refreshControlIcons();
   return recSaving;
+}
+function releaseRecordingMedia(){
+  clearTimeout(recRAF); recRAF=null;
+  recMixed?.getTracks().forEach(t=>t.stop()); recMixed=null;
+  for(const src of recordingAudioSources.values()) src.disconnect();
+  recordingAudioSources.clear(); recDest=null;
 }
 async function finalizeRecording(){
   if(!recUpload) return;
