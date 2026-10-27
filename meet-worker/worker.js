@@ -329,6 +329,7 @@ export class MeetRoom {
       name: String((isHost && verifiedName) || m.name || 'Гость').slice(0, 60),
       role: isHost ? 'host' : 'guest',
       admitted,
+      mobileMedia: m.mobileMedia === true,
       micOn: m.micOn !== false,
       camOn: m.camOn !== false,
       camStreamId: typeof m.camStreamId === 'string' ? m.camStreamId : null,

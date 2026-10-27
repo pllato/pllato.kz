@@ -5,8 +5,8 @@ const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
 let resolveReady, created=0, sent=0, stopped=0, cleared=0;
 const profileCode=script.slice(script.indexOf('const MOBILE_MEDIA'),script.indexOf('const LOGO_URL'));
 for(const [navigator,expected] of [
-  [{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:5},540],
-  [{userAgent:'Mozilla Macintosh',platform:'MacIntel',maxTouchPoints:5},540],
+  [{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:5},360],
+  [{userAgent:'Mozilla Macintosh',platform:'MacIntel',maxTouchPoints:5},360],
   [{userAgent:'Mozilla Macintosh',platform:'MacIntel',maxTouchPoints:0},720],
 ]) {
   const device=vm.createContext({navigator});
@@ -27,3 +27,34 @@ p.onResults({image:{width:960,height:540},segmentationMask:{}});assert.equal(p.m
 p.stop();await p.loop();assert.equal(sent,1);assert.equal(stopped,1);assert.ok(cleared>=2);
 console.log('PASS: bounded frame scheduling, compact mask/full output, stop-during-init, capture track cleanup');
 })();
+
+
+// Receiver-aware limits prevent a desktop sender from feeding HD30 to phones.
+(async()=>{
+const applied=[];
+const tune=vm.createContext({MOBILE_MEDIA:false,MEDIA_PROFILE:{bitrate:2_000_000,cameraFps:30}});
+vm.runInContext(script.slice(script.indexOf('async function tuneVideoSender('),script.indexOf('// заменить исходящий видео-трек')),tune);
+const sender={track:{getSettings:()=>({width:1280,height:720})},getParameters:()=>({encodings:[{}]}),setParameters:async p=>applied.push(p)};
+await tune.tuneCamSender(sender,{info:{mobileMedia:true}});
+assert.equal(applied[0].encodings[0].maxFramerate,15);
+assert.equal(applied[0].encodings[0].maxBitrate,600000);
+assert.equal(applied[0].encodings[0].scaleResolutionDownBy,2);
+assert.equal(applied[0].degradationPreference,'balanced');
+await tune.tuneCamSender(sender,{info:{mobileMedia:false}});
+assert.equal(applied[1].encodings[0].scaleResolutionDownBy,1);
+assert.equal(applied[1].encodings[0].maxFramerate,30);
+const mobile=vm.createContext({navigator:{userAgent:'Android',platform:'Linux',maxTouchPoints:5}});
+vm.runInContext(profileCode,mobile);
+assert.equal(mobile.deviceBackground('office-host'),'none');
+assert.equal(mobile.deviceBackground('blur'),'none');
+console.log('PASS: mobile backgrounds disabled and receiver-aware camera limits');
+})().catch(e=>{console.error(e);process.exitCode=1;});
+
+(async()=>{
+  const camera={kind:'video'},mic={kind:'audio'};
+  class Stream{constructor(){this.tracks=[]}addTrack(t){this.tracks.push(t)}getVideoTracks(){return this.tracks.filter(t=>t.kind==='video')}getAudioTracks(){return this.tracks.filter(t=>t.kind==='audio')}}
+  const c=vm.createContext({MOBILE_MEDIA:true,previewBg:null,state:{bgMode:'office-host',rawStream:{getVideoTracks:()=>[camera],getAudioTracks:()=>[mic]}},MediaStream:Stream,$:()=>({pause(){},srcObject:null}),BgPipeline:class{constructor(){throw new Error('Mobile must never initialize segmentation')}},document:{createElement(){throw new Error('Mobile must not create a compositing canvas')}}});
+  vm.runInContext(script.slice(script.indexOf('let outBg=null'),script.indexOf('// текущий исходящий видео-трек')),c);
+  await c.buildOutStream();assert.equal(c.state.outStream.getVideoTracks()[0],camera);assert.equal(c.state.outStream.getAudioTracks()[0],mic);
+  console.log('PASS: mobile sends original tracks even with stale background setting');
+})().catch(e=>{console.error(e);process.exitCode=1;});
