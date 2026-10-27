@@ -259,6 +259,7 @@ button{font-family:inherit;cursor:pointer}
 .arch-meta{font-size:12px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arch-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 @media(max-width:560px){.arch-item{flex-direction:column;align-items:stretch}.arch-actions{justify-content:flex-end}}
+.mobile-light .stage.presenting .grid{backdrop-filter:none;box-shadow:none}
 </style>
 </head>
 <body>
@@ -481,8 +482,9 @@ const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
 const MOBILE_MEDIA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const MEDIA_PROFILE = MOBILE_MEDIA
-  ? { width:960, height:540, cameraFps:24, backgroundFps:15, maskWidth:384, recordingFps:15, bitrate:1_200_000 }
+  ? { width:640, height:360, cameraFps:15, backgroundFps:8, maskWidth:256, recordingFps:8, bitrate:600_000 }
   : { width:1280, height:720, cameraFps:30, backgroundFps:20, maskWidth:512, recordingFps:25, bitrate:2_000_000 };
+function deviceBackground(mode){ return MOBILE_MEDIA ? 'none' : mode; }
 const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
 const ICE_SERVERS = [
@@ -537,7 +539,7 @@ const state = {
   isHost: false,
   hostKey: null,
   name: localStorage.getItem(LS.name) || '',
-  micOn: true, camOn: true, bgMode: 'office-client', // role-specific office background on every entry
+  micOn: true, camOn: true, bgMode: deviceBackground('office-client'), // role-specific office background on every entry
   sharing: false, captioning: false, recording: false, locked: false,
   rawStream: null,        // camera+mic from getUserMedia
   outStream: null,        // what we send (processed video + mic audio)
@@ -570,7 +572,7 @@ function gotoPrejoin(roomId){
   if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
   $('pre-roomname').textContent = 'Комната: '+roomId;
   const host=!!state.hostKey || myMeetSlug()===roomId;
-  state.bgMode=host?'office-host':'office-client'; state.camOn=true; state.noCameraConfirmed=false;
+  state.bgMode=deviceBackground(host?'office-host':'office-client'); state.camOn=true; state.noCameraConfirmed=false;
   $('btn-enter').textContent=host?'Начать как организатор':'Войти во встречу';
   $('pre-invite').onclick=()=>shareInvite(shortLink(roomId));
   $('pre-login').classList.toggle('hidden', !!sessionUser());
@@ -653,7 +655,7 @@ async function startPreview(){
 async function getLocalMedia(){
   state.mediaReady=false; state.noCameraConfirmed=false;
   if(state.rawStream){ state.rawStream.getTracks().forEach(t=>t.stop()); }
-  const vBase = { width:{ideal:MEDIA_PROFILE.width}, height:{ideal:MEDIA_PROFILE.height}, frameRate:{ideal:MEDIA_PROFILE.cameraFps, max:MEDIA_PROFILE.cameraFps} };
+  const vBase = { width:{ideal:MEDIA_PROFILE.width,...(MOBILE_MEDIA?{max:640}:{})}, height:{ideal:MEDIA_PROFILE.height,...(MOBILE_MEDIA?{max:360}:{})}, frameRate:{ideal:MEDIA_PROFILE.cameraFps, max:MEDIA_PROFILE.cameraFps} };
   const vc = state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase;
   const ac = state.selMic ? { deviceId:{exact:state.selMic}, echoCancellation:true, noiseSuppression:true, autoGainControl:true } : { echoCancellation:true, noiseSuppression:true, autoGainControl:true };
   let stream=null, camErr=null, micErr=null;
@@ -757,18 +759,19 @@ $('pre-name').oninput = (e)=>{ state.name=e.target.value; };
 
 // background mode UI (используется и в превью, и в комнате)
 function applyBgUI(){
-  const label=$('pre-background-label'); if(label) label.textContent=state.bgMode==='office-host'?'Фон ведущего: ресепшен Pllato':(state.bgMode==='office-client'?'Фон клиента: офис Pllato':'');
+  const label=$('pre-background-label'); if(label) label.textContent=MOBILE_MEDIA?'Лёгкий режим: камера без виртуального фона, меньше нагрузка и расход батареи.':state.bgMode==='office-host'?'Фон ведущего: ресепшен Pllato':(state.bgMode==='office-client'?'Фон клиента: офис Pllato':'');
   document.querySelectorAll('#bg-options .bg-opt, #r-bg-options .bg-opt').forEach(b=> b.classList.toggle('active', b.dataset.bg===state.bgMode));
-  const d=$('bg-desc'); if(d) d.textContent = state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':(state.bgMode==='office-host'?'— ресепшен Pllato':(state.bgMode==='office-client'?'— офис Pllato':'')));
+  document.querySelectorAll('.bg-opt').forEach(b=>{b.disabled=MOBILE_MEDIA && b.dataset.bg!=='none';});
+  const d=$('bg-desc'); if(d) d.textContent = MOBILE_MEDIA?'— лёгкий режим, без обработки фона':state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':(state.bgMode==='office-host'?'— ресепшен Pllato':(state.bgMode==='office-client'?'— офис Pllato':'')));
 }
-document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=b.dataset.bg; localStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
+document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=deviceBackground(b.dataset.bg); localStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
 
 function renderPreview(){
   const v=$('pre-video'), c=$('pre-canvas'), nov=$('pre-novid');
   c.style.transform='scaleX(-1)';
   if(!state.camOn){ v.classList.add('hidden'); c.classList.add('hidden'); nov.classList.remove('hidden'); $('pre-avatar').textContent=initials(state.name); if(previewBg){previewBg.stop();previewBg=null;} return; }
   nov.classList.add('hidden');
-  if(state.bgMode!=='none'){
+  if(!MOBILE_MEDIA && state.bgMode!=='none'){
     v.classList.add('hidden'); c.classList.remove('hidden');
     if(!previewBg) previewBg = new BgPipeline(state.rawStream, c, state.bgMode);
     else { previewBg.setMode(state.bgMode); previewBg.update(state.rawStream); }
@@ -1008,7 +1011,7 @@ async function buildOutStream(){
   const audio = state.rawStream.getAudioTracks();
   const hasCam = state.rawStream.getVideoTracks().length>0;
   let videoTrack;
-  if(hasCam && state.bgMode!=='none'){
+  if(hasCam && !MOBILE_MEDIA && state.bgMode!=='none'){
     if(!outCanvas){ outCanvas=document.createElement('canvas'); }
     if(!outBg){ outBg=new BgPipeline(state.rawStream, outCanvas, state.bgMode); }
     else { outBg.setMode(state.bgMode); outBg.update(state.rawStream); }
@@ -1030,6 +1033,7 @@ function currentCamVideoTrack(){
 
 // сменить фон во время встречи
 async function setBgRuntime(mode){
+  mode=deviceBackground(mode);
   state.bgMode=mode; localStorage.setItem(LS.bg,mode); applyBgUI();
   if(mode!=='none'){
     if(!outCanvas) outCanvas=document.createElement('canvas');
@@ -1044,7 +1048,7 @@ async function setBgRuntime(mode){
    Главный рычаг «картинка чёткая всегда»: degradationPreference='maintain-resolution'
    заставляет браузер при нехватке канала ронять частоту кадров, а НЕ разрешение.
    Плюс явный высокий битрейт и contentHint (motion для лица, detail для экрана). */
-async function tuneVideoSender(sender, { maxBitrate, maxFramerate=30, hint='motion' }={}){
+async function tuneVideoSender(sender, { maxBitrate, maxFramerate=30, hint='motion', maxDimension=0, light=false }={}){
   if(!sender) return;
   try{ if(sender.track) sender.track.contentHint = hint; }catch{}
   const apply = async (withDeg)=>{
@@ -1052,20 +1056,27 @@ async function tuneVideoSender(sender, { maxBitrate, maxFramerate=30, hint='moti
     if(!p.encodings || !p.encodings.length) p.encodings=[{}];
     p.encodings[0].maxBitrate = maxBitrate;
     if(maxFramerate) p.encodings[0].maxFramerate = maxFramerate;
-    p.encodings[0].scaleResolutionDownBy = 1; // не уменьшать разрешение
-    if(withDeg) p.degradationPreference = 'maintain-resolution';
+    const size=sender.track?.getSettings?.()||{};
+    p.encodings[0].scaleResolutionDownBy = maxDimension ? Math.max(1,(size.width||maxDimension)/maxDimension,(size.height||maxDimension)/maxDimension) : 1;
+    if(withDeg) p.degradationPreference = light?'balanced':'maintain-resolution';
     await sender.setParameters(p);
   };
   try{ await apply(true); } catch(e){ try{ await apply(false); }catch{} }
 }
 // битрейты подобраны под 2–4 участника: камера ~2 Мбит/с, экран ~4 Мбит/с (чёткий текст)
-function tuneCamSender(sender){ return tuneVideoSender(sender, { maxBitrate: MEDIA_PROFILE.bitrate, maxFramerate: MEDIA_PROFILE.cameraFps, hint:'motion' }); }
-function tuneScreenSender(sender){ return tuneVideoSender(sender, { maxBitrate: 4_000_000, maxFramerate: 30, hint:'detail' }); }
+function tuneCamSender(sender,peer){
+  const light=MOBILE_MEDIA || peer?.info?.mobileMedia===true;
+  return tuneVideoSender(sender,{maxBitrate:light?600_000:MEDIA_PROFILE.bitrate,maxFramerate:light?15:MEDIA_PROFILE.cameraFps,maxDimension:light?640:0,light,hint:'motion'});
+}
+function tuneScreenSender(sender,peer){
+  const light=MOBILE_MEDIA || peer?.info?.mobileMedia===true;
+  return tuneVideoSender(sender,{maxBitrate:light?1_200_000:4_000_000,maxFramerate:light?10:30,maxDimension:light?1280:0,light,hint:'detail'});
+}
 
 // заменить исходящий видео-трек камеры у всех пиров
 async function applyCameraVideoToPeers(){
   const track=currentCamVideoTrack();
-  for(const peer of peers.values()){ if(peer.camSender && track){ try{ await peer.camSender.replaceTrack(track); await tuneCamSender(peer.camSender); }catch{} } }
+  for(const peer of peers.values()){ if(peer.camSender && track){ try{ await peer.camSender.replaceTrack(track); await tuneCamSender(peer.camSender,peer); }catch{} } }
 }
 // заменить исходящий аудио-трек у всех пиров (после смены микрофона)
 async function applyAudioToPeers(){
@@ -1100,7 +1111,7 @@ function connectWS(){
   catch(e){ showSignalError(); return; }
 
   clearTimeout(wsConnectTimeout); wsConnectTimeout=setTimeout(()=>{ if(!state._everConnected){ ws?.close(); showSignalError(); } },15000);
-  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, token: sessionToken(), micOn:state.micOn, camOn:state.camOn,
+  ws.onopen=()=>{ wsSend({ t:'join', mobileMedia:MOBILE_MEDIA, peer:peerId, name:state.name, hostKey, token: sessionToken(), micOn:state.micOn, camOn:state.camOn,
     camStreamId: state.outStream?.id||null, sharing: state.sharing||false,
     screenStreamId: state.sharing? state.screenStream?.id : null }); };
   ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleWsMessage(m); };
@@ -1250,8 +1261,8 @@ function ensurePeer(id, info){
     const st=pc.connectionState;
     if(st==='connected'){
       // применяем параметры качества, когда дорожки уже согласованы
-      tuneCamSender(peer.camSender);
-      if(peer.screenSender) tuneScreenSender(peer.screenSender);
+      tuneCamSender(peer.camSender,peer);
+      if(peer.screenSender) tuneScreenSender(peer.screenSender,peer);
     }
     if(st==='failed'){ try{pc.restartIce();}catch{} }
   };
@@ -1365,7 +1376,7 @@ function setupLocalTile(){
 let localMeterOn=false;
 function monitorLocalAudio(){
   try{
-    if(localMeterOn || !state.rawStream?.getAudioTracks().length) return;
+    if(MOBILE_MEDIA || localMeterOn || !state.rawStream?.getAudioTracks().length) return;
     localMeterOn=true;
     const ac=getMixAudioContext();
     const src=ac.createMediaStreamSource(state.rawStream);
@@ -1425,6 +1436,7 @@ function relayoutGrid(){
 
 /* active-speaker highlight via WebAudio */
 function monitorAudioLevel(peer){
+  if(MOBILE_MEDIA) return;
   try{
     if(peer._meter) return;
     if(!peer.camStream.getAudioTracks().length) return;
@@ -1511,7 +1523,7 @@ async function toggleShare(){
     try{
       // окно приложения/экран до 1080p + звук; displaySurface:'window' открывает пикер сразу на вкладке «Окно»
       state.screenStream=await navigator.mediaDevices.getDisplayMedia({
-        video:{ displaySurface:'window', frameRate:{ideal:30, max:30}, width:{ideal:1920}, height:{ideal:1080} },
+        video:{ displaySurface:'window', frameRate:{ideal:MOBILE_MEDIA?10:30,max:MOBILE_MEDIA?10:30}, width:{ideal:MOBILE_MEDIA?1280:1920}, height:{ideal:MOBILE_MEDIA?720:1080} },
         audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false },
         surfaceSwitching:'include', selfBrowserSurface:'exclude'
       });
@@ -1525,7 +1537,7 @@ async function toggleShare(){
       for(const peer of peers.values()){
         try{
           peer.screenSender = peer.pc.addTrack(st, state.screenStream);
-          tuneScreenSender(peer.screenSender);
+          tuneScreenSender(peer.screenSender,peer);
           if(sa) peer.screenAudioSender = peer.pc.addTrack(sa, state.screenStream);
         }catch{}
       }
@@ -1802,13 +1814,13 @@ async function beginRecording(){
 
     const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
     recMixed=mixed;
-    recMime=['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/mp4','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+    recMime=(MOBILE_MEDIA?['video/mp4','video/webm;codecs=vp8,opus','video/webm']:['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/mp4','video/webm']).find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
 
     recStartTs=Date.now(); recordingSaved=false;
     const id=state.roomId+'-'+recStartTs;
     recUpload=new RecordingUpload(MEET_API, buildMeta(id), archiveToken);
     await recUpload.init();
-    mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime});
+    mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime,...(MOBILE_MEDIA?{videoBitsPerSecond:600_000,audioBitsPerSecond:48_000}:{})});
     mediaRecorder.ondataavailable=e=>{
       if(e.data.size) recUpload.append(e.data, buildMeta(id)).catch(e=>{
         toast('Запись остановлена: '+e.message,10000);
@@ -1964,6 +1976,7 @@ function showTranscriptModal(it){
    BOOT
    ============================================================ */
 (function boot(){
+  document.documentElement.classList.toggle('mobile-light',MOBILE_MEDIA);
   loadLogo();
   // если сотрудник вошёл в Pllato — берём имя и личную постоянную ссылку из аккаунта
   try{

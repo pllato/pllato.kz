@@ -77,3 +77,24 @@ orientation. Existing Node tests also cover the fallback pipeline.
 
 All self-view previews/tiles are mirrored, including office backgrounds. Mirror
 is display-only; recorded and transmitted pixels keep their original orientation.
+
+### Mobile light mode (2026-10-27, supersedes mobile background defaults)
+
+Phones/tablets always use original camera tracks: no segmentation or GPU edge
+renderer. Background controls are disabled and the prejoin explains light mode.
+Desktop office backgrounds remain unchanged. Camera: 640x360/15 fps, 600 kbps.
+Signaling carries mobile capability so desktop peers send phones <=640 px/15 fps
+camera streams. Screen reception: 1280 px/10 fps, 1.2 Mbps. Both sides must reload.
+Mobile active-speaker FFT loops and presentation backdrop blur are disabled.
+
+Organizer recording stays enabled at 640x360/8 fps, 600 kbps video/48 kbps audio.
+MP4 is preferred when supported, then VP8/WebM. Chat, browser speech recognition,
+CRM attachment and local recovery stay active. Recording on the organizer phone
+still costs battery; this is not a thermal or zero-lag guarantee.
+
+Verified mobile emulation (390x844, iPhone UA, 4x CPU slowdown) with synthetic
+camera: bounded constraints, direct preview, hidden processing canvas, zero
+MediaPipe/WASM requests and disabled effects. Synthetic recording produced MP4
+bytes without stopping camera. Node checks cover iPhone/iPad/Android selection,
+raw-track forwarding with stale office settings, desktop-to-mobile sender limits
+and unchanged desktop tuning. Real-device thermals/full calls remain unverified.
