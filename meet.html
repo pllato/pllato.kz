@@ -1006,7 +1006,11 @@ class BgPipeline{
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     ctx.drawImage(refinedMask,0,0,w,h);
     ctx.globalCompositeOperation='source-in';
+    // Subpixel softness reduces camera oversharpening without changing the
+    // refined silhouette. Reuse the existing desktop draw; mobile stays raw.
+    ctx.filter=`blur(${(0.45*h/720).toFixed(2)}px) contrast(0.98) brightness(1.01)`;
     ctx.drawImage(results.image,0,0,w,h);
+    ctx.filter='none';
     // 3) фон позади человека
     ctx.globalCompositeOperation='destination-over';
     if(this.mode.startsWith('office-')){
