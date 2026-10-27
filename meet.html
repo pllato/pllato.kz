@@ -257,7 +257,7 @@ button{font-family:inherit;cursor:pointer}
 .arch-main{min-width:0;flex:1}
 .arch-title{font-size:14.5px;font-weight:700}
 .arch-meta{font-size:12px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.arch-actions{display:flex;gap:6px;flex-shrink:0}
+.arch-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 @media(max-width:560px){.arch-item{flex-direction:column;align-items:stretch}.arch-actions{justify-content:flex-end}}
 </style>
 </head>
@@ -333,6 +333,9 @@ button{font-family:inherit;cursor:pointer}
       <div class="prejoin-form">
         <h2>Готовы к встрече?</h2>
         <div class="room-name" id="pre-roomname"></div>
+        <button class="btn btn-ghost" id="pre-invite" style="margin-bottom:12px">Скопировать приглашение</button>
+        <a class="btn btn-ghost hidden" id="pre-login">Вход организатора через Google</a>
+        <p class="sub" style="font-size:12px">Организатор записывает встречу. Запись, чат и доступная расшифровка сохраняются в его архиве.</p>
         <div class="field">
           <label class="label">Ваше имя</label>
           <input class="input" id="pre-name" placeholder="Как вас представить" maxlength="40">
@@ -412,7 +415,8 @@ button{font-family:inherit;cursor:pointer}
       </div>
       <!-- Transcript -->
       <div class="side-pane" id="pane-transcript" style="flex:1;overflow:hidden;flex-direction:column;display:none">
-        <div class="side-content" id="trn-list"><div class="trn-empty">Транскрипция появится здесь, когда кто-то заговорит.<br>Нажмите «Субтитры» внизу, чтобы записывать свою речь.</div></div>
+        <div style="padding:10px 14px;font-size:12px" id="trn-status">Расшифровка выключена</div><button class="btn btn-ghost" id="trn-toggle">Включить расшифровку</button>
+        <div class="side-content" id="trn-list"><div class="trn-empty">Транскрипция появится здесь, когда кто-то заговорит.<br>Распознавание запускается автоматически, если его поддерживает браузер.</div></div>
         <div style="padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:8px">
           <button class="btn btn-ghost" style="flex:1;font-size:12.5px;padding:9px" id="trn-download">Скачать .txt</button>
           <select class="select" id="trn-lang" style="width:auto;flex-shrink:0">
@@ -457,7 +461,8 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
-import { getSession } from './pllato-kz-shared/pllato-api.js';
+import { getSession } from '/pllato-kz-shared/pllato-api.js';
+import { RecordingUpload, pendingRecordings, recoverRecording, localRecordingBlob } from '/meet-recording.js';
 /* ============================================================
    Pllato Meet — WebRTC mesh + Cloudflare Worker (Durable Object) signaling
    Single-link rooms · waiting room · recording · live transcript
@@ -485,8 +490,10 @@ const LS = {
 };
 // владелец архива (стабильный id): email сотрудника, либо случайный для гостя
 function archiveOwner(){
+  const user=sessionUser();
+  if(user?.email) return meetSlug(user.email);
   let o = localStorage.getItem(LS.archiveOwner);
-  if(!o){ o = 'g_'+Math.random().toString(36).slice(2,10); localStorage.setItem(LS.archiveOwner, o); }
+  if(!o || !o.startsWith('g_')){ o='g_'+crypto.randomUUID(); localStorage.setItem(LS.archiveOwner,o); }
   return o;
 }
 function rndRoom(){ const c='abcdefghijkmnpqrstuvwxyz23456789'; let s=''; for(let i=0;i<9;i++){ s+=c[Math.floor(Math.random()*c.length)]; if(i===2||i===5)s+='-'; } return s; }
@@ -529,23 +536,33 @@ const presenceCache = new Map(); // peerId -> info
 function parseRoomFromInput(v){
   v=String(v||'').trim();
   if(!v) return '';
-  try{ const u=new URL(v); const r=u.searchParams.get('room'); if(r) return r; }catch{}
-  return v.replace(/[^a-z0-9\-]/gi,'').toLowerCase();
+  try{
+    if(v.includes('/') || v.includes('?')){
+      const u=new URL(v, location.origin);
+      v=u.searchParams.get('room') || u.pathname.match(/^\/m\/([a-z0-9_-]+)\/?$/i)?.[1] || '';
+    }
+  }catch{ return ''; }
+  return /^[a-z0-9_-]{1,64}$/i.test(v) ? v.toLowerCase() : '';
 }
 function gotoPrejoin(roomId){
   state.roomId = roomId;
   // host key per room (persisted) — the creator/owner of this room on this browser
   state.hostKey = localStorage.getItem(LS.hostKeyPrefix+roomId) || null;
   // keep short /m/<slug> URLs in the bar; otherwise normalise to ?room=
-  if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/m/'+encodeURIComponent(roomId));
+  if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
   $('pre-roomname').textContent = 'Комната: '+roomId;
+  const host=!!state.hostKey || myMeetSlug()===roomId;
+  $('btn-enter').textContent=host?'Начать как организатор':'Войти во встречу';
+  $('pre-invite').onclick=()=>shareInvite(shortLink(roomId));
+  $('pre-login').classList.toggle('hidden', !!sessionUser());
+  $('pre-login').href='/login.html?next='+encodeURIComponent('/meet.html?room='+roomId);
   showScreen('screen-prejoin');
   startPreview();
 }
 
 function slugify(v){ return String(v||'').toLowerCase().replace(/[^a-z0-9\-]/g,'').slice(0,24); }
-function shortLink(slug){ return location.origin+'/m/'+slug; }
-function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+Math.random().toString(36).slice(2); localStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
+function shortLink(slug){ return location.origin+'/meet.html?room='+encodeURIComponent(slug); }
+function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+crypto.randomUUID(); localStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
 // личный видеокабинет менеджера из email — тот же алгоритм, что в meet-worker
 function meetSlug(email){ return 'u-'+String(email||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
 function sessionUser(){ try{ return getSession()?.user || null; }catch{ return null; } }
@@ -559,7 +576,7 @@ $('btn-my-room').onclick = ()=>{
   if(!r){ r = rndRoom().replace(/-/g,'').slice(0,5); }
   localStorage.setItem(LS.myroom, r);
   // owner of "my room" is host on this device (persistent host across all future visits)
-  if(!localStorage.getItem(LS.hostKeyPrefix+r)) localStorage.setItem(LS.hostKeyPrefix+r, 'hk_'+Math.random().toString(36).slice(2));
+  if(!localStorage.getItem(LS.hostKeyPrefix+r)) localStorage.setItem(LS.hostKeyPrefix+r, 'hk_'+crypto.randomUUID());
   gotoPrejoin(r);
 };
 $('my-slug').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-my-room').click(); });
@@ -589,7 +606,9 @@ function renderCabinet(){
     $('cab-enter').onclick=()=> gotoPrejoin(slug);
     $('cab-copy').onclick=()=> shareInvite(link, u.name||'');
   }else{
-    box.innerHTML=`<div class="cabinet cab-guest">Войдите под своим Google-аккаунтом Pllato, чтобы получить постоянный личный видеокабинет. Либо создайте разовую встречу ниже.</div>`;
+    box.innerHTML=`<div class="cabinet cab-guest">Войдите под своим Google-аккаунтом Pllato, чтобы получить постоянный личный видеокабинет. Либо создайте разовую встречу ниже.
+      <a class="btn btn-primary" style="display:block;margin-top:12px" href="/login.html?next=%2Fmeet.html">Войти через Google</a>
+      <div class="cab-note">Без входа роль организатора и архив доступны только в этом браузере.</div></div>`;
   }
 }
 
@@ -677,7 +696,7 @@ async function populateDevices(){
 $('sel-cam').onchange = async (e)=>{ state.selCam=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
 $('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
 // устройства подключили/отключили (например, надели наушники) — обновляем списки
-navigator.mediaDevices.addEventListener?.('devicechange', async ()=>{
+navigator.mediaDevices?.addEventListener?.('devicechange', async ()=>{
   try{ await populateDevices(); }catch{}
   if(state._joined) toast('Список устройств обновился — выберите наушники/микрофон в «Настройках»');
 });
@@ -729,8 +748,13 @@ $('btn-enter').onclick = async ()=>{
   }
   state.name = typed || u?.name || ('Гость-'+peerId.slice(2,5));
   localStorage.setItem(LS.name, state.name);
-  await buildOutStream();
-  enterRoom();
+  const btn=$('btn-enter'); btn.disabled=true;
+  try{
+    if(!state.rawStream) await getLocalMedia();
+    await getMixAudioContext().resume();
+    await buildOutStream();
+    enterRoom();
+  }catch(e){ btn.disabled=false; toast('Не удалось войти: '+e.message); }
 };
 $('pre-name').addEventListener('input', e=>{ e.target.style.borderColor=''; });
 
@@ -917,13 +941,13 @@ async function changeDevicesRuntime(){
   await applyCameraVideoToPeers();
   await applyAudioToPeers();
   setLocalTileStream();
-  if(state.recording && recDest && mixAC){ try{ mixAC.createMediaStreamSource(state.rawStream).connect(recDest); }catch{} }
+  if(state.recording) connectRecordingAudio(state.rawStream);
 }
 
 /* ============================================================
    ENTER ROOM — Cloudflare signaling worker (WebSocket)
    ============================================================ */
-let ws=null, wsReconnectTimer=null, wsClosedByUser=false;
+let ws=null, wsReconnectTimer=null, wsClosedByUser=false, wsConnectTimeout=null;
 function wsSend(obj){ if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
 
 function enterRoom(){ wsClosedByUser=false; connectWS(); }
@@ -934,35 +958,43 @@ function connectWS(){
   try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
   catch(e){ showSignalError(); return; }
 
+  clearTimeout(wsConnectTimeout); wsConnectTimeout=setTimeout(()=>{ if(!state._everConnected){ ws?.close(); showSignalError(); } },15000);
   ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, token: sessionToken(), micOn:state.micOn, camOn:state.camOn,
     camStreamId: state.outStream?.id||null, sharing: state.sharing||false,
     screenStreamId: state.sharing? state.screenStream?.id : null }); };
   ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleWsMessage(m); };
   ws.onclose=()=>{
+    clearTimeout(wsConnectTimeout);
     if(wsClosedByUser) return;
     // авто-переподключение при сбоях сети, чтобы встреча не падала
-    if(state._joined || state._everConnected){ clearTimeout(wsReconnectTimer); wsReconnectTimer=setTimeout(connectWS, 1500); }
+    if(state._joined || state._everConnected){ clearTimeout(wsReconnectTimer); wsReconnectTimer=setTimeout(connectWS, 1500); } else showSignalError();
   };
   ws.onerror=()=>{ if(!state._everConnected) showSignalError(); };
 }
 function showSignalError(){
-  const box=$('pre-error'); if(box) box.innerHTML='<div class="alert">Не удалось подключиться к серверу видеовстреч. Похоже, воркер <code>pllato-meet</code> ещё не развёрнут (<code>wrangler deploy</code> в папке meet-worker).</div>';
+  $('btn-enter').disabled=false;
+  const box=$('pre-error'); if(box) box.innerHTML='<div class="alert">Нет связи с сервером встреч. Проверьте интернет и нажмите кнопку входа ещё раз.</div>';
 }
 
 function handleWsMessage(m){
   switch(m.t){
     case 'welcome': {
+      clearTimeout(wsConnectTimeout); $('btn-enter').disabled=false;
       state._everConnected=true;
       state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      for(const id of [...peers.keys()]){ if(!(m.peers||[]).some(p=>p.peer===id)) removePeer(id); }
       presenceCache.clear();
       for(const p of (m.peers||[])) presenceCache.set(p.peer, p.info);
       presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
+      for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
+      participantNames.add(state.name);
       if(state.admitted){ onAdmitted(); connectToAdmittedPeers(); }
       else{ showScreen('screen-waiting'); $('waiting-text').textContent='Встреча ещё не началась. Как только организатор откроет её — вы войдёте автоматически.'; }
       break;
     }
-    case 'peer-join': { presenceCache.set(m.peer, m.info); if(m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
+    case 'peer-join': { if(m.info.admitted) participantNames.add(m.info.name); presenceCache.set(m.peer, m.info); if(m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
     case 'peer-update': {
+      if(m.info.admitted) participantNames.add(m.info.name);
       presenceCache.set(m.peer, m.info);
       if(m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
       if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); if(m.info.sharing===false) removeScreenTile(p); }
@@ -988,9 +1020,9 @@ function onAdmitted(){
   startTimer();
   renderPeopleList(); updateBadges();
   // субтитры (транскрипция) включаются у всех — чтобы записывалась речь каждого
-  setTimeout(()=>{ startCaptions(true); }, 700);
+  setTimeout(()=>{ if(state._joined && !state._leaving) startCaptions(true); }, 700);
   // запись ведёт организатор (требование: встреча идёт с записью)
-  if(state.isHost){ setTimeout(()=>{ startRecording(); }, 1000); toast('Вы организатор. Запись и транскрипция включены автоматически 🔴'); }
+  if(state.isHost){ startRecording(); }
 }
 
 /* ============================================================
@@ -1086,7 +1118,7 @@ function ensurePeer(id, info){
 // разбор входящих дорожек: камера vs демонстрация экрана (по msid потока)
 function handleRemoteTrack(id, peer, ev){
   const track=ev.track, stream=ev.streams[0];
-  if(track.kind==='audio'){ peer.camStream.addTrack(track); attachPeerTile(id, peer); return; }
+  if(track.kind==='audio'){ peer.camStream.addTrack(track); connectRecordingAudio(peer.camStream); attachPeerTile(id, peer); return; }
   // видео: экран, если id потока совпал с заявленным screenStreamId, либо это второе видео
   const isScreen = (peer.info?.screenStreamId && stream && stream.id===peer.info.screenStreamId) || peer.hasCamVideo;
   if(isScreen){
@@ -1279,6 +1311,7 @@ function initControls(){
   $('chat-send').onclick=sendChat;
   $('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
   $('trn-download').onclick=downloadTranscript;
+  $('trn-toggle').onclick=toggleCaptions;
   $('trn-lang').value=recogLang; $('trn-lang').onchange=e=>{ recogLang=e.target.value; if(state.captioning){ stopRecognition(); startRecognition(); } };
 
   // settings menu: показ экрана (всем) + ссылка + чат + транскрипция + устройства + фон
@@ -1297,6 +1330,8 @@ function refreshShareLabel(){ const b=$('s-share'); if(b) b.textContent = (state
 function toggleSettings(){ const m=$('settings-menu'); m.classList.toggle('show'); $('cb-settings').classList.toggle('on', m.classList.contains('show')); if(m.classList.contains('show')) populateDevices(); }
 
 function refreshControlIcons(){
+  $('trn-status').textContent=state.captioning?'Распознавание вашей речи включено':'Расшифровка выключена или недоступна';
+  $('trn-toggle').textContent=state.captioning?'Выключить расшифровку':'Включить расшифровку';
   $('cb-mic-ic').innerHTML=state.micOn?MIC_ON:MIC_OFF; $('cb-mic').classList.toggle('off',!state.micOn);
   $('cb-cam-ic').innerHTML=state.camOn?CAM_ON:CAM_OFF; $('cb-cam').classList.toggle('off',!state.camOn);
   $('cb-share')?.classList.toggle('on',state.sharing);
@@ -1329,7 +1364,7 @@ async function toggleShare(){
         audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false },
         surfaceSwitching:'include', selfBrowserSurface:'exclude'
       });
-      state.sharing=true;
+      state.sharing=true; connectRecordingAudio(state.screenStream);
       const st=state.screenStream.getVideoTracks()[0];
       try{ st.contentHint='detail'; }catch{}
       const sa=state.screenStream.getAudioTracks()[0];
@@ -1379,30 +1414,39 @@ function startTimer(){
 }
 
 async function leaveRoom(){
-  clearInterval(timerInt);
+  if(state._leaving) return;
+  state._leaving=true;
+  const btn=$('cb-leave'); btn.disabled=true;
+  clearInterval(timerInt); clearTimeout(wsReconnectTimer);
   try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
-  const wasRecording=state.recording;
-  let recDone=Promise.resolve();
-  if(wasRecording){ recDone=stopRecording(); toast('Сохраняю запись в облако…', 6000); }
-  wsClosedByUser=true; try{ wsSend({t:'bye'}); ws?.close(); }catch{}
-  for(const {pc} of peers.values()){ try{pc.close();}catch{} }
-  state.rawStream?.getTracks().forEach(t=>t.stop());
-  state.screenStream?.getTracks().forEach(t=>t.stop());
-  // ДОЖИДАЕМСЯ финализации записи (последняя часть + complete + метаданные), затем уходим
-  if(wasRecording){ try{ await Promise.race([recDone, new Promise(r=>setTimeout(r,12000))]); }catch{} }
-  location.href=location.pathname;
+  stopRecognition();
+  try{
+    if(recStarting) await recStarting;
+    if(state.isHost){
+      toast('Сохраняю встречу. Не закрывайте вкладку…', 10000);
+      if(state.recording) await stopRecording();
+      else if(recSaving) await recSaving;
+      else if(recUpload) await finalizeRecording();
+      else if(!recordingSaved) await saveMeetingMeta(state.roomId+'-'+state.startedAt, {recording:false});
+    }
+    wsClosedByUser=true; wsSend({t:'bye'}); ws?.close();
+    for(const {pc} of peers.values()) pc.close();
+    state._joined=false;
+    state.rawStream?.getTracks().forEach(t=>t.stop());
+    state.screenStream?.getTracks().forEach(t=>t.stop());
+    location.href=state.isHost?'/meet.html#archive':'/meet.html';
+  }catch(e){
+    state._leaving=false; btn.disabled=false;
+    toast('Встреча ещё не сохранена: '+e.message+'. Проверьте интернет и нажмите выход повторно.', 15000);
+  }
 }
-// страховка на закрытие вкладки: пытаемся завершить multipart и сохранить метаданные через sendBeacon
+window.addEventListener('beforeunload', e=>{
+  if(state.recording || recStarting || recSaving || recUpload){ e.preventDefault(); e.returnValue=''; }
+});
 window.addEventListener('pagehide', ()=>{
   wsClosedByUser=true; try{ ws?.close(); }catch{}
-  try{
-    if(state.recording && recUpload && recUpload.parts.length && navigator.sendBeacon){
-      const j=(o)=>new Blob([JSON.stringify(o)],{type:'application/json'});
-      navigator.sendBeacon(`${MEET_API}/archive/rec-complete/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}`, j(recUpload.parts));
-      const owner=archiveOwner();
-      navigator.sendBeacon(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(recUpload.id)}`, j(buildMeta(recUpload.id)));
-    }
-  }catch{}
+  // Незавершённую запись восстанавливаем из локальной копии в архиве.
+  // Не завершаем multipart через beacon: хвост записи ещё может быть в браузере.
 });
 
 /* side panel */
@@ -1431,14 +1475,17 @@ async function shareInvite(link, who){
   try{ await navigator.clipboard.writeText(text); toast('Приглашение скопировано — вставьте в чат и отправьте'); }
   catch{ toast(text, 6000); }
 }
-function copyInvite(){ shareInvite(location.origin+'/m/'+encodeURIComponent(state.roomId)); }
+function copyInvite(){ shareInvite(shortLink(state.roomId)); }
 
 /* ============================================================
    CHAT
    ============================================================ */
 let unreadChat=0;
+const chatLog=[];
+const participantNames=new Set();
 function onChatMessage(m){
   if(!m || !m.text) return;
+  chatLog.push({name:m.name,text:m.text,ts:m.ts});
   const el=document.createElement('div'); el.className='chat-msg';
   el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
   const list=$('chat-list'); list.appendChild(el); list.scrollTop=list.scrollHeight;
@@ -1504,7 +1551,12 @@ function startRecognition(){
     if(interim){ if(!interimEl.parentNode){ const empty=list.querySelector('.trn-empty'); if(empty)empty.remove(); list.appendChild(interimEl);} interimEl.querySelector('.tx').textContent=interim; list.scrollTop=list.scrollHeight; }
     else if(interimEl.parentNode){ interimEl.remove(); }
   };
-  recognition.onerror=(e)=>{ if(e.error==='not-allowed'){ toast('Нет доступа к микрофону для субтитров'); state.captioning=false; refreshControlIcons(); recogRestart=false; } };
+  recognition.onerror=(e)=>{
+    if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)){
+      toast('Расшифровка недоступна ('+e.error+'). Видеозапись продолжает работать.',8000);
+      state.captioning=false; refreshControlIcons(); recogRestart=false;
+    }
+  };
   recognition.onend=()=>{ if(recogRestart && state.captioning){ try{recognition.start();}catch{} } };
   recogRestart=true;
   try{ recognition.start(); }catch{}
@@ -1522,36 +1574,18 @@ function downloadTranscript(){
    RECORDING (composite grid + mixed audio → webm)
    ============================================================ */
 let mixAC=null, recDest=null;
+const recordingAudioSources=new Map();
+function connectRecordingAudio(stream){
+  if(!recDest || !mixAC || !stream) return;
+  for(const track of stream.getAudioTracks()){
+    if(recordingAudioSources.has(track.id)) continue;
+    try{const src=mixAC.createMediaStreamSource(new MediaStream([track])); src.connect(recDest); recordingAudioSources.set(track.id,src);}catch{}
+  }
+}
 function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window.webkitAudioContext)(); return mixAC; }
 let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
-// потоковая выгрузка: в памяти держим только текущий буфер (~до 5 МБ), не всю запись
-const REC_PART_MIN = 5*1024*1024;
-let recUpload=null;        // {owner,id,uploadId,partNumber,parts:[]} — активная multipart-загрузка
-let recBuf=[], recBufBytes=0, recFlushChain=Promise.resolve(), recFallbackChunks=null, recDoneResolve=null;
-function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording(); }
-
-// инициализируем multipart-загрузку в R2 (если доступно)
-async function recInit(){
-  const owner=archiveOwner(); const id=state.roomId+'-'+Date.now();
-  try{
-    const r=await fetch(`${MEET_API}/archive/rec-init/${owner}/${encodeURIComponent(id)}`, { method:'POST' });
-    if(!r.ok) throw 0;
-    const j=await r.json(); if(!j.uploadId) throw 0;
-    recUpload={ owner, id, uploadId:j.uploadId, partNumber:0, parts:[] };
-  }catch{ recUpload=null; } // нет multipart → fallback (буфер в памяти, один PUT в конце)
-}
-// отправить накопленный буфер как очередную часть (вызовы сериализуются через recFlushChain)
-function queueFlush(){ recFlushChain=recFlushChain.then(flushPart).catch(()=>{}); return recFlushChain; }
-async function flushPart(){
-  if(!recUpload || !recBuf.length) return;
-  const blob=new Blob(recBuf, {type:recMime}); recBuf=[]; recBufBytes=0;
-  const pn=++recUpload.partNumber;
-  try{
-    const r=await fetch(`${MEET_API}/archive/rec-part/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}/${pn}`, { method:'PUT', body:blob });
-    if(!r.ok) throw new Error('part '+r.status);
-    const j=await r.json(); recUpload.parts.push({ partNumber:pn, etag:j.etag });
-  }catch(e){ /* часть потеряна — продолжаем, память не растёт */ }
-}
+let recUpload=null, recStarting=null, recSaving=null, recordingSaved=false;
+function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording().catch(e=>toast(e.message)); }
 
 function drawRecTile(ctx, tile, x,y,w,h, contain){
   const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
@@ -1574,8 +1608,12 @@ function drawRecTile(ctx, tile, x,y,w,h, contain){
     ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(name,x+15,y+h-17); ctx.restore(); }
 }
 
-async function startRecording(){
-  if(state.recording) return;
+function startRecording(){
+  if(state.recording || recStarting || recSaving || recUpload || state._leaving) return;
+  recStarting=beginRecording().finally(()=>{recStarting=null;});
+  return recStarting;
+}
+async function beginRecording(){
   try{
     recCanvas=document.createElement('canvas'); recCanvas.width=1280; recCanvas.height=720;
     const ctx=recCanvas.getContext('2d');
@@ -1602,102 +1640,73 @@ async function startRecording(){
     };
     draw();
     const canvasStream=recCanvas.captureStream(25);
-    const ac=getMixAudioContext(); recDest=ac.createMediaStreamDestination();
-    const addAudio=(stream)=>{ try{ if(stream && stream.getAudioTracks().length){ ac.createMediaStreamSource(stream).connect(recDest);} }catch{} };
-    addAudio(state.rawStream);
+    const ac=getMixAudioContext(); await ac.resume(); recDest=ac.createMediaStreamDestination();
+    const addAudio=connectRecordingAudio;
+    addAudio(state.rawStream); addAudio(state.screenStream);
     for(const peer of peers.values()) addAudio(peer.camStream);
 
     const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
     recMime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
 
-    recStartTs=Date.now();
-    await recInit(); // включаем потоковую выгрузку (или fallback)
-    recBuf=[]; recBufBytes=0; recFallbackChunks=recUpload?null:[];
-
+    recStartTs=Date.now(); recordingSaved=false;
+    const id=state.roomId+'-'+recStartTs;
+    recUpload=new RecordingUpload(MEET_API, buildMeta(id), sessionToken);
+    await recUpload.init();
     mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime});
     mediaRecorder.ondataavailable=e=>{
-      if(!e.data.size) return;
-      if(recUpload){ // стриминг: копим до ~5 МБ и отправляем частью, память не растёт
-        recBuf.push(e.data); recBufBytes+=e.data.size;
-        if(recBufBytes>=REC_PART_MIN) queueFlush();
-      }else{ // fallback: держим в памяти, один PUT в конце
-        recFallbackChunks.push(e.data);
-      }
+      if(e.data.size) recUpload.append(e.data, buildMeta(id)).catch(e=>{
+        toast('Запись остановлена: '+e.message,10000);
+        if(state.recording) stopRecording().catch(()=>{});
+      });
     };
-    mediaRecorder.onstop=async ()=>{
-      try{ await finalizeRecording(); }
-      finally{ if(recDoneResolve){ recDoneResolve(); recDoneResolve=null; } }
-    };
+    mediaRecorder.onerror=()=>toast('Ошибка записи. Нажмите выход, чтобы сохранить полученную часть.',10000);
     mediaRecorder.start(2000); state.recording=true;
     $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
-    toast(recUpload?'Идёт запись (сразу в облако)':'Идёт запись');
-  }catch(e){ toast('Не удалось начать запись: '+(e.message||'')); }
+    toast('Запись включена. После выхода встреча появится в архиве.');
+  }catch(e){
+    if(recRAF) cancelAnimationFrame(recRAF);
+    recUpload=null;
+    toast('Запись не началась: '+e.message+'. Чат и расшифровка сохранятся при выходе.',15000);
+  }
 }
-// возвращает промис, который резолвится ПОСЛЕ финализации (complete+meta)
 function stopRecording(){
+  if(recSaving) return recSaving;
   if(!state.recording) return Promise.resolve();
   state.recording=false;
-  const done=new Promise(r=>{ recDoneResolve=r; });
-  try{ mediaRecorder?.stop(); }catch{ if(recDoneResolve){ recDoneResolve(); recDoneResolve=null; } }
+  recSaving=new Promise((resolve,reject)=>{
+    mediaRecorder.onstop=()=>finalizeRecording().then(resolve,reject);
+    try{ mediaRecorder.stop(); }catch(e){ reject(e); }
+  }).finally(()=>{recSaving=null;});
   if(recRAF)cancelAnimationFrame(recRAF);
   $('rec-indicator').classList.add('hidden'); refreshControlIcons();
-  return done;
+  return recSaving;
 }
-// финализация: дослать остаток, завершить multipart и сохранить метаданные
 async function finalizeRecording(){
-  if(recRAF){ cancelAnimationFrame(recRAF); recRAF=null; }
-  if(recUpload){
-    await queueFlush();          // остаток буфера — последняя часть (любого размера)
-    await recFlushChain;
-    try{
-      if(recUpload.parts.length){
-        await fetch(`${MEET_API}/archive/rec-complete/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}`,
-          { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(recUpload.parts) });
-      }
-    }catch{}
-    await saveMeetingMeta(recUpload.id);
-    toast('Встреча сохранена в облако ✅');
-    recUpload=null;
-  }else if(recFallbackChunks && recFallbackChunks.length){
-    await saveMeeting(new Blob(recFallbackChunks,{type:recMime})); // старый путь (без multipart)
-    recFallbackChunks=null;
-  }
+  if(!recUpload) return;
+  await recUpload.finish(buildMeta(recUpload.meta.id));
+  recordingSaved=true; recUpload=null;
+  for(const src of recordingAudioSources.values()) src.disconnect();
+  recordingAudioSources.clear(); recDest=null;
+  toast('Запись, чат и расшифровка сохранены в архиве');
 }
 // собрать метаданные встречи (+ владелец-менеджер для командного архива)
 function buildMeta(id, extra){
   const u=sessionUser();
-  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
+  const names=[...new Set([state.name, ...participantNames].filter(Boolean))];
   return { id, room:state.roomId, date:Date.now(),
     durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
-    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime,
+    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text,ts:m.ts})), chat:chatLog.slice(), mime:recMime, recording:true,
     owner: archiveOwner(), ownerEmail: u?.email||'', ownerName: u?.name||state.name||'', ...(extra||{}) };
 }
 // сохранить только метаданные+транскрипт (видео уже стримнулось в R2)
-async function saveMeetingMeta(id){
+async function saveMeetingMeta(id, extra){
   const owner=archiveOwner();
-  try{ await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildMeta(id)) }); }
-  catch{ toast('Не удалось сохранить сведения о встрече'); }
+  const r=await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, {
+    method:'PUT', headers:{'Content-Type':'application/json', Authorization:'Bearer '+(sessionToken()||'')},
+    body:JSON.stringify(buildMeta(id,extra)) });
+  if(!r.ok) throw new Error('Не удалось сохранить сведения о встрече ('+r.status+')');
 }
 
-/* ============================================================
-   ARCHIVE — сохранение встречи в облако (Cloudflare R2 через воркер)
-   ============================================================ */
-// fallback (когда multipart недоступен): один PUT видео + метаданные, сразу на сервер
-async function saveMeeting(blob){
-  const owner=archiveOwner();
-  const id=state.roomId+'-'+Date.now();
-  const meta=buildMeta(id, { size: blob.size });
-  try{
-    const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
-    if(!r1.ok) throw new Error('rec '+r1.status);
-    await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) });
-    toast('Встреча сохранена в облако ✅');
-  }catch(e){
-    // облако недоступно — как крайняя мера скачиваем локально, чтобы запись не пропала
-    downloadBlob(blob, `pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}.webm`);
-    toast('Облако недоступно — запись скачана на устройство');
-  }
-}
 function downloadBlob(blob, filename){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
 function downloadTranscriptFile(base){
   if(!transcriptLog.length) return;
@@ -1720,7 +1729,7 @@ async function loadArchive(){
       try{ const r=await fetch(`${MEET_API}/archive/all`, { headers:{ Authorization:'Bearer '+(sessionToken()||'') } });
         if(r.ok){ items=await r.json(); team=true; } }catch{}
     }
-    if(!team){ const r=await fetch(`${MEET_API}/archive/list/${archiveOwner()}`); items=await r.json(); }
+    if(!team){ const r=await fetch(`${MEET_API}/archive/list/${archiveOwner()}`); if(!r.ok) throw new Error('HTTP '+r.status); items=await r.json(); }
     if(!Array.isArray(items) || !items.length){ box.innerHTML='<div class="trn-empty">Пока нет сохранённых встреч.<br>Проведите встречу как ведущий — запись попадёт сюда.</div>'; return; }
     items.sort((a,b)=>(b.date||0)-(a.date||0));
     box.innerHTML='';
@@ -1734,7 +1743,22 @@ async function loadArchive(){
     }else{
       items.forEach(it=> box.appendChild(archItem(it)));
     }
-  }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте, что воркер развёрнут с R2-хранилищем.</div>'; }
+  }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте интернет и попробуйте снова.</div>'; }
+  finally{ await renderPendingRecordings(box); }
+}
+async function renderPendingRecordings(box){
+  try{
+    const pending=await pendingRecordings(archiveOwner());
+    for(const meta of pending){
+      const el=document.createElement('div'); el.className='arch-item';
+      const label=document.createElement('div'); label.textContent='Незавершённое сохранение: '+meta.room+' · '+new Date(meta.date).toLocaleString('ru-RU');
+      const retry=document.createElement('button'); retry.className='btn'; retry.textContent='Сохранить в облако';
+      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,sessionToken); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
+      const download=document.createElement('button'); download.className='btn btn-ghost'; download.textContent='Скачать копию';
+      download.onclick=async()=>{try{downloadBlob(await localRecordingBlob(meta),meta.id+'.webm'); downloadBlob(new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),meta.id+'.json');}catch(e){toast(e.message);}};
+      el.append(label,retry,download); box.prepend(el);
+    }
+  }catch(e){toast('Локальное восстановление недоступно: '+e.message);}
 }
 function archItem(it){
   const owner=it.owner||archiveOwner();
@@ -1750,10 +1774,14 @@ function archItem(it){
       <button class="btn btn-ghost arch-txt" style="padding:7px 10px;font-size:12.5px">📝</button>
       <button class="btn btn-ghost arch-del" style="padding:7px 10px;font-size:12.5px">✕</button>
     </div>`;
-  el.querySelector('.arch-play').onclick=()=> window.open(`${MEET_API}/archive/rec/${owner}/${it.id}`,'_blank');
+  if(it.recording===false) el.querySelector('.arch-play').remove();
+  const chatBtn=document.createElement('button'); chatBtn.className='btn btn-ghost'; chatBtn.textContent='Чат';
+  chatBtn.onclick=()=>downloadBlob(new Blob([(it.chat||[]).map(m=>`${m.name}: ${m.text}`).join('\n')||'Чат пуст'],{type:'text/plain;charset=utf-8'}), `chat-${it.id}.txt`);
+  el.querySelector('.arch-actions').appendChild(chatBtn);
+  if(it.recording!==false) el.querySelector('.arch-play').onclick=()=> window.open(`${MEET_API}/archive/rec/${owner}/${it.id}`,'_blank');
   el.querySelector('.arch-copy').onclick=()=> copyTranscript(it);
   el.querySelector('.arch-txt').onclick=()=> showTranscriptModal(it);
-  el.querySelector('.arch-del').onclick=async ()=>{ if(confirm('Удалить запись встречи?')){ await fetch(`${MEET_API}/archive/${owner}/${it.id}`,{method:'DELETE'}); loadArchive(); } };
+  el.querySelector('.arch-del').onclick=async ()=>{ if(confirm('Удалить запись встречи?')){ const r=await fetch(`${MEET_API}/archive/${owner}/${it.id}`,{method:'DELETE'}); if(r.ok) loadArchive(); else toast('Не удалось удалить запись'); } };
   return el;
 }
 function copyTranscript(it){
@@ -1792,16 +1820,17 @@ function showTranscriptModal(it){
   }catch{}
   const params=new URLSearchParams(location.search);
   const pathMatch=location.pathname.match(/^\/m\/([a-z0-9\-]+)/i);
-  const room=params.get('room') || (pathMatch && pathMatch[1]);
-  if(room){ gotoPrejoin(room.replace(/[^a-z0-9\-]/gi,'').toLowerCase()); }
+  const room=parseRoomFromInput(params.get('room') || (pathMatch && pathMatch[1]));
+  if(room){ gotoPrejoin(room); }
   else{
-    showScreen('screen-landing');
+    showScreen(location.hash==='#archive'?'screen-archive':'screen-landing');
+    if(location.hash==='#archive') loadArchive();
     renderCabinet();
     const my=localStorage.getItem(LS.myroom);
     if(my){ $('my-slug').value=my; renderMyRoomLink(); }
   }
 })();
-$('btn-leave-wait').onclick=()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} location.href=location.pathname; };
+$('btn-leave-wait').onclick=()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} location.href='/meet.html'; };
 </script>
 </body>
 </html>

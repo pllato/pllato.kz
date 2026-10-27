@@ -19,7 +19,7 @@
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400',
 };
 const SAFE = /^[A-Za-z0-9_.-]{1,80}$/;
@@ -115,7 +115,7 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
   // ---- потоковая запись через R2 multipart ----
   if (aRecInit && request.method === 'POST') {
     const [, owner, id] = aRecInit; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
-    const up = await env.ARCHIVE.createMultipartUpload(`rec/${owner}/${id}.webm`, { httpMetadata: { contentType: 'video/webm' } });
+    const up = await env.ARCHIVE.createMultipartUpload(`rec/${owner}/${id}.webm`, { httpMetadata: { contentType: request.headers.get('Content-Type') || 'video/webm' } });
     return json({ uploadId: up.uploadId });
   }
   if (aRecPart && request.method === 'PUT') {
@@ -129,7 +129,11 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
     const [, owner, id, uploadId] = aRecDone; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
     const parts = await request.json(); // [{partNumber, etag}]
     if (!Array.isArray(parts) || !parts.length) return json({ error: 'no parts' }, 400);
-    const up = env.ARCHIVE.resumeMultipartUpload(`rec/${owner}/${id}.webm`, uploadId);
+    // Повтор complete после потери ответа не должен ломать сохранённое видео.
+    const key = `rec/${owner}/${id}.webm`;
+    const existing = await env.ARCHIVE.head(key);
+    if (existing) return json({ ok: true, size: existing.size });
+    const up = env.ARCHIVE.resumeMultipartUpload(key, uploadId);
     const obj = await up.complete(parts);
     return json({ ok: true, size: obj.size });
   }
@@ -153,7 +157,7 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
     if (request.method === 'GET') {
       const obj = await env.ARCHIVE.get(key);
       if (!obj) return json({ error: 'not found' }, 404);
-      return new Response(obj.body, { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
+      return new Response(obj.body, { headers: { 'Content-Type': obj.httpMetadata?.contentType || 'video/webm', 'Access-Control-Allow-Origin': '*' } });
     }
   }
   if (aMeta && (request.method === 'PUT' || request.method === 'POST')) {
@@ -229,14 +233,16 @@ export class MeetRoom {
     switch (m.t) {
       case 'join': return this.onJoin(ws, m);
       case 'signal': {
-        if (!self) return;
+        if (!self?.info.admitted) return;
         const target = this.sockFor(m.to);
-        if (target) this.send(target, { t: 'signal', from: self.peer, data: m.data });
+        if (target && this.attOf(target)?.info.admitted) this.send(target, { t: 'signal', from: self.peer, data: m.data });
         return;
       }
       case 'presence': {
         if (!self) return;
-        self.info = { ...self.info, ...(m.patch || {}) };
+        const patch = m.patch || {};
+        for (const key of ['micOn','camOn','sharing']) if (typeof patch[key] === 'boolean') self.info[key] = patch[key];
+        for (const key of ['camStreamId','screenStreamId']) if (patch[key] === null || typeof patch[key] === 'string') self.info[key] = patch[key];
         this.setAtt(ws, self);
         this.broadcast({ t: 'peer-update', peer: self.peer, info: self.info }, self.peer);
         return;
@@ -274,6 +280,7 @@ export class MeetRoom {
   }
 
   async onJoin(ws, m) {
+    const me = m.token ? await verifyUser(m.token) : null;
     const room = await this.getRoom();
     const peer = String(m.peer || '').slice(0, 40);
     if (!peer) { this.send(ws, { t: 'error', msg: 'no peer id' }); return; }
@@ -281,16 +288,17 @@ export class MeetRoom {
     // 1) СТРОГО: хост по личности — Gmail-владелец персональной комнаты (u-<slug email>)
     let isHost = false;
     let verifiedName = '';
-    if (m.token) {
-      const me = await verifyUser(m.token);
+    if (me) {
       const rid = await this.roomId();
-      if (me && rid && meetSlug(me.email) === rid) { isHost = true; verifiedName = me.name; }
+      if (rid && (meetSlug(me.email) === rid || room.hostEmail === me.email.toLowerCase())) { isHost = true; verifiedName = me.name; }
     }
     // 2) fallback для ad-hoc комнат (Новая встреча): первый валидный hostKey владеет комнатой
-    if (!isHost && m.hostKey) {
+    const rid = await this.roomId();
+    if (!isHost && m.hostKey && !room.hostEmail && !rid?.startsWith('u-')) {
       if (!room.hostKey) room.hostKey = String(m.hostKey).slice(0, 80);
       isHost = room.hostKey === String(m.hostKey);
     }
+    if(isHost && me) room.hostEmail=me.email.toLowerCase();
     // organiser presence opens the room for everyone (unless manually locked)
     if (isHost && !room.locked) room.status = 'open';
     await this.saveRoom(room);
@@ -302,6 +310,9 @@ export class MeetRoom {
       admitted,
       micOn: m.micOn !== false,
       camOn: m.camOn !== false,
+      camStreamId: typeof m.camStreamId === 'string' ? m.camStreamId : null,
+      screenStreamId: typeof m.screenStreamId === 'string' ? m.screenStreamId : null,
+      sharing: m.sharing === true,
     };
     this.setAtt(ws, { peer, info });
 
@@ -316,7 +327,7 @@ export class MeetRoom {
     this.broadcast({ t: 'peer-join', peer, info }, peer);
 
     // if a host just arrived and room is open → admit anyone waiting
-    if (isHost && room.status === 'open' && !room.locked) this.openAll();
+    if (isHost && room.status === 'open' && !room.locked) await this.openAll();
   }
 
   admit(target) {
@@ -345,10 +356,16 @@ export class MeetRoom {
     this.broadcast({ t: 'room-update', status: room.status, locked: room.locked }, null);
   }
 
-  async webSocketClose(ws) { this.onGone(ws); }
-  async webSocketError(ws) { this.onGone(ws); }
-  onGone(ws) {
+  async webSocketClose(ws) { await this.onGone(ws); }
+  async webSocketError(ws) { await this.onGone(ws); }
+  async onGone(ws) {
     const a = this.attOf(ws);
-    if (a && a.peer) this.broadcast({ t: 'peer-leave', peer: a.peer }, a.peer);
+    if (!a?.peer) return;
+    this.setAtt(ws, null);
+    this.broadcast({ t: 'peer-leave', peer: a.peer }, a.peer);
+    if (!this.sockets().some(s => this.attOf(s)?.info.role === 'host')) {
+      const room = await this.getRoom(); room.status = 'waiting';
+      await this.saveRoom(room);
+    }
   }
 }
