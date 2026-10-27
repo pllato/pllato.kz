@@ -1,5 +1,5 @@
 import { visibleParticipants, participantTypeLabel, signatureCountLabel } from './participants.js?v=20261003-4';
-import { signWithEgov, pendingEgov, clearEgov } from './egov.js?v=20261003-1';
+import { signWithEgov, pendingEgov, clearEgov } from './egov.js?v=20261027-recovery';
 // Публичная страница договора (без логина).
 // ЕДИНАЯ ссылка на договор: по ней видно документ и кто уже подписал,
 // и по ней же подписывают. Старые ссылки-просмотры (?v=) ведут сюда же.
