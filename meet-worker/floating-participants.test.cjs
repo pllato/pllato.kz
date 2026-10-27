@@ -23,3 +23,21 @@ const source = fs.readFileSync(require('node:path').join(__dirname, '../meet-flo
   assert.ok(html.includes("...meetingGrid.children].filter"), 'Recording must include the adopted grid');
   console.log('PASS: pending open cancellation, unsupported browser, recording grid reference');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+(async()=>{
+  function node(){return {children:[],append(...nodes){this.children.push(...nodes)},appendChild(n){this.append(n)},before(marker){this.marker=marker},replaceWith(n){this.restored=n}};}
+  const doc={head:node(),body:node(),createElement:node,createComment:node,querySelectorAll:()=>[]};
+  const pip={document:doc,closed:false,addEventListener(){},close(){this.closed=true}};
+  const context=vm.createContext({document:doc,window:{documentPictureInPicture:{requestWindow:async()=>pip}}});
+  vm.runInContext(source.replace('export class','class')+';this.FloatingParticipants=FloatingParticipants',context);
+  const grid=node(),screen=node();const floating=new context.FloatingParticipants(grid,()=>{},screen);
+  await floating.toggle();
+  assert.ok(doc.body.children.includes(screen),'existing screen area is adopted into floating window');
+  assert.ok(doc.body.children.includes(grid),'existing camera grid accompanies screen');
+  const screenMarker=screen.marker,gridMarker=grid.marker;
+  floating.close();
+  assert.equal(screenMarker.restored,screen,'same screen restored without recreating stream');
+  assert.equal(gridMarker.restored,grid,'same cameras restored');
+  assert.ok(pip.closed);
+  console.log('PASS: screen and camera adoption and restoration');
+})().catch(e=>{console.error(e);process.exitCode=1;});
