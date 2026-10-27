@@ -23,3 +23,21 @@ Validation: `node meet-worker/camera-entry.test.cjs`; browser checks with synthe
 After chair/ear-side leakage in a real call, alpha now uses a 0.60–0.90 confidence transition instead of 0.35–0.75. Eight-connected foreground islands smaller than 12 mask pixels are removed; attached fine edges are retained. Scratch arrays are allocated only when the mask dimensions change. The model and FPS caps are unchanged.
 
 `node meet-worker/person-mask.test.cjs` covers uncertain attached chair pixels, detached fragments, diagonal fine edges, unchanged RGB, and soft alpha transitions. Chrome microbenchmark on a 256×144 synthetic mask: 60 passes ~111 ms (~1.85 ms/pass). This is mask cleanup only, not a full-call performance measurement. A composited screenshot does not expose the original camera frame or raw confidence mask: removal of the specific chair, hair preservation in motion, and mobile thermal impact still need live-device validation. A large chair region confidently classified as a person can survive this cleanup.
+
+### Floating participants during screen sharing
+
+`meet-floating.js` uses Document Picture-in-Picture after the user presses
+«Поверх». The existing camera grid is adopted into the native window: no extra
+streams, video elements, canvas rendering loops, or encoding are created.
+Recording reads the stable grid reference across documents. Closing PiP,
+stopping screen sharing, or leaving restores the same nodes and keeps camera
+tracks intact. A generation token cancels a pending open when the call ends.
+Unsupported browsers retain the existing in-tab participant strip and explain
+that desktop Chrome/Edge is needed for the external window. Sharing an entire
+screen may capture this window too; share a specific application window/tab
+when that is undesirable.
+
+Validated in Chromium with a synthetic live video: native PiP opens, the same
+video and stream keep playing, added peers appear, the recording canvas can
+draw the adopted video, and closing restores the grid without stopping tracks.
+Real-device battery use and sustained multi-party calls remain manual checks.
