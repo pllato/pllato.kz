@@ -273,6 +273,7 @@ export class MeetRoom {
       }
       case 'admit': {
         if (!self || self.info.role !== 'host') return;
+        if((await this.getRoom()).endAt)return;
         return this.admit(m.target);
       }
       case 'open': {
@@ -286,6 +287,10 @@ export class MeetRoom {
         this.broadcast({ t: 'room-update', status: room.status, locked: room.locked }, null);
         return;
       }
+      case 'end-meeting': {
+        if(self?.info.role==='host')await this.scheduleEnd(true);
+        return;
+      }
       case 'bye': {
         try { ws.close(1000, 'bye'); } catch {}
         return;
@@ -295,7 +300,8 @@ export class MeetRoom {
 
   async onJoin(ws, m) {
     const me = m.token ? await verifyUser(m.token) : null;
-    const room = await this.getRoom();
+    let room = await this.getRoom();
+    if(room.endAt && room.endAt<=Date.now()){await this.alarm();room=await this.getRoom();}
     const crmRoom=(await this.roomId())?.startsWith('crm-');
     if(crmRoom){
       const linked=await crmMeeting(this.env,await this.roomId());
@@ -320,11 +326,17 @@ export class MeetRoom {
       isHost = room.hostKey === String(m.hostKey);
     }
     if(isHost && me) room.hostEmail=me.email.toLowerCase();
-    // organiser presence opens the room for everyone (unless manually locked)
-    if (isHost && !room.locked) room.status = 'open';
+    const hostPresent=this.sockets().some(s=>this.attOf(s)?.info.role==='host' && s.readyState===1);
+    if(isHost && room.endAt && !room.explicitEnd){
+      room.endAt=null;await this.ctx.storage.deleteAlarm();
+      this.broadcast({t:'meeting-resumed'},null);
+    }
+    if(!hostPresent && !isHost && !room.endAt)room.status='waiting';
+    if(isHost && !room.explicitEnd){room.status='open';room.locked=false;}
+
     await this.saveRoom(room);
 
-    const admitted = isHost || (room.status === 'open' && !room.locked);
+    const admitted = !room.explicitEnd && (isHost || (hostPresent && room.status === 'open' && !room.locked));
     const info = {
       name: String((isHost && verifiedName) || m.name || 'Гость').slice(0, 60),
       role: isHost ? 'host' : 'guest',
@@ -345,6 +357,7 @@ export class MeetRoom {
       room: { status: room.status, locked: room.locked },
       peers: this.peersList(peer),
     });
+    if(room.endAt)this.send(ws,{t:'meeting-ending',endAt:room.endAt});
     // tell everyone else
     this.broadcast({ t: 'peer-join', peer, info }, peer);
 
@@ -365,6 +378,7 @@ export class MeetRoom {
 
   async openAll() {
     const room = await this.getRoom();
+    if(room.endAt)return;
     room.status = 'open'; await this.saveRoom(room);
     for (const s of this.sockets()) {
       const a = this.attOf(s);
@@ -378,6 +392,29 @@ export class MeetRoom {
     this.broadcast({ t: 'room-update', status: room.status, locked: room.locked }, null);
   }
 
+  async scheduleEnd(explicit){
+    const room=await this.getRoom();
+    room.status='waiting';
+    room.endAt=room.endAt||Date.now()+30000;
+    room.explicitEnd=room.explicitEnd||explicit;
+    await this.saveRoom(room);
+    await this.ctx.storage.setAlarm(room.endAt);
+    this.broadcast({t:'meeting-ending',endAt:room.endAt},null);
+  }
+  async alarm(){
+    const room=await this.getRoom();
+    if(!room.endAt)return;
+    if(room.endAt>Date.now()){await this.ctx.storage.setAlarm(room.endAt);return;}
+    this.broadcast({t:'meeting-ended'},null);
+    for(const socket of this.sockets()){
+      if(!this.attOf(socket)?.peer)continue;
+      this.setAtt(socket,null);
+      try{socket.close(1000,'Meeting ended');}catch{}
+    }
+    room.status='waiting';room.locked=false;room.endAt=null;room.explicitEnd=false;
+    await this.saveRoom(room);
+  }
+
   async webSocketClose(ws) { await this.onGone(ws); }
   async webSocketError(ws) { await this.onGone(ws); }
   async onGone(ws) {
@@ -385,9 +422,6 @@ export class MeetRoom {
     if (!a?.peer) return;
     this.setAtt(ws, null);
     this.broadcast({ t: 'peer-leave', peer: a.peer }, a.peer);
-    if (!this.sockets().some(s => this.attOf(s)?.info.role === 'host')) {
-      const room = await this.getRoom(); room.status = 'waiting';
-      await this.saveRoom(room);
-    }
+    if (a.info.role==='host' && !this.sockets().some(s => this.attOf(s)?.info.role === 'host' && s.readyState===1)) await this.scheduleEnd(false);
   }
 }

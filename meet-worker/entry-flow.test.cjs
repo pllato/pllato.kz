@@ -17,7 +17,7 @@ assert.ok(!/\blocalStorage\./.test(source),'all meeting credentials use safe sto
 const handler=source.slice(source.indexOf("$('btn-enter').onclick = async ()=>{"),source.indexOf("$('pre-name').addEventListener('keydown'"));
 async function check({name='Client',allowed=true,throws=false}={}){
  let ready=false,joins=0,requests=0,builds=0;
- const nodes={'pre-name':{value:name,style:{},focus(){}},'btn-enter':{disabled:false}};
+ const nodes={'pre-error':{},'pre-name':{value:name,style:{},focus(){}},'btn-enter':{disabled:false}};
  const ctx=vm.createContext({$:id=>nodes[id],sessionUser:()=>null,state:{},peerId:'peer',LS:{name:'name'},meetStorage:storage,toast(){},canEnterWithCamera:()=>ready,async getLocalMedia(){requests++;ready=allowed;return{}},showMediaStatus(){nodes['btn-enter'].disabled=false},getMixAudioContext:()=>({async resume(){}}),async buildOutStream(){builds++;if(throws)throw Error('build failed')},enterRoom(){joins++}});
  vm.runInContext(handler,ctx);await nodes['btn-enter'].onclick();
  assert.equal(joins,name&&allowed&&!throws?1:0);assert.equal(requests,name?1:0);assert.equal(nodes['btn-enter'].disabled,false);
