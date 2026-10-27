@@ -8,7 +8,7 @@
 <link rel="modulepreload" href="./app/deal-requisites.js?v=20260929-autosave">
 <link rel="modulepreload" href="./app/deal-production.js?v=20261003-manual">
 <link rel="modulepreload" href="./app/team-request-cache.js?v=20261007">
-<link rel="modulepreload" href="./app/zoom-crm.js?v=20261008-transcript-recovery">
+<link rel="modulepreload" href="./app/zoom-crm.js?v=20261027-meet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ELC — English Lifestyle Communication</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -3465,8 +3465,8 @@ const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.wo
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
 import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20261003-manual';
 import { createTeamReadCache } from './app/team-request-cache.js?v=20261007';
-import { mountDealTranscripts } from './app/deal-transcripts.js?v=20261012';
-import { zoomClient } from './app/zoom-crm.js?v=20261008-transcript-recovery';
+import { mountDealTranscripts } from './app/deal-transcripts.js?v=20261027-meet';
+import { zoomClient } from './app/zoom-crm.js?v=20261027-meet';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
@@ -10096,7 +10096,7 @@ function pipelineCardFieldFlags(pipelineId) {
 }
 
 // Модал «⚙ Поля на карточках» для конкретной воронки (шестерёнка на активной
-// вкладке). Управляет видимостью «📹 Первый Zoom» и «📚 Дата пробного урока».
+// вкладке). Управляет видимостью «📹 Первая видеовстреча» и «📚 Дата пробного урока».
 async function openPipelineCardFieldsModal(pipelineId) {
   if (!pipelineId) { alert('Сначала открой воронку'); return; }
   document.getElementById('_pcf-modal')?.remove();
@@ -10149,7 +10149,7 @@ async function openPipelineCardFieldsModal(pipelineId) {
         <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Выбери, какие поля показывать в карточке сделки этой воронки. Дата подхватится в Календарь.</div>
         <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1);border-bottom:1px solid var(--b2)">
           <input type="checkbox" id="pcf-zoom" ${flags.showFirstZoom ? 'checked' : ''} style="width:17px;height:17px">
-          <span>📹 Первый Zoom <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
+          <span>📹 Первая видеовстреча <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
         </label>
         <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1)">
           <input type="checkbox" id="pcf-trial" ${flags.showTrialLesson ? 'checked' : ''} style="width:17px;height:17px">
@@ -13448,7 +13448,7 @@ function buildDealCard(d, stageColor) {
   // Флаги видимости спец-полей для активной воронки (канбан — всегда активная).
   const kanbanFlags = pipelineCardFieldFlags(dealsState.activePipelineId);
 
-  // 1) Zoom-встреча
+  // 1) Видеовстреча
   const zoomAt = kanbanFlags.showFirstZoom ? d.customFields?.firstZoomAt : null;
   if (zoomAt) {
     const zd = new Date(zoomAt);
@@ -14581,7 +14581,7 @@ async function openDealCard(dealKey) {
   const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
   const respEmail = respUser?.email || '';
   const canEditDeal = canEditDealFront(deal);
-  // Видимость спец-полей (Первый Zoom / Дата пробного урока) — по воронке, в
+  // Видимость спец-полей (Первая видеовстреча / Дата пробного урока) — по воронке, в
   // которой просматривается сделка (учитываем зеркала через _viewPipelineId).
   const cardFlags = pipelineCardFieldFlags(deal._viewPipelineId || deal.pipelineId || dealsState.activePipelineId);
   const createdByUser = getUserById(deal.createdByUid);
@@ -14676,7 +14676,7 @@ async function openDealCard(dealKey) {
         <details class="dc-stage-picker"><summary><span>Этап</span> ${escapeHtml(stageName)} <span class="dc-stage-change">Изменить</span></summary>
           <div class="dc-stagebar">${stageBarHtml}</div>
         </details>
-        <button type="button" class="tbtn" data-quick-zoom>+ Zoom-встреча</button>
+        <button type="button" class="tbtn" data-quick-zoom>+ Видеовстреча</button>
       </div>
       <div class="dc-nav" role="tablist" aria-label="Разделы карточки">
         <button type="button" role="tab" id="dc-tab-overview" aria-controls="dc-panel-overview" data-card-tab="overview" aria-selected="true">Обзор</button>
@@ -14770,7 +14770,7 @@ async function openDealCard(dealKey) {
         </div>
           ${cardFlags.showFirstZoom ? `<div class="dc-section-h">Первая встреча</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
-            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой видеовстречи (попадёт в Календарь)</div>
             <input class="cf-edit"
               type="datetime-local"
               data-field="firstZoomAt"
@@ -17525,7 +17525,7 @@ function renderDeedsList() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
+//   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первая видеовстреча)
 // ═════════════════════════════════════════════════════════════════════════
 const CAL_VIEW_LS_KEY = 'elc:calendarView';
 const CAL_SCOPE_LS_KEY = 'elc:calendarShowAll:v2';
@@ -17946,7 +17946,7 @@ async function loadCalendarEvents(opts = {}) {
           .then(r => r.ok ? r.json() : { items: [] })
           .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
-      // чтобы Zoom-встреча показалась даже если активная воронка СРМ
+      // чтобы Видеовстреча показалась даже если активная воронка СРМ
       // указывает на другую. Без этого календарь не видел firstZoomAt
       // сделок из неактивных воронок и in-memory dealsState.deals мог
       // быть устаревшим (если карточка обновлена в другой вкладке).
@@ -18052,7 +18052,7 @@ async function loadCalendarEvents(opts = {}) {
     }
       for (const d of dealsForCalendar) {
         const flags = pipelineCardFieldFlags(d.pipelineId);
-        // Первый Zoom
+        // Первая видеовстреча
         const zt = calendarState.kind === 'general' && flags.showFirstZoom
           ? d.customFields?.firstZoomAt : null;
         if (zt) {
@@ -18066,7 +18066,7 @@ async function loadCalendarEvents(opts = {}) {
               date: dt,
               endDate: endDt,
               title: 'Zoom: ' + (d.title || getDealPublicId(d)),
-              rawTitle: 'Первый Zoom',
+              rawTitle: 'Первая видеовстреча',
               dealTitle: d.title || `Сделка #${getDealPublicId(d)}`,
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),

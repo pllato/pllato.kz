@@ -507,6 +507,7 @@ const LS = {
 };
 // владелец архива (стабильный id): email сотрудника, либо случайный для гостя
 function archiveOwner(){
+  if(state.roomId?.startsWith('crm-')) return 'crm';
   const user=sessionUser();
   if(user?.email) return meetSlug(user.email);
   let o = localStorage.getItem(LS.archiveOwner);
@@ -584,6 +585,7 @@ function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room);
 // личный видеокабинет менеджера из email — тот же алгоритм, что в meet-worker
 function meetSlug(email){ return 'u-'+String(email||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
 function sessionUser(){ try{ return getSession()?.user || null; }catch{ return null; } }
+function archiveToken(){ return state.roomId?.startsWith('crm-') ? localStorage.getItem(LS.hostKeyPrefix+state.roomId) : sessionToken(); }
 function sessionToken(){ try{ return getSession()?.token || null; }catch{ return null; } }
 // личный slug текущего залогиненного менеджера (или null для гостя)
 function myMeetSlug(){ const u=sessionUser(); return u?.email ? meetSlug(u.email) : null; }
@@ -1804,7 +1806,7 @@ async function beginRecording(){
 
     recStartTs=Date.now(); recordingSaved=false;
     const id=state.roomId+'-'+recStartTs;
-    recUpload=new RecordingUpload(MEET_API, buildMeta(id), sessionToken);
+    recUpload=new RecordingUpload(MEET_API, buildMeta(id), archiveToken);
     await recUpload.init();
     mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime});
     mediaRecorder.ondataavailable=e=>{
@@ -1847,7 +1849,7 @@ async function finalizeRecording(){
   recordingSaved=true; recUpload=null;
   for(const src of recordingAudioSources.values()) src.disconnect();
   recordingAudioSources.clear(); recDest=null;
-  toast('Запись, чат и расшифровка сохранены в архиве');
+  toast(state.roomId?.startsWith('crm-')?'Материалы встречи сохранены в карточке CRM':'Запись, чат и расшифровка сохранены в архиве');
 }
 // собрать метаданные встречи (+ владелец-менеджер для командного архива)
 function buildMeta(id, extra){
@@ -1862,7 +1864,7 @@ function buildMeta(id, extra){
 async function saveMeetingMeta(id, extra){
   const owner=archiveOwner();
   const r=await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, {
-    method:'PUT', headers:{'Content-Type':'application/json', Authorization:'Bearer '+(sessionToken()||'')},
+    method:'PUT', headers:{'Content-Type':'application/json', Authorization:'Bearer '+(archiveToken()||'')},
     body:JSON.stringify(buildMeta(id,extra)) });
   if(!r.ok) throw new Error('Не удалось сохранить сведения о встрече ('+r.status+')');
 }
@@ -1908,12 +1910,12 @@ async function loadArchive(){
 }
 async function renderPendingRecordings(box){
   try{
-    const pending=await pendingRecordings(archiveOwner());
+    const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && localStorage.getItem(LS.hostKeyPrefix+m.room)));
     for(const meta of pending){
       const el=document.createElement('div'); el.className='arch-item';
       const label=document.createElement('div'); label.textContent='Незавершённое сохранение: '+meta.room+' · '+new Date(meta.date).toLocaleString('ru-RU');
       const retry=document.createElement('button'); retry.className='btn'; retry.textContent='Сохранить в облако';
-      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,sessionToken); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
+      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,()=>meta.owner==='crm'?localStorage.getItem(LS.hostKeyPrefix+meta.room):sessionToken()); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
       const download=document.createElement('button'); download.className='btn btn-ghost'; download.textContent='Скачать копию';
       download.onclick=async()=>{try{downloadBlob(await localRecordingBlob(meta),meta.id+'.webm'); downloadBlob(new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),meta.id+'.json');}catch(e){toast(e.message);}};
       el.append(label,retry,download); box.prepend(el);
@@ -1981,7 +1983,14 @@ function showTranscriptModal(it){
   const params=new URLSearchParams(location.search);
   const pathMatch=location.pathname.match(/^\/m\/([a-z0-9\-]+)/i);
   const room=parseRoomFromInput(params.get('room') || (pathMatch && pathMatch[1]));
-  if(room){ gotoPrejoin(room); }
+  if(room){
+    const host=new URLSearchParams(location.hash.slice(1)).get('host');
+    if(/^crm-[a-f0-9-]{36}$/.test(room) && /^hk_[a-f0-9-]{36}$/.test(host||'')){
+      localStorage.setItem(LS.hostKeyPrefix+room,host);
+      history.replaceState(null,'',location.pathname+location.search);
+    }
+    gotoPrejoin(room);
+  }
   else{
     showScreen(location.hash==='#archive'?'screen-archive':'screen-landing');
     if(location.hash==='#archive') loadArchive();

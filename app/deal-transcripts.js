@@ -2,9 +2,9 @@ import { transcriptText } from './zoom-crm.js?v=20261008-transcript-recovery';
 
 export function transcriptRows(zoom = [], manual = []) {
   return [
-    ...zoom.filter(f => !f.deleted_at && f.status !== 'deleted' && (/transcript/i.test(f.kind || '') || /^(VTT|TXT)$/i.test(f.extension || ''))).map(f => ({
+    ...zoom.filter(f => !f.deleted_at && f.status !== 'deleted' && (!/chat|metadata/i.test(f.kind || '') && (/transcript/i.test(f.kind || '') || /^(VTT|TXT)$/i.test(f.extension || '')))).map(f => ({
       id: 'zoom:' + f.id, name: f.topic || 'Встреча Zoom', date: f.recording_start,
-      ready: f.status === 'stored', error: f.error, source: 'Zoom',
+      ready: f.status === 'stored', error: f.error, source: String(f.meeting_id||'').startsWith('crm-') ? 'Pllato Meet' : 'Zoom',
       path: '/api/zoom/files/' + encodeURIComponent(f.id),
     })),
     ...manual.filter(f => f.kind === 'transcript').map(f => ({
@@ -21,7 +21,7 @@ export function mountDealTranscripts(root, { dealId, base, getToken, onAdd }) {
   const title = document.createElement('span'); title.textContent = 'Транскрипции встреч';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'tbtn tbtn-xs'; add.textContent = '+ Добавить'; add.onclick = onAdd;
   const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'tbtn tbtn-xs'; refresh.textContent = 'Обновить';
-  heading.append(title, add, refresh);
+  heading.append(title); if(onAdd) heading.append(add); heading.append(refresh);
   const list = document.createElement('div'); list.setAttribute('aria-live', 'polite');
   root.replaceChildren(heading, list);
   let busy = false;

@@ -1,3 +1,8 @@
+export function meetingUrl(value) {
+  try { const u=new URL(value); return u.protocol==='https:' && !u.username && !u.password &&
+    ((/(^|\.)zoom\.(us|com)$/.test(u.hostname)) || (u.hostname==='pllato.kz' && u.pathname==='/meet.html' && /^crm-[a-f0-9-]{36}$/.test(u.searchParams.get('room')||''))) ? u.href : ''; } catch { return ''; }
+}
+const isMeet = meeting => String(meeting?.meeting_id||'').startsWith('crm-');
 export function transcriptText(raw) {
   if(!/^\uFEFF?WEBVTT\b/.test(raw))return raw;
   return raw.replace(/^\uFEFF/,'').split(/\r?\n\s*\r?\n/).flatMap(block=>{
@@ -9,7 +14,7 @@ export function transcriptText(raw) {
 export function zoomInvitation(meeting) {
   const start=new Date(meeting.start_time);
   const time=meeting.start_time && !isNaN(start) ? new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(start) : '';
-  return ['Pllato приглашает вас на встречу в Zoom.',meeting.topic ? 'Тема: '+meeting.topic : '',time ? 'Дата и время: '+time+' (Алматы, UTC+5)' : '', 'Подключиться к встрече:',meeting.join_url].filter(Boolean).join('\n');
+  return [(isMeet(meeting)?'Pllato приглашает вас на видеовстречу Pllato Meet.':'Pllato приглашает вас на встречу в Zoom.'),meeting.topic ? 'Тема: '+meeting.topic : '',time ? 'Дата и время: '+time+' (Алматы, UTC+5)' : '', 'Подключиться к встрече:',meeting.join_url].filter(Boolean).join('\n');
 }
 // UI Zoom: все материалы открываются через авторизованный API CRM.
 export function zoomClient({ base, getToken }) {
@@ -34,7 +39,7 @@ export function zoomClient({ base, getToken }) {
       for(let i=0;i<ids.length;i+=100){const data=await api('/deal-status',{method:'POST',body:JSON.stringify({ids:ids.slice(i,i+100)})});for(const row of data.deals)statuses.set(row.deal_id,row);}
       for(const node of nodes){const row=statuses.get(node.dataset.zoomDeal);node.dataset.zoomChecked='1';
         node.style.display=row?'block':'none';
-        node.textContent=row ? 'Zoom: '+[row.videos?'запись готова':'',row.transcripts?'транскрипт готов':'',!row.videos&&!row.transcripts?'материалы готовы':''].filter(Boolean).join(' · ') : '';
+        node.textContent=row ? 'Встречи: '+[row.videos?'запись готова':'',row.transcripts?'транскрипт готов':'',!row.videos&&!row.transcripts?'материалы готовы':''].filter(Boolean).join(' · ') : '';
       }
       badgeSignature=signature;badgeChecked=Date.now();
     }catch{}finally{badgeBusy=false;}
@@ -42,15 +47,16 @@ export function zoomClient({ base, getToken }) {
   setInterval(refreshBadges,10000);
   async function event(container, taskId, path = '/tasks/'+encodeURIComponent(taskId)) {
     if (!container) return;
-    container.textContent = 'Проверяем ссылку Zoom…';
+    container.textContent = 'Проверяем ссылку встречи…';
     try {
       const {meeting} = await api(path);
       if (!container.isConnected) return;
-      if (meeting?.join_url && /^https:\/\/([a-z0-9-]+\.)?zoom\.(us|com)\//i.test(meeting.join_url)) {
-        container.innerHTML = `<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>
+      if(meeting?.status==='cancelled'){container.textContent='Встреча отменена';return;}
+      if (meetingUrl(meeting?.join_url)) {
+        container.innerHTML = `<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">${isMeet(meeting)?'Войти как гость':'Открыть Zoom'}</a>
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
-          <button type="button" class="tbtn" data-host>Код организатора для сотрудника</button><div data-host-status role="status"></div>
+          <button type="button" class="tbtn" data-host>${isMeet(meeting)?'Начать встречу как ведущий':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">${esc(meeting.join_url)}</div>`;
         const invitation=zoomInvitation(meeting);
         const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
@@ -58,15 +64,17 @@ export function zoomClient({ base, getToken }) {
         container.querySelector('[data-copy]').onclick = async e => { try { await navigator.clipboard.writeText(meeting.join_url); e.target.textContent='Скопировано'; } catch { e.target.textContent='Скопируйте ссылку ниже'; } };
         container.querySelector('[data-host]').onclick=async e=>{
           const b=e.currentTarget,box=container.querySelector('[data-host-status]');b.disabled=true;
+          const popup=isMeet(meeting)?window.open('about:blank','_blank'):null;
           try {
-            const {hostKey}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
+            const {hostKey,hostUrl}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
+            if(hostUrl && meetingUrl(hostUrl)){ if(popup){popup.opener=null;popup.location.replace(hostUrl);}else{const a=document.createElement('a');a.href=hostUrl;a.target='_blank';a.rel='noopener';a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
             box.textContent='Код организатора: '+hostKey+'. В Zoom: Участники → Принять права организатора → введите код. Не отправляйте его клиентам.';
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать код';
             copy.onclick=async()=>{try{await navigator.clipboard.writeText(hostKey);copy.textContent='Код скопирован';}catch{copy.textContent='Скопируйте код вручную';}};box.append(copy);
-          }catch(error){box.textContent=error.message;}finally{b.disabled=false;}
+          }catch(error){popup?.close();box.textContent=error.message;}finally{b.disabled=false;}
         };
       } else {
-        container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка Zoom ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Zoom</button>`;
+        container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка встречи ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Pllato Meet</button>`;
         container.querySelector('[data-create]').onclick = async e => {
           e.target.disabled=true;
           try { await api(path,{method:'POST'}); await event(container,taskId,path); }
@@ -84,10 +92,10 @@ export function zoomClient({ base, getToken }) {
   async function syncFirst(dealId){await api('/deals/'+encodeURIComponent(dealId)+'/first-meeting',{method:'POST'});}
   async function firstMeeting(container, dealId, date, sync = false) {
     if (!container) return;
-    if (!date) { container.textContent='Укажите дату — ссылка Zoom появится здесь.'; return; }
+    if (!date) { container.textContent='Укажите дату — ссылка встречи появится здесь.'; return; }
     const path='/deals/'+encodeURIComponent(dealId)+'/first-meeting';
     if (sync) {
-      container.textContent='Создаём ссылку Zoom…';
+      container.textContent='Создаём ссылку Pllato Meet…';
       try { await api(path,{method:'POST'}); }
       catch(e) { container.textContent=e.message; return; }
     }
@@ -99,27 +107,27 @@ export function zoomClient({ base, getToken }) {
     dialog.innerHTML='<h3>Встреча сохранена в календаре</h3><div data-result></div><button class="tbtn" data-close style="margin-top:18px">Закрыть</button>';
     document.body.append(dialog); dialog.showModal();
     dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();
-    event(dialog.querySelector('[data-result]'),taskId);
+    api('/tasks/'+encodeURIComponent(taskId),{method:'POST'}).then(()=>event(dialog.querySelector('[data-result]'),taskId)).catch(e=>{dialog.querySelector('[data-result]').textContent=e.message;});
   }
   async function files(container, dealId, canDelete = false) {
     if(!container) return;
-    container.textContent='Загружаем материалы Zoom…';
+    container.textContent='Загружаем материалы встреч…';
     try {
       const {files:rows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
       if(!container.isConnected)return;
       container.innerHTML=rows.length?rows.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
         <b>${esc(f.topic || 'Встреча Zoom')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
-        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${f.extension==='MP4'?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
+        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
-        ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов Zoom пока нет.';
+        ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов встреч пока нет.';
       // Show playable previews immediately, without opening a separate window.
-      const mediaFiles=rows.filter(f=>f.status==='stored' && /^(MP4|M4A|MP3|WAV)$/i.test(f.extension || ''));
+      const mediaFiles=rows.filter(f=>f.status==='stored' && /^(MP4|WEBM|M4A|MP3|WAV)$/i.test(f.extension || ''));
       if(mediaFiles.length){
         const token=await getToken();
         if(!container.isConnected)return;
         for(const f of mediaFiles){
           const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
-          const video=String(f.extension).toUpperCase()==='MP4';
+          const video=/^(MP4|WEBM)$/i.test(f.extension);
           const player=document.createElement(video?'video':'audio');
           player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
           player.setAttribute('aria-label',video?'Видеозапись Zoom':'Аудиозапись Zoom');
@@ -145,16 +153,17 @@ export function zoomClient({ base, getToken }) {
         try {
           const token=await getToken(),path=base+'/api/zoom/files/'+encodeURIComponent(f.id);
           if(!dialog.open)return;
-          const tag=ext==='MP4'?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
+          const tag=/^(MP4|WEBM)$/.test(ext)?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
           if(tag){
             const player=document.createElement(tag);player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
             player.style.cssText='display:block;width:100%;max-height:65vh;margin:12px 0';
             player.onerror=()=>{status.textContent='Не удалось воспроизвести запись. Закройте окно и откройте снова, чтобы обновить доступ.';};
             player.src=path+'?auth='+encodeURIComponent(token);box.replaceChildren(player);
-          }else if(/^(VTT|TXT)$/.test(ext)) {
+          }else if(/^(VTT|TXT|JSON)$/.test(ext)) {
             const r=await fetch(path,{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error('Не удалось прочитать транскрипт');
             const raw=await r.text();if(!dialog.open)return;
-            const text=ext==='VTT'?transcriptText(raw):raw;
+            const metadata=ext==='JSON'?JSON.parse(raw):null;
+            const text=metadata ? ['Участники: '+(metadata.participants||[]).join(', '), 'Расшифровка: '+(metadata.transcriptStatus==='available'?'сохранена отдельным файлом':'не получена браузером'), '', 'Чат:', ...(metadata.chat||[]).map(m=>m.name+': '+m.text)].join('\n') : ext==='VTT'?transcriptText(raw):raw;
             const pre=document.createElement('pre');pre.style.cssText='max-height:55vh;overflow:auto;white-space:pre-wrap;user-select:text';pre.textContent=text;
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать текст';
             copy.onclick=async()=>{try{await navigator.clipboard.writeText(text);status.textContent='Текст скопирован';}catch{status.textContent='Выделите текст ниже и скопируйте вручную.';const range=document.createRange();range.selectNodeContents(pre);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}};

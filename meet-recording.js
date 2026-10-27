@@ -37,7 +37,7 @@ const localStore={
 };
 export async function pendingRecordings(owner){
   return transaction(['meetings'],'readonly',tx=>{
-    const r=tx.objectStore('meetings').getAll(); return ()=>r.result.filter(m=>m.owner===owner);
+    const r=tx.objectStore('meetings').getAll(); return ()=>r.result.filter(m=>!owner || m.owner===owner);
   });
 }
 export async function localRecordingBlob(meta){

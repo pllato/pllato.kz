@@ -60,3 +60,42 @@ curl https://pllato-meet.uurraa.workers.dev/health
 - Для штатного завершения использовать «Выйти» и дождаться архива. Принудительное закрытие вкладки/браузера может потерять последний ещё не выданный MediaRecorder фрагмент. Удаление данных браузера удаляет несохранённые локальные копии.
 - Расшифровка зависит от SpeechRecognition браузера и его внешнего сервиса; приложение сохраняет полученный текст, но не выполняет серверное распознавание аудио. В панели текста показан статус и доступен повторный запуск.
 - Регрессии загрузки и роли: `node meet-worker/verify.mjs` (без зависимостей).
+
+## CRM / app integration (2026-10-27)
+
+New online calendar events and first meetings use Pllato Meet. Existing Zoom
+meetings and archive remain accessible. The existing `/api/zoom` contract and
+`zoom_meetings` / `zoom_files` tables are retained for compatibility; a
+`crm-<uuid>` meeting ID identifies Pllato Meet. No Zoom API call is needed to
+create or host new meetings. Guest invitation never contains host access.
+The authorized CRM host-access endpoint returns a secret in the URL fragment;
+Meet stores it locally and immediately removes the fragment. CRM room ownership
+is checked against the server-issued key, never claimed by the first guest.
+
+Meet binds the existing CRM D1 as `CRM_DB` and private R2 as `CRM_FILES`.
+CRM recording owner is `crm`; upload authorization checks the issued host key
+and active room. Public CRM archive reads/lists/deletes are rejected. Existing
+CRM file routes enforce deal permissions and supply range playback.
+Final metadata indexes the completed video, nonempty transcript, and chat JSON
+against the SERVER's deal binding. Repeated saves use stable IDs. Failed uploads
+remain in local IndexedDB and can be retried from Meet archive on the same
+browser. Canceled meetings reject new joins/uploads.
+
+Card UI in `app/pllato-crm.html` and `team.html` shares `app/zoom-crm.js`;
+`app/deal-transcripts.js` and the app transcript task feed identify Pllato Meet.
+App card refreshes materials on return to the window. Online task discriminator
+`zoom_meeting` and `firstZoomAt` stay unchanged to preserve calendars/automation.
+
+Transcription is browser SpeechRecognition, automatically started per participant;
+this integration does NOT add server-side transcription or guarantee complete
+text in unsupported/denied browsers. Metadata reports unavailable transcription.
+Video is still recorded locally by the organizer, with multipart and local
+recovery. Organizer should leave through «Выйти» and wait for saving.
+
+Validation: `node --test elc-worker/zoom.test.mjs tests/deal-transcripts.test.mjs`
+from repository root; four Meet Node suites; both Wrangler dry-run builds.
+Tests cover private host access, first-guest takeover rejection, canceled rooms,
+private media reads, exact deal binding, no publication before video exists,
+idempotent indexing, absent transcript, legacy Zoom, and cross-deal denial.
+Chromium mock API smoke verifies invitation, host action, WEBM player, transcript,
+provider label and chat control. No invitations were sent during tests.
