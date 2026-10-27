@@ -782,10 +782,18 @@ async function loadLogo(){
   return logoImg;
 }
 
+// Smoothstep сохраняет антиалиасинг, но убирает слабую примесь старого фона.
+function refinePersonAlpha(rgba){
+  for(let i=3;i<rgba.length;i+=4){
+    const t=Math.max(0,Math.min(1,(rgba[i]/255-0.35)/0.40));
+    rgba[i]=Math.round(255*t*t*(3-2*t));
+  }
+}
+
 class BgPipeline{
   constructor(stream, canvas, mode){
     this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.running=true; this.stream=stream; this.mode=mode||'blur';
-    this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d');
+    this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d', {willReadFrequently:true});
     this.video=document.createElement('video'); this.video.muted=true; this.video.playsInline=true; this.video.autoplay=true;
     this.video.srcObject=stream; this.video.play().catch(()=>{});
     this.init();
@@ -795,7 +803,7 @@ class BgPipeline{
     const ok=await ensureMediaPipe();
     if(!ok){ this.fallbackLoop(); return; }
     this.seg=new SelfieSegmentation({ locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
-    this.seg.setOptions({ modelSelection:1, selfieMode:false });
+    this.seg.setOptions({ modelSelection:0, selfieMode:false });
     this.seg.onResults(r=>this.onResults(r));
     this.loop();
   }
@@ -813,24 +821,18 @@ class BgPipeline{
   }
   onResults(results){
     const w=results.image.width, h=results.image.height; if(!w) return;
-    this.canvas.width=w; this.canvas.height=h; this.mask.width=w; this.mask.height=h;
+    if(this.canvas.width!==w || this.canvas.height!==h){ this.canvas.width=w; this.canvas.height=h; }
+    if(this.mask.width!==w || this.mask.height!==h){ this.mask.width=w; this.mask.height=h; }
     const ctx=this.ctx, mctx=this.mctx;
-    // 1) маска силуэта: мягкое «перо» (feather) вместо жёсткого порога.
-    //    Раньше contrast(9) давал ступенчатый край и светлый ореол (по контуру
-    //    оставался кусок яркого фона). Теперь: сильное сглаживание + умеренный
-    //    контраст (плавный переход) + лёгкая эрозия (brightness<1 сужает силуэт,
-    //    срезая светлый ободок фона).
-    // сильнее сглаживаем и понижаем контраст — край становится мягким градиентом,
-    // ореол не «пикселит» и визуально не выпирает; brightness<1 слегка сужает силуэт.
-    const feather = Math.max(5, Math.round(w/120));
-    mctx.save();
+    // Маска хранит вероятность человека в alpha. CSS brightness/contrast
+    // меняют RGB, но не alpha: вместе с blur(11px) это давало широкий ореол.
+    // Сглаживаем только узкую границу вероятности, сами пиксели камеры не трогаем.
     mctx.clearRect(0,0,w,h);
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
-    // brightness 0.82 сильнее сужает силуэт (срезает кромку реального фона),
-    // contrast 2.0 держит края мягкими, но без «пикселей»
-    mctx.filter=`blur(${feather}px) brightness(0.82) contrast(2)`;
     mctx.drawImage(results.segmentationMask,0,0,w,h);
-    mctx.restore();
+    const maskPixels=mctx.getImageData(0,0,w,h);
+    refinePersonAlpha(maskPixels.data);
+    mctx.putImageData(maskPixels,0,0);
     // 2) человек по маске
     ctx.save(); ctx.clearRect(0,0,w,h);
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
@@ -842,7 +844,6 @@ class BgPipeline{
     if(this.mode==='logo'){
       ctx.filter='none';
       // СВЕТЛЫЙ фон (белый с лёгким градиентом) + тёмный логотип Pllato по центру.
-      // Светлый фон прячет ореол: светлая кромка сливается с белым.
       const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#e9edf3');
       ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
       if(logoImg && logoImg.complete && logoImg.naturalWidth){
@@ -864,6 +865,8 @@ class BgPipeline{
    ============================================================ */
 let outBg=null, outCanvas=null;
 async function buildOutStream(){
+  // Превью больше не видно: не запускаем вторую модель параллельно с видеозвонком.
+  if(previewBg){ previewBg.stop(); previewBg=null; }
   const audio = state.rawStream.getAudioTracks();
   const hasCam = state.rawStream.getVideoTracks().length>0;
   let videoTrack;
