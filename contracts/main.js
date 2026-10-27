@@ -92,6 +92,7 @@ function signerStatusText(s) {
 // метка времени НУЦ. Без этого в реестре видно только «подписал».
 function renderCert(s) {
   if (s.status !== "signed") return "";
+  if(s.signatureMethod === 'whatsapp_otp') return `<div class="requisites"><div><span>Подтверждение</span><b>Код WhatsApp · ${esc(s.contact || s.phoneMasked || '')}</b></div></div>`;
   const rows = [
     ["Сертификат ЭЦП", s.signerCn],
     ["ИИН/БИН в сертификате", s.signerIin],
