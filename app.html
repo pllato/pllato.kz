@@ -6058,6 +6058,7 @@ let PORTAL_SCROLL_TIMER = null;
 PORTAL_VIEW.scroll = {};
 
 function refreshFavsUi(){
+ const scrollX=window.scrollX,scrollY=window.scrollY;
  document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
   const id=card.dataset.appId,dev=DEVELOPMENT.has(id),paid=FAVS.has(id);
   let marker=card.querySelector('.client-marker');
@@ -6066,6 +6067,9 @@ function refreshFavsUi(){
   const button=card.querySelector('.development-star');if(button){button.classList.toggle('on',dev);button.disabled=!FAVS_SYNCED||DEVELOPMENT_PENDING.has(id);button.setAttribute('aria-pressed',String(dev));button.title=dev?'Убрать из разработки':'В разработку';button.setAttribute('aria-label',button.title);}
  });
  if(GROUPS_INIT)applyProjectFilters();
+ // Filtering may remove the selected card; retain the current viewport, clamped
+ // naturally by the browser if the remaining list is shorter. Never restore a stale offset after the network response.
+ window.scrollTo({left:scrollX,top:scrollY,behavior:'instant'});
 }
 async function syncFavsFromServer(){
  if(!session?.user)return;if(FAVS_SYNC_PROMISE)return FAVS_SYNC_PROMISE;
@@ -6143,7 +6147,10 @@ function sortProjectCards(){
         if (da !== db) return direction==='asc' ? da.localeCompare(db) : db.localeCompare(da);
         return a[1] - b[1];                          // стабильно: тот же порядок при равной дате
       })
-      .forEach(([c]) => grid.appendChild(c));
+      .forEach(([c],index) => {
+        const current=grid.querySelectorAll(':scope > .tool-card[data-app-id]')[index];
+        if(current!==c)grid.insertBefore(c,current||null);
+      });
   });
 }
 function syncProjectDateFilterControls(){
