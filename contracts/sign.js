@@ -1,3 +1,4 @@
+import {initOtp,readSigningIdentity} from './otp.js?v=20261027-1';
 import { visibleParticipants, participantTypeLabel, signatureCountLabel } from './participants.js?v=20261003-4';
 import { signWithEgov, pendingEgov, clearEgov } from './egov.js?v=20261027-recovery';
 // Публичная страница договора (без логина).
@@ -93,6 +94,7 @@ function partyChip(p) {
 
 function partyCert(p) {
   if (p.status !== "signed") return "";
+  if (p.signatureMethod === 'whatsapp_otp') return `<div class="party-cert"><div><span>Способ подтверждения</span><b>Код WhatsApp</b></div><div><span>Телефон</span><b>${esc(p.phoneMasked || 'подтверждён')}</b></div></div>`;
   const rows = [
     ["Подписано ЭЦП", p.signerCn || "—"],
     ["ИИН / БИН в сертификате", p.signerIinMasked || "—"],
@@ -189,18 +191,18 @@ function renderDone(signer, contract, parties) {
       : "";
     root.innerHTML = `<div class="result-box ok">
       <div style="font-size:40px">✓</div>
-      <div>Договор подписан вашей ЭЦП${signer.signerCn ? "<br><b>" + esc(signer.signerCn) + "</b>" : ""}</div>
+      <div>${signer.signatureMethod === "whatsapp_otp" ? "Согласие с договором подтверждено кодом WhatsApp" : "Договор подписан вашей ЭЦП"}${signer.signerCn ? "<br><b>" + esc(signer.signerCn) + "</b>" : ""}</div>
       <div class="muted" style="margin-top:8px">${fmtDate(signer.signedAt)}</div>
     </div>
     ${contract ? `<h2 style="font-size:20px;margin:24px 0 4px">${esc(contract.title)}</h2>` : ""}
     ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
       ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}</div>` : ""}
     ${partiesBlock(parties, "Кто подписал")}
-    ${universal ? `<div class="hint one-link">🔗 Ссылка та же — сохраните её: по ней в любой момент видно статус договора. Если с этого устройства должен подписать ещё один участник — нажмите «Подписать другой ЭЦП».</div>` : ""}
+    ${universal ? `<div class="hint one-link">🔗 Ссылка та же — сохраните её: по ней в любой момент видно статус договора. Если с этого устройства должен подписать ещё один участник — нажмите «Другой подписант».</div>` : ""}
     ${preview}
     <div class="sign-actions" style="margin-top:18px">
       <button class="btn bronze" id="btn-dl-done"${fileInfo ? "" : " disabled"}>Скачать договор</button>
-      ${universal ? `<button class="btn" id="btn-again">Подписать другой ЭЦП</button>` : ""}
+      ${universal ? `<button class="btn" id="btn-again">Другой подписант</button>` : ""}
     </div>`;
     const again = $("#btn-again");
     if (again) again.addEventListener("click", () => location.reload());
@@ -259,19 +261,32 @@ async function render(data) {
       ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${partiesHtml}
-    ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто и какой ЭЦП уже подписал, отсюда же скачиваются сам договор и файлы подписей всех сторон. Здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
+    ${universal ? `<div class="hint one-link">По этой ссылке доступны договор, способы подписания и подтверждения участников.</div>` : ""}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
 
     <div class="req-form" id="req-form">
       <h2 class="req-title">Подписание договора</h2>
-      <p class="req-sub">Реквизиты уже указаны в договоре. Введите имя и выберите способ подписания.</p>
+      <p class="req-sub">Реквизиты уже указаны в договоре. Введите имя и телефон, затем выберите способ подписания.</p>
       <label class="fld"><span>Имя подписанта</span><input data-f="name" autocomplete="name" maxlength="200" placeholder="Ваше имя и фамилия" value="${esc(name)}" required></label>
-      <div class="sign-actions">
+      <label class="fld"><span>Телефон</span><input data-f="phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+7 777 123 45 67" required></label>
+      <div class="sign-actions"><button class="btn bronze" id="btn-next">Далее</button><button class="btn" id="btn-edit-identity" hidden>Изменить имя или телефон</button></div>
+      <div id="sign-methods" hidden><div class="sign-actions">
         <button class="btn bronze" id="btn-sign">Подписать ЭЦП</button>
         <button class="btn" id="btn-egov">eGov Mobile</button>
+        <button class="btn" id="btn-otp">СМС · WhatsApp</button>
       </div>
-      <p class="req-sub" style="margin:12px 0 0">ЭЦП — через NCALayer на компьютере. eGov Mobile — в приложении или по QR-коду.</p>
+      <p class="req-sub" style="margin:12px 0 0">ЭЦП — через NCALayer на компьютере. eGov Mobile — в приложении или по QR-коду. СМС · WhatsApp — подтверждение кодом в WhatsApp.</p></div>
+      <div id="otp-panel" class="otp-panel" hidden>
+        <h3>Код в WhatsApp</h3><p>Отправим пояснение и код на <b id="otp-recipient"></b>.</p>
+        <button class="btn" id="btn-otp-send">Получить код</button>
+        <div id="otp-entry" hidden>
+          <label class="fld"><span>Код из WhatsApp</span><input id="otp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></label>
+          <label class="otp-consent"><input type="checkbox" id="otp-consent"><span>Я ознакомился с договором и согласен с его условиями. Подтверждаю согласие одноразовым кодом, отправленным на мой номер WhatsApp.</span></label>
+          <button class="btn bronze" id="btn-otp-verify">Подтвердить договор</button>
+        </div>
+      </div>
+      <p id="sign-form-status" role="status" aria-live="polite"></p>
     </div>
     <div class="sign-actions">
       <button class="btn" id="btn-download">Скачать договор</button>
@@ -285,8 +300,16 @@ async function render(data) {
   if (declineBtn) declineBtn.addEventListener("click", () => onDecline());
   $("#btn-sign").addEventListener("click", () => onSign(contract));
   $("#btn-egov").addEventListener("click", () => onSign(contract, true));
+  initOtp({contract,signApi,onDone:async signer=>{
+    let parties;try{parties=(await apiGet()).parties}catch{}
+    renderDone(signer,contract,parties);
+  }});
   if (pendingEgov(signApi())) {
+    const saved=pendingEgov(signApi())?.metadata?.requisites?.data;
+    if(saved?.name) $('[data-f="name"]').value=saved.name;
+    if(saved?.contact) $('[data-f="phone"]').value=saved.contact;
     $("#btn-egov").textContent = "Продолжить в eGov Mobile";
+    $("#btn-next").click();
     toast("Вернулись из eGov? Нажмите «Продолжить в eGov Mobile».");
   }
 
@@ -308,12 +331,10 @@ function blobToBase64(blob) {
 }
 
 function collectRequisites() {
-  const input = document.querySelector('#req-form [data-f="name"]');
-  const name = input?.value.trim();
-  if (!name) { input?.focus(); throw new Error("Укажите имя подписанта"); }
+  const {name,phone} = readSigningIdentity();
   return {
     signerType: savedSignerDetails.signerType === "company" ? "ip" : savedSignerDetails.signerType,
-    requisites: { ...savedSignerDetails.requisites, data: { ...savedSignerDetails.requisites.data, name } },
+    requisites: { ...savedSignerDetails.requisites, data: { ...savedSignerDetails.requisites.data, name, contact: phone } },
   };
 }
 
@@ -322,7 +343,7 @@ async function onSign(contract, egov = false) {
   let reqs;
   try { reqs = (egov && pendingEgov(signApi())?.metadata) || collectRequisites(); }
   catch (e) { return toast(e.message, true); }
-  $("#btn-sign").disabled = true; $("#btn-egov").disabled = true;
+  $("#btn-sign").disabled = true; $("#btn-egov").disabled = true; $("#btn-otp").disabled = true; $("#btn-edit-identity").disabled = true; $("#otp-panel").hidden = true;
   if ($("#btn-decline")) $("#btn-decline").disabled = true;
   btn.textContent = egov ? "Подписание через eGov…" : "Подключаюсь к NCALayer…";
   try {
@@ -343,7 +364,7 @@ async function onSign(contract, egov = false) {
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));
     toast(msg, true);
-    $("#btn-sign").disabled = false; $("#btn-egov").disabled = false;
+    $("#btn-sign").disabled = false; $("#btn-egov").disabled = false; $("#btn-otp").disabled = false; $("#btn-edit-identity").disabled = false;
     if ($("#btn-decline")) $("#btn-decline").disabled = false;
     btn.textContent = egov ? "Продолжить в eGov Mobile" : "Подписать ЭЦП";
   }

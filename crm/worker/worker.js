@@ -1,3 +1,4 @@
+import {handleContractOtp} from './contract-otp.js';
 import {handleProjectProgrammers} from './project-programmers.js';
 import {PRODUCTION_COLLECTION,handleProductionActivity} from './production-activity.js';
 import productionSources from './production-sources.json';
@@ -1368,6 +1369,8 @@ function signerRowToDto(row, { includeToken = false } = {}) {
     contact: row.contact || "",
     orderIndex: Number(row.order_index) || 0,
     status: row.status,
+    signatureMethod: row.signature_method || "ecp",
+    phoneMasked: row.signature_method === "whatsapp_otp" ? String(row.contact || "").slice(0,3) + "•••••" + String(row.contact || "").slice(-4) : "",
     signerCn: row.signer_cn || "",
     signerIin: row.signer_iin || "",
     signerSerial: row.signer_serial || "",
@@ -1702,6 +1705,8 @@ function publicPartyDto(row) {
     role: row.role,
     status: row.status,
     signedAt: Number(row.signed_at) || 0,
+    signatureMethod: row.signature_method || "ecp",
+    phoneMasked: row.signature_method === "whatsapp_otp" ? String(row.contact || "").slice(0,3) + "•••••" + String(row.contact || "").slice(-4) : "",
     signerCn: row.signer_cn || "",
     signerIinMasked: maskIinBin(row.signer_iin),
     signerType: row.signer_type || "",
@@ -1818,6 +1823,7 @@ async function handleSignGet(env, token) {
       iin: signer.iin || "",
       status: signer.status,
       signedAt: Number(signer.signed_at) || 0,
+      signatureMethod: signer.signature_method || "ecp",
       signerCn: signer.signer_cn || "",
       declineReason: signer.decline_reason || "",
       signerType: signer.signer_type || "",
@@ -4409,6 +4415,32 @@ async function handleBinotelWebhook(request, env) {
   });
 
   return { status: "success", ok: true, received: true, callId: normalized?.callId || null };
+}
+
+// Канал задаётся сервером: публичный клиент не может выбрать чужой отправитель.
+async function sendContractOtp(env, phone, message) {
+  let settings;
+  try { settings = JSON.parse(env.CONTRACT_OTP_GREEN_JSON || '{}'); } catch { settings = {}; }
+  const instance = normalizeWaInstanceId(settings.instance);
+  const token = sanitizeGreenApiToken(settings.token || '');
+  if (!instance || !token) throw new HttpError(503, 'Канал подтверждения WhatsApp не настроен');
+  const base = normalizeGreenApiBaseUrl(settings.base || 'https://api.green-api.com', 'https://api.green-api.com');
+  const response = await fetch(`${base}/waInstance${instance}/sendMessage/${token}`, {
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chatId:phone+'@c.us',message,linkPreview:false}),signal:AbortSignal.timeout(20000),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.idMessage) throw new HttpError(502,'WhatsApp не принял сообщение');
+  return String(data.idMessage);
+}
+
+async function contractOtpRoute(request, env, token, universal, action) {
+  const resolved = universal ? {contract:await loadContractByPublicTokenOr404(env,token)} : await loadSignerByTokenOr404(env,token);
+  return handleContractOtp(request,env,{...resolved,scope:universal?'universal':resolved.signer.id,action},{
+    db:requireStoreDb(env),fail:(status,message)=>new HttpError(status,message),
+    send:(phone,text)=>sendContractOtp(env,phone,text),
+    sync:async()=>{const row=await loadContractOr404(env,resolved.contract.id); if(row.status !== "cancelled") await syncContractStatus(env,row);},
+  });
 }
 
 async function handleWaSend(request, env, actor) {
@@ -9166,6 +9198,11 @@ export default {
       if (request.method === "DELETE" && contractIdMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractDelete(env, contractIdMatch[1]));
+      }
+
+      const otpRoute = path.match(/^\/api\/sign\/(c\/)?([a-zA-Z0-9_-]+)\/otp\/(request|verify)$/);
+      if (request.method === 'POST' && otpRoute) {
+        return json(request,env,await contractOtpRoute(request,env,otpRoute[2],!!otpRoute[1],otpRoute[3]));
       }
 
       // Публичное скачивание подписи (.p7s) любой из сторон — по той же ссылке,
