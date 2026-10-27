@@ -1,4 +1,4 @@
-import {initMeetingProgress} from './meeting-progress.js?v=20261027-list';
+import {initMeetingProgress} from './meeting-progress.js?v=20261027-history';
 import {mountProjectMeetings} from './project-meetings.js?v=20261027-clear';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261027-delivery';
 import {transcriptText} from './zoom-crm.js?v=20261027-clear';
