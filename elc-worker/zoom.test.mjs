@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { handleZoomRequest, ensureZoomForTask, processZoomJobs, notifyZoomFiles, zoomMeetingPath } from './zoom.js';
+import { handleZoomRequest, ensureZoomForTask, processZoomJobs, notifyZoomFiles, zoomMeetingPath, syncZoomTask } from './zoom.js';
 
 function fixture() {
   const db=new DatabaseSync(':memory:');
@@ -256,7 +256,7 @@ test('Pllato Meet: private host access, CRM attachment and idempotent archive',a
   assert.ok(key);assert.ok(!m.join_url.includes(key));
   assert.equal(response.headers.get('cache-control'),'private, no-store');
   f.deps.canEditRecord=async()=>false;
-  assert.equal((await f.request('/meetings/'+m.meeting_id+'/host-access','POST')).status,403);
+  assert.equal((await f.request('/meetings/'+m.meeting_id+'/host-access','POST')).status,200,'staff with deal access may host even without edit rights');
   const env={CRM_DB:f.env.DB,CRM_FILES:f.env.FILES},id=m.meeting_id+'-1234567890';
   assert.equal(await authorizeCrmArchive(new Request('https://test'),env,id),null);
   const linked=await authorizeCrmArchive(new Request('https://test',{headers:{Authorization:'Bearer '+key}}),env,id);
@@ -307,4 +307,52 @@ test('CRM archive HTTP blocks public reads, foreign keys and publishes only afte
   assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM zoom_files').get().n,0);
   assert.equal((await call('/archive/meta/crm/'+id,'PUT',key,{recording:false,transcript:[]})).status,200);
   assert.equal(f.db.prepare('SELECT kind FROM zoom_files').get().kind,'chat_metadata');
+});
+
+test('Permanent deal room: concurrent creation, repeated events, cancellation and staff boundaries',async()=>{
+  const f=fixture();await f.request('/status');f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT');
+  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_1','Client One');
+  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_2','Client Two');
+  assert.equal((await (await f.request('/deals/deal_1/room')).json()).meeting,null);
+  const requests=await Promise.all([f.request('/deals/deal_1/room','POST'),f.request('/deals/deal_1/room','POST')]);
+  assert.ok(requests.every(r=>r.status===200));
+  const [a,b]=await Promise.all(requests.map(r=>r.json()));assert.equal(a.meeting.join_url,b.meeting.join_url);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM zoom_meetings WHERE deal_id=?').get('deal_1').n,1);
+  for(const id of ['t1','t2'])f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run(id,id,'zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
+  assert.equal((await ensureZoomForTask(f.env,'t1')).join_url,a.meeting.join_url);
+  assert.equal((await ensureZoomForTask(f.env,'t2')).join_url,a.meeting.join_url);
+  await syncZoomTask(f.env,'t1',{},true);
+  assert.equal((await (await f.request('/tasks/t2')).json()).meeting.join_url,a.meeting.join_url);
+  const other=await (await f.request('/deals/deal_2/room','POST')).json();assert.notEqual(a.meeting.join_url,other.meeting.join_url);
+  f.deps.resolveCanonicalUser=async()=>({role:'agent',canonicalUid:'staff'});f.deps.canEditRecord=async()=>false;
+  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,200);
+  f.deps.dealAccessSql=()=>({where:' AND id=?',params:['deal_2']});
+  assert.equal((await f.request('/deals/deal_1/room','POST')).status,403);
+  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,403);
+  f.deps.dealAccessSql=()=>({where:'',params:[]});f.deps.resolveCanonicalUser=async()=>({role:'guest'});
+  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,403);
+  assert.equal((await f.request('/deals/deal_1/room')).status,403);
+});
+test('Adopt an issued link without losing archives; cancelling its old event retains the room',async()=>{
+  const {createPllatoMeeting,ensureDealRoom}=await import('./meet-crm.js');
+  const f=fixture();await f.request('/status');
+  const old=await createPllatoMeeting(f.env,{id:'issued',title:'Existing meeting'},'deal_1');
+  const savedKey=f.db.prepare('SELECT v FROM zoom_private WHERE k=?').get('pmeet-host:'+old.meeting_id).v;
+  const permanent=await ensureDealRoom(f.env,'deal_1');assert.equal(permanent.join_url,old.join_url);
+  await syncZoomTask(f.env,'issued',{},true);
+  assert.equal((await ensureDealRoom(f.env,'deal_1')).join_url,old.join_url);
+  assert.equal(f.db.prepare('SELECT v FROM zoom_private WHERE k=?').get('pmeet-host:'+old.meeting_id).v,savedKey);
+});
+test('Separate sessions on the same room remain distinct in deal history',async()=>{
+  const {ensureDealRoom}=await import('./meet-crm.js');const {indexCrmArchive}=await import('../meet-worker/crm-archive.js');
+  const f=fixture();await f.request('/status');f.db.prepare('INSERT INTO deals(id) VALUES(?)').run('deal_1');
+  const room=await ensureDealRoom(f.env,'deal_1'),env={CRM_DB:f.env.DB,CRM_FILES:f.env.FILES};
+  for(const stamp of [1700000000000,1700100000000]){
+    const id=room.meeting_id+'-'+stamp;await f.env.FILES.put('rec/crm/'+id+'.webm','video');
+    await indexCrmArchive(env,room,id,{date:stamp,recording:true,transcript:[{text:'Session '+stamp}],chat:[]});
+  }
+  const {files}=await(await f.request('/files?deal=deal_1')).json();
+  assert.equal(files.length,6);assert.equal(new Set(files.map(f=>f.meeting_uuid)).size,2);
+  const {groupMeetingFiles}=await import('../app/zoom-crm.js');const groups=groupMeetingFiles(files);
+  assert.equal(groups.length,2);assert.ok(groups.every(g=>g.files.length===3&&g.hasTranscript));
 });

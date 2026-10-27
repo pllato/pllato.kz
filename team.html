@@ -8,7 +8,7 @@
 <link rel="modulepreload" href="./app/deal-requisites.js?v=20260929-autosave">
 <link rel="modulepreload" href="./app/deal-production.js?v=20261003-manual">
 <link rel="modulepreload" href="./app/team-request-cache.js?v=20261007">
-<link rel="modulepreload" href="./app/zoom-crm.js?v=20261027-meet">
+<link rel="modulepreload" href="./app/zoom-crm.js?v=20261027-deal-room">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ELC — English Lifestyle Communication</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -3466,7 +3466,7 @@ import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosav
 import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20261003-manual';
 import { createTeamReadCache } from './app/team-request-cache.js?v=20261007';
 import { mountDealTranscripts } from './app/deal-transcripts.js?v=20261027-meet';
-import { zoomClient } from './app/zoom-crm.js?v=20261027-meet';
+import { zoomClient } from './app/zoom-crm.js?v=20261027-deal-room';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
@@ -14778,7 +14778,6 @@ async function openDealCard(dealKey) {
               data-type="datetime-local"
               value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
               style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
-            <div id="dc-first-zoom-link" style="margin-top:10px"></div>
             ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
           </div>` : ''}
 
@@ -14797,6 +14796,8 @@ async function openDealCard(dealKey) {
 
       <div class="dc-section-h" style="margin-top:24px">Встречи Zoom: видео и транскрипты</div>
       <div id="dc-zoom-meetings"></div>
+      <div class="dc-section-h">Постоянная ссылка Pllato Meet</div>
+      <div id="dc-first-zoom-link" style="margin-top:10px"></div>
       <div id="dc-zoom-files"></div>
 
 
@@ -14942,9 +14943,14 @@ async function openDealCard(dealKey) {
     },
   });
   mountDealRequisites(modal.querySelector('#dc-requisites'),{dealId:dealRecordId,canEdit:canEditDeal,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
-  crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);
-  crmZoom.dealMeetings(modal.querySelector("#dc-zoom-meetings"), dealRecordId);
-  crmZoom.firstMeeting(modal.querySelector("#dc-first-zoom-link"), dealRecordId, deal.customFields?.firstZoomAt);
+  const refreshDealMeetings=()=>{
+    crmZoom.files(modal.querySelector('#dc-zoom-files'),dealRecordId,canEditDeal);
+    const events=modal.querySelector('#dc-zoom-meetings');events.replaceChildren();crmZoom.dealMeetings(events,dealRecordId);
+    crmZoom.firstMeeting(modal.querySelector('#dc-first-zoom-link'),dealRecordId,deal.customFields?.firstZoomAt);
+  };
+  refreshDealMeetings();
+  const onMeetingReturn=()=>{if(modal.isConnected)refreshDealMeetings();else window.removeEventListener('focus',onMeetingReturn);};
+  window.addEventListener('focus',onMeetingReturn);
 
   // Квалификация (бриф первого звонка)
   const qualDealId = dealRecordId;
