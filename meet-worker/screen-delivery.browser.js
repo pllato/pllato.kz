@@ -17,7 +17,7 @@ async function testScreenDelivery(){
     const peers=new Map();
     const make=new Function('state','peers','peerId','wsSend','errors',`
       const $=()=>document.createElement('button');
-      const ICE_SERVERS=[],presenceCache=new Map(),connectRecordingAudio=()=>{},tuneCamSender=()=>{},tuneScreenSender=()=>{};
+      const scheduleGroupBudget=()=>{};const ICE_SERVERS=[],presenceCache=new Map(),connectRecordingAudio=()=>{},tuneCamSender=()=>{},tuneScreenSender=()=>{};
       const currentCamVideoTrack=()=>state.outStream.getVideoTracks()[0];
       const console={warn:(...args)=>errors.push(args.map(String).join(' '))};
       function createPeerTile(){} function attachPeerTile(){}
