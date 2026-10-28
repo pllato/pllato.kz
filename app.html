@@ -1026,7 +1026,7 @@ body {
 .fc-week-tasks-head { display:flex; align-items:center; gap:7px; min-height:27px; flex-wrap:wrap; }
 .fc-week-tasks-head strong { font-size:11px; font-weight:800; }
 .fc-week-tasks-head .period { color:var(--text-3); font-size:9.5px; white-space:nowrap; }
-.fc-week-tasks-head .plan { margin-left:auto; color:var(--bronze-deep); font-size:10px; font-weight:800; white-space:nowrap; }
+.fc-week-tasks-head .plan { display:flex; flex-direction:column; gap:3px; margin-left:auto; color:var(--bronze-deep); font-size:10px; font-weight:800; white-space:nowrap; }
 .fc-week-tasks-head button { margin-left:auto; border:1px solid var(--line-2); background:transparent; color:var(--bronze-deep); border-radius:7px; padding:4px 7px; font:700 10px/1.2 inherit; cursor:pointer; }
 .fc-week-tasks-head .history { margin-left:auto; color:var(--text-2); }
 .fc-week-tasks-head .history + button,
@@ -7732,7 +7732,9 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
   const tasks=[...overdue,...currentTasks].sort((a,b)=>Number(Boolean(b.starred&&!b.done))-Number(Boolean(a.starred&&!a.done)));
   const starredCount=tasks.filter(task=>task.starred&&!task.done).length;
   const showAmounts=kind==='cash';
-  const planTotal=showAmounts ? currentTasks.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
+  const unfinished=tasks.filter(task=>!task.done);
+  const planTotal=showAmounts ? unfinished.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
+  const starredTotal=showAmounts ? unfinished.filter(task=>task.starred).reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
   const add=canConfigureFinanceChart(kind)
     ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
     : '';
@@ -7754,7 +7756,7 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
       return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+star)}</div>`;
     }).join('')
     : kind==='demos'&&!next?'':`<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
-  const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
+  const plan=showAmounts?`<span class="plan"><span>План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span><span>★ Со звёздочкой: ${mEsc(financeWeekTaskAmount(starredTotal))}</span></span>`:'';
   return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}${next?'-next':''}" data-week-view="${weekView}" data-task-kind="${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>${next?'Следующая неделя':weekView==='current'?'Текущая неделя':'Дела недели'}${overdue.length?` · ${overdue.length} с прошлых недель`:''}</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${history}${add}</div><div class="fc-week-tasks-list">${rows}</div>${kind==='demos'&&!next?'<div data-transcript-tasks></div>':''}${next?'':financeWeekTaskHistoryBlock(kind,point)}</section>`;
 }
 function refreshFinanceWeekTaskBlock(kind){

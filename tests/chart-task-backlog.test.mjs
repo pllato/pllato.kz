@@ -50,3 +50,16 @@ test('starred manual and automatic tasks lead the list; completed tasks stay bel
  assert.match(html,/aria-pressed="true"/);
  assert.match(html,/toggleFinanceWeekTaskStar/);
 });
+
+test('plan and starred sums count only unfinished visible tasks and react to completion',()=>{
+ const c=setup(),point=c.financeCurrentWeekPoint([]),week=7*86400000;
+ c.FINANCE_WEEK_TASKS=[{id:'old',amount:50,start:point.start-week,starred:true},{id:'now',amount:100},{id:'star',amount:200,starred:true},{id:'done',amount:900,starred:true,done:true},{id:'deleted',amount:800,deleted:true},{id:'moved',amount:700,movedToStart:point.end}].map(t=>({kind:'cash',text:t.id,start:point.start,end:point.end,...t}));
+ let html=c.financeWeekTaskBlockForPoint('cash',point);
+ assert.match(html,/План недели: 350/);assert.match(html,/Со звёздочкой: 250/);
+ c.FINANCE_WEEK_TASKS.find(t=>t.id==='star').done=true;
+ html=c.financeWeekTaskBlockForPoint('cash',point);
+ assert.match(html,/План недели: 150/);assert.match(html,/Со звёздочкой: 50/);
+ c.FINANCE_WEEK_TASKS.find(t=>t.id==='old').starred=false;
+ html=c.financeWeekTaskBlockForPoint('cash',point);
+ assert.match(html,/План недели: 150/);assert.match(html,/Со звёздочкой: 0/);
+});
