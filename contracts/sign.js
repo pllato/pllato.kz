@@ -253,30 +253,25 @@ async function render(data) {
   const partiesHtml = partiesBlock(data.parties, "Кто уже подписал");
 
   root.innerHTML = `
-    <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
-    <div class="summary">
-      ${signer.fullName ? `<div><span>Подписант</span><b>${esc(signer.fullName)}</b></div>` : ""}
-      ${signer.iin ? `<div><span>ИИН</span><b>${esc(signer.iin)}</b></div>` : ""}
-      <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
-      ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
-    </div>
-    ${partiesHtml}
-    ${universal ? `<div class="hint one-link">По этой ссылке доступны договор, способы подписания и подтверждения участников.</div>` : ""}
+    <header class="sign-heading"><h1>Подписание документа</h1><p class="document-name">${esc(contract.title)}</p><p class="sign-intro">Ознакомьтесь с документом, затем укажите свои данные и выберите способ подписания.</p></header>
+    <section class="document-card">
+      <details class="document-preview"><summary>Прочитать документ <span>${fmtSize(contract.fileSize)}</span></summary><div class="document-preview-body">${preview}</div></details>
+      <button class="btn sm" id="btn-download">Скачать PDF / файл</button>
+    </section>
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
-    ${preview}
 
     <div class="req-form" id="req-form">
-      <h2 class="req-title">Подписание договора</h2>
-      <p class="req-sub">Реквизиты уже указаны в договоре. Введите имя и телефон, затем выберите способ подписания.</p>
+      <h2 class="req-title">Ваши данные</h2>
+      <p class="req-sub">Реквизиты уже в документе. Осталось указать, кто его подписывает.</p>
       <label class="fld"><span>Имя подписанта</span><input data-f="name" autocomplete="name" maxlength="200" placeholder="Ваше имя и фамилия" value="${esc(name)}" required></label>
       <label class="fld"><span>Телефон</span><input data-f="phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+7 777 123 45 67" required></label>
-      <div class="sign-actions"><button class="btn bronze" id="btn-next">Далее</button><button class="btn" id="btn-edit-identity" hidden>Изменить имя или телефон</button></div>
+      <div class="sign-actions"><button class="btn bronze" id="btn-next">Выбрать способ подписания</button><button class="btn" id="btn-edit-identity" hidden>Изменить имя или телефон</button></div>
       <div id="sign-methods" hidden><div class="sign-actions">
-        <button class="btn bronze" id="btn-sign">Подписать ЭЦП</button>
-        <button class="btn" id="btn-egov">eGov Mobile</button>
-        <button class="btn" id="btn-otp">СМС · WhatsApp</button>
+        <button class="btn bronze" id="btn-sign">ЭЦП<small>На компьютере · NCALayer</small></button>
+        <button class="btn" id="btn-egov">eGov Mobile<small>В приложении или по QR-коду</small></button>
+        <button class="btn" id="btn-otp">Код в WhatsApp<small>Подтверждение согласия по телефону</small></button>
       </div>
-      <p class="req-sub" style="margin:12px 0 0">ЭЦП — через NCALayer на компьютере. eGov Mobile — в приложении или по QR-коду. СМС · WhatsApp — подтверждение кодом в WhatsApp.</p></div>
+      <p class="req-sub" style="margin:12px 0 0">Код WhatsApp подтверждает согласие с документом и не является ЭЦП.</p></div>
       <div id="otp-panel" class="otp-panel" hidden>
         <h3>Код в WhatsApp</h3><p>Отправим пояснение и код на <b id="otp-recipient"></b>.</p>
         <button class="btn" id="btn-otp-send">Получить код</button>
@@ -288,10 +283,9 @@ async function render(data) {
       </div>
       <p id="sign-form-status" role="status" aria-live="polite"></p>
     </div>
-    <div class="sign-actions">
-      <button class="btn" id="btn-download">Скачать договор</button>
-      ${universal ? "" : `<button class="btn danger" id="btn-decline">Отказаться</button>`}
-    </div>`;
+    ${partiesHtml ? `<details class="sign-secondary"><summary>Подписи и подтверждения участников</summary>${partiesHtml}</details>` : ""}
+    <details class="sign-secondary"><summary>Сведения о документе</summary><div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)}</b></div>${contract.fileHash?`<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>`:''}</div></details>
+    ${universal ? "" : `<div class="sign-actions"><button class="btn danger" id="btn-decline">Отказаться от подписания</button></div>`}`;
 
   const dl = $("#dl");
   if (dl) dl.addEventListener("click", downloadFile);

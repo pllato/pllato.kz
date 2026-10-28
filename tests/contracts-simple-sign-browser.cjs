@@ -20,6 +20,7 @@ const {chromium}=require('playwright'),fs=require('fs'),assert=require('node:ass
  });
  for(const method of ['nca','egov']){
   stored=method==='egov';await page.goto('https://sign.test/sign.html?c=test');await page.waitForSelector('#btn-next');
+  assert.equal(await page.locator('.document-preview').getAttribute('open'),null);assert.equal(await page.locator('.doc-frame').isVisible(),false);assert.equal(await page.locator('#btn-download').count(),1);await page.locator('.document-preview summary').click();assert(await page.locator('.doc-frame').isVisible());await page.locator('.document-preview summary').click();if(method==='nca')await page.screenshot({path:'/tmp/signing-clear-mobile.png',fullPage:true});
   assert.equal(await page.locator('#req-form > .fld input').count(),2);assert.equal(await page.locator('#type-seg').count(),0);
   const button=page.locator(method==='nca'?'#btn-sign':'#btn-egov');
   await page.locator('[data-f=name]').fill('');await page.locator('#btn-next').click();assert.equal(posts.length,method==='nca'?0:1);assert((await page.locator('#sign-form-status').textContent()).includes('имя'));
