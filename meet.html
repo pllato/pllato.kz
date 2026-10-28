@@ -13,9 +13,9 @@
 <style>
 :root{
   --navy:#0a1628; --bronze:#b8895a; --bronze-deep:#8b6740;
-  --bg:#0b0f1a; --surface:#121829; --surface-2:#1a2236; --surface-3:#222c44;
-  --text:#f3f5fa; --text-2:#aeb6c8; --text-3:#737d92;
-  --line:#26304a; --line-2:#2f3a58;
+  --bg:#f7f7f3; --surface:#fff; --surface-2:#f3f0e9; --surface-3:#eae5db;
+  --text:#111827; --text-2:#475467; --text-3:#667085;
+  --line:#e8e3d8; --line-2:#ddd5c7;
   --red:#ef4444; --red-deep:#b91c1c; --green:#22c55e; --blue:#3b82f6;
   --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
   --radius:14px;
@@ -192,7 +192,7 @@ button{font-family:inherit;cursor:pointer}
 .host-banner .txt{font-size:12.5px;color:var(--text-2)}
 #caption-bar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:80%;display:none;z-index:9;
   background:rgba(0,0,0,.72);backdrop-filter:blur(6px);border-radius:10px;padding:9px 16px;font-size:15px;line-height:1.4;text-align:center;pointer-events:none}
-#caption-bar.show{display:block}
+#caption-bar.show{display:block;color:#fff}
 #caption-bar .cap-who{color:var(--bronze);font-weight:700;margin-right:6px}
 
 /* background options (pre-join) */
@@ -267,6 +267,12 @@ button{font-family:inherit;cursor:pointer}
   .stage.presenting #caption-bar{bottom:114px}
 }
 .mobile-light .stage.presenting .grid{backdrop-filter:none;box-shadow:none}
+/* Light App palette, while video overlays retain readable white labels. */
+.prejoin-form{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 12px 40px #10182808}
+.pre-brand{width:105px;height:auto;margin-bottom:22px}.prejoin-form h2{font-size:24px;line-height:1.2}.prejoin-form .sub{color:var(--text-2);line-height:1.5}
+#pre-devices summary{font-size:13px;color:var(--text-2);cursor:pointer;padding:8px 0}#pre-devices[open] .field{margin-top:12px}
+#pre-name[readonly]{background:var(--surface-2)}.tile-name,.round-btn,.tile-noimg{color:#fff}.tile-noimg{background:#e9e5dd}.tile-noimg .avatar-lg{color:var(--navy)}
+@media(max-width:600px){.prejoin-form{padding:22px 18px}.prejoin-form h2{font-size:22px}}
 </style>
 </head>
 <body>
@@ -338,7 +344,7 @@ button{font-family:inherit;cursor:pointer}
         </div>
       </div>
       <div class="prejoin-form">
-        <h2>Готовы к встрече?</h2>
+        <img class="pre-brand" src="/pllato_logo_transparent_navy.svg" alt="Pllato"><h2>Присоединиться к встрече</h2>
         <div class="room-name" id="pre-roomname"></div>
         <p class="sub hidden" id="pre-background-label"></p>
         <button class="hidden" id="pre-invite">Скопировать приглашение</button>
@@ -357,8 +363,8 @@ button{font-family:inherit;cursor:pointer}
           <select class="select" id="sel-mic"></select>
         </div>
         </details>
-        <button class="btn btn-primary" style="width:100%" id="btn-enter">Разрешить камеру и микрофон и войти</button>
-        <p class="sub" style="font-size:12px;margin-top:12px">Встреча записывается. Запись, чат и доступная расшифровка сохраняются. Если камеры нет, вы сможете войти без видео.</p>
+        <button class="btn btn-primary" style="width:100%" id="btn-enter">Присоединиться</button>
+        <p class="sub" style="font-size:12px;margin-top:12px">Встреча записывается. Для подключения разрешите доступ к микрофону и камере.</p>
         <div id="pre-error"></div>
       </div>
     </div>
@@ -467,7 +473,9 @@ button{font-family:inherit;cursor:pointer}
       <button class="bg-opt" data-bg="blur">Размытие</button>
       <button class="bg-opt" data-bg="logo">Лого Pllato</button>
       <button class="bg-opt" data-bg="office-host">Ресепшен</button>
-      <button class="bg-opt" data-bg="office-client">Офис</button>
+      <button class="bg-opt" data-bg="office-client">Светлый офис</button>
+      <button class="bg-opt" data-bg="office-minimal">Минимализм</button>
+      <button class="bg-opt" data-bg="office-dark">Кабинет</button>
     </div>
   </div>
 </section>
@@ -475,6 +483,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import {MEET_BACKGROUNDS,hostBackground} from '/meet-backgrounds.js?v=20261028';
 import {readMeetStaffAccess} from '/meet-staff-access.js';
 import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-ratio';
 import { createMeetStorage } from "/meet-storage.js";
@@ -589,8 +598,11 @@ async function gotoPrejoin(roomId){
   const host=!!state.hostKey || myMeetSlug()===roomId;
   state.bgMode=deviceBackground(host?'office-host':'office-client'); state.camOn=true; state.noCameraConfirmed=false;
   $('pre-roomname').textContent=host?'Вы входите как организатор':'Введите имя, чтобы присоединиться';
-  $('btn-enter').textContent='Разрешить камеру и микрофон и войти';
+  $('btn-enter').textContent='Присоединиться';
+  $('pre-name').readOnly=false;
   $('pre-name').value=state.name;
+  const employee=sessionUser();
+  if(host && employee){state.name=String(employee.name||employee.email||state.name);$('pre-name').value=state.name;$('pre-name').readOnly=true;$('pre-roomname').textContent='Сотрудник Pllato · '+state.name;}
   $('btn-enter').disabled=false;
   $('pre-invite').onclick=()=>shareInvite(shortLink(roomId));
   $('pre-login').classList.add('hidden');
@@ -620,7 +632,12 @@ async function resolveStaffAccess(){
   }
   state.bgMode=deviceBackground(state.hostKey?'office-host':'office-client');
   $('pre-roomname').textContent=state.hostKey?'Вы входите как организатор':'Введите имя, чтобы присоединиться';
-  $('pre-login').classList.toggle('hidden',!!state.hostKey);
+  $('pre-login').classList.add('hidden');
+  const user=sessionUser();
+  if(state.hostKey && user){
+    const name=String(user.name||user.displayName||user.email||'').trim();
+    if(name){state.name=name;$('pre-name').value=name;$('pre-name').readOnly=true;$('pre-roomname').textContent='Сотрудник Pllato · '+name;}
+  }
 }
 
 
@@ -854,7 +871,7 @@ $('btn-enter').onclick = async ()=>{
     await buildOutStream();
     enterRoom();
   }catch(e){ $('pre-error').textContent=e.message;toast('Не удалось войти: '+e.message); }
-  finally{btn.disabled=false;btn.textContent='Разрешить камеру и микрофон и войти';}
+  finally{btn.disabled=false;btn.textContent='Присоединиться';}
 };
 $('pre-name').addEventListener('keydown',e=>{if(e.key==='Enter' && !$('btn-enter').disabled)$('btn-enter').click();});
 $('pre-devices').addEventListener('toggle',()=>{if($('pre-devices').open){$('pre-box').classList.remove('hidden');startPreview();}});
@@ -892,7 +909,7 @@ function loadOfficeBackground(mode){
   if(!mode.startsWith('office-')) return Promise.resolve(null);
   if(!officeImages.has(mode)) officeImages.set(mode,new Promise(resolve=>{
     const img=new Image(); img.onload=()=>resolve(img); img.onerror=()=>{officeImages.delete(mode);resolve(null);};
-    img.src=mode==='office-host'?'/assets/meet/office-reception.jpg':'/assets/meet/office-neutral.jpg';
+    img.src=(MEET_BACKGROUNDS[mode]||MEET_BACKGROUNDS['office-client']).url;
   }));
   return officeImages.get(mode);
 }
@@ -1097,6 +1114,7 @@ function currentCamVideoTrack(){
 
 // сменить фон во время встречи
 async function setBgRuntime(mode){
+  state.manualBackground=true;
   mode=deviceBackground(mode);
   state.bgMode=mode; meetStorage.setItem(LS.bg,mode); applyBgUI();
   if(mode!=='none'){
@@ -1201,7 +1219,7 @@ function handleWsMessage(m){
       state.isHost=m.self.isHost; state.admitted=m.self.admitted;
       state.recorderPeer=m.room?.recorderPeer||null;state.remoteRecording=!!m.room?.recordingActive;
       $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
-      if(state.bgMode.startsWith('office-')){
+      if(state.bgMode.startsWith('office-') && !state.manualBackground){
         state.bgMode=state.isHost?'office-host':'office-client'; outBg?.setMode(state.bgMode); applyBgUI();
       }
       for(const id of [...peers.keys()]){ if(!(m.peers||[]).some(p=>p.peer===id)) removePeer(id); }
@@ -1251,10 +1269,6 @@ function showWaitingPreview(){
   showScreen('screen-room');
   $('room-pill').textContent='Ожидаем администратора';
   $('timer-pill').textContent='Без записи';
-  if(state.roomId?.startsWith('crm-')&&!$('waiting-staff-login')){
-    const link=document.createElement('a');link.id='waiting-staff-login';link.className='btn';link.textContent='Я сотрудник — войти в аккаунт';
-    link.href='/login.html?next='+encodeURIComponent(shortLink(state.roomId));$('room-pill').after(link);
-  }
   setupLocalTile();
   initControls();
   renderPeopleList();updateBadges();
@@ -1289,6 +1303,10 @@ function removePeer(id){
 }
 
 function renderPeopleList(){
+  if(state.isHost && !MOBILE_MEDIA && state.bgMode.startsWith('office-') && !state.manualBackground){
+    const mode=hostBackground(peerId,[...presenceCache].filter(([,info])=>info.role==='host').map(([id])=>id));
+    if(mode!==state.bgMode){state.bgMode=mode;outBg?.setMode(mode);applyBgUI();}
+  }
   const list=$('people-list'); if(!list) return;
   const all=[...presenceCache.entries()];
   const admitted=all.filter(([,i])=>i.admitted);
