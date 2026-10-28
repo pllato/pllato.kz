@@ -1,3 +1,4 @@
+import {insertChartTaskIfAbsent} from './chart-task-create.js';
 import {handleContractOtp} from './contract-otp.js';
 import {handleProjectProgrammers} from './project-programmers.js';
 import {PRODUCTION_COLLECTION,handleProductionActivity} from './production-activity.js';
@@ -924,6 +925,12 @@ async function handleStorePush(request, env, actor) {
           || (op.item && (financeTaskOwner(op.item, finance) !== mine || !financeTaskVisible(op.item, finance, actor)))) {
         throw new HttpError(403, "Можно изменять только свои доступные дела");
       }
+    }
+    if(collection === "chart_week_tasks" && op.createOnly === true && op.type === "upsert") {
+      await ensureD1Schema(env);
+      await insertChartTaskIfAbsent(requireStoreDb(env), TEAM_ID, normalizeStoreItem(collection,op.item));
+      applied += 1;
+      continue;
     }
     const type = String(op.type || "").toLowerCase();
     if (type === "upsert") {

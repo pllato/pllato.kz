@@ -14,7 +14,7 @@ function setup(){
  const root={matches:()=>false,querySelector:s=>s==='.fc-grid'?grid:null,querySelectorAll:()=>[section]};
  Object.defineProperty(root,'innerHTML',{set(){grid.scrollLeft=0;section.scrollTop=0;list.scrollTop=0;history.scrollTop=0;}});
  const window={scrollX:0,scrollY:420,scrollTo({left,top}){this.scrollX=left;this.scrollY=top;}};
- const c=vm.createContext({window,console,document:{getElementById:()=>null},CHART_ALLOWED:{},CHART_VISIBILITY:{},CHART_SCALE:{},FINANCE_CHART_PERIOD:'week',applyAppDemoChart:()=>{},financeChartKinds:()=>['cash'],loadProjectManagers:async()=>{},loadFinanceChartComments:async()=>{},loadFinanceWeekTasks:async()=>{},ensureInitialFinanceComment:async()=>{},loadGlobalSalesQuickLink:async()=>{},financeChartsHeader:()=>'',financeChartCard:()=>'',applyFinanceChartsFold:()=>{},restorePortalPosition:()=>{throw Error('Must not restore stale portal position during edit');}});
+ const c=vm.createContext({window,console,document:{getElementById:()=>null},CHART_ALLOWED:{},CHART_VISIBILITY:{},CHART_SCALE:{},FINANCE_CHART_PERIOD:'week',applyAppDemoChart:()=>{},syncDemoOrderFollowups:async()=>{},mountTranscriptDemoTasks:()=>{},financeChartKinds:()=>['cash'],loadProjectManagers:async()=>{},loadFinanceChartComments:async()=>{},loadFinanceWeekTasks:async()=>{},ensureInitialFinanceComment:async()=>{},loadGlobalSalesQuickLink:async()=>{},financeChartsHeader:()=>'',financeChartCard:()=>'',applyFinanceChartsFold:()=>{},restorePortalPosition:()=>{throw Error('Must not restore stale portal position during edit');}});
  vm.runInContext(code,c);return {c,root,section,list,history,grid,window};
 }
 test('full chart repaint preserves latest horizontal, page and task scroll after async loading',async()=>{

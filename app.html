@@ -7374,6 +7374,44 @@ async function loadFinanceWeekTasks(){
   FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
   FINANCE_WEEK_TASKS_LOADED=true;
 }
+// Only newly published demos enter the sales follow-up queue; legacy catalog is not backfilled.
+function demoOrderFollowups(records,existing,now=Date.now()){
+  const cutoff=Date.parse('2026-10-28T00:00:00+05:00');
+  const todayEnd=Math.floor((now+5*3600000)/86400000)*86400000+86400000-5*3600000-1;
+  const known=new Set(existing.map(task=>task.id));
+  return records.flatMap(record=>{
+    const id=`demo-order:${encodeURIComponent(record.projectId)}`;
+    if(!record.projectId || !record.timestamp || record.timestamp<cutoff || record.timestamp>(record.dateOnly?todayEnd:now) || known.has(id))return [];
+    known.add(id);
+    const bounds=financeWeekBoundsAt(Math.min(record.timestamp,now));
+    return [{id,kind:'orders',...bounds,text:`Связаться после демо — ${record.title}`,
+      source:'demo-followup',automatic:true,sourceProjectId:record.projectId,
+      managerEmail:record.manager||'',sourceDemoUrl:record.demoUrl||'',crmDealId:record.crmDealId||'',
+      done:false,starred:false,createdAt:record.timestamp,updatedAt:now}];
+  });
+}
+let DEMO_ORDER_SYNC=null;
+async function syncDemoOrderFollowups(){
+  if(DEMO_ORDER_SYNC)return DEMO_ORDER_SYNC;
+  if(!canConfigureFinanceChart('orders'))return;
+  DEMO_ORDER_SYNC=(async()=>{
+    const records=appDemoRecords().filter(record=>CURRENT?.isSuperAdmin || record.manager===String(CURRENT?.email||'').toLowerCase());
+    const tasks=demoOrderFollowups(records,FINANCE_WEEK_TASKS);
+    for(let i=0;i<tasks.length;i+=50){
+      await apiFetch('/store/push',{method:'POST',body:{ops:tasks.slice(i,i+50).map(item=>({type:'upsert',collection:'chart_week_tasks',createOnly:true,item}))}});
+    }
+    if(tasks.length){FINANCE_WEEK_TASKS_LOADED=false;await loadFinanceWeekTasks();}
+  })();
+  try{await DEMO_ORDER_SYNC;}finally{DEMO_ORDER_SYNC=null;}
+}
+function financeDemoTaskLink(task){
+  if(task?.source!=='demo-followup')return '';
+  try{
+    const url=new URL(task.sourceDemoUrl,location.origin+'/');
+    if(!task.sourceDemoUrl || url.origin!==location.origin || !url.pathname.startsWith('/app/'))return '';
+    return `<a class="auto-badge" href="${mEsc(url.href)}" target="_blank" rel="noopener" title="Открыть демо клиента">Демо ↗</a>`;
+  }catch{return '';}
+}
 async function ensureInitialFinanceComment(series){
   if(!CURRENT?.isSuperAdmin || !Array.isArray(series)) return;
   const point=series.find(item=>item?.partial && item?.label==='30.07');
@@ -7734,7 +7772,7 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
         : '');
     const remove=canEditFinanceTask(task) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
     const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
-    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
+    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${financeDemoTaskLink(task)}${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
 }
@@ -7790,8 +7828,8 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
         ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}${carry}${task.done||!canEditFinanceTask(task)?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести автоматическое дело на следующую неделю" title="Перенести плановый платёж на следующую неделю">→</button>`}</span>`
         : canEditFinanceTask(task)
         ? `<span class="fc-week-task-actions">${carry}${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
-        : '<span></span>';
-      return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+star)}</div>`;
+        : '<span class="fc-week-task-actions"></span>';
+      return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+financeDemoTaskLink(task)+star)}</div>`;
     }).join('')
     : kind==='demos'&&!next?'':`<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
   const plan=showAmounts?`<span class="plan"><span>План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span><span>★ Со звёздочкой: ${mEsc(financeWeekTaskAmount(starredTotal))}</span></span>`:'';
@@ -8103,7 +8141,7 @@ function appDemoRecords(){
     if(seen.has(id))return [];seen.add(id);
     // Date-only legacy catalog entries are assigned to noon Almaty, like legacy payments.
     const timestamp=/^\d{4}-\d{2}-\d{2}$/.test(date||'')?Date.parse(date+'T12:00:00+05:00'):0;
-    return [{projectId:id,title:card.querySelector('h3')?.textContent.trim()||id,timestamp,manager:String(PROJECT_MANAGERS[id]||'').toLowerCase(),dateOnly:true}];
+    return [{projectId:id,title:card.querySelector('h3')?.textContent.trim()||id,timestamp,manager:String(PROJECT_MANAGERS[id]||'').toLowerCase(),demoUrl:card.querySelector('a.tool-cta[href]')?.getAttribute('href')||'',crmDealId:card.dataset.crmDealId||'',dateOnly:true}];
   });
 }
 function appDemoAdjustment(start,end){
@@ -8158,6 +8196,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   if(!kinds.length) return false;
   try{
     await Promise.all([loadFinanceChartComments(),loadFinanceWeekTasks()]);
+    await syncDemoOrderFollowups();
     if(FINANCE_CHART_PERIOD==='week') await ensureInitialFinanceComment(data.charts?.inquiries);
   }catch(commentError){
     console.warn('chart collaboration:',commentError);
