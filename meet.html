@@ -1757,7 +1757,7 @@ function initControls(){
   applyBgUI();
 }
 // метка «Показать экран / Остановить показ» в настройках (с иконкой)
-function refreshShareLabel(){ const b=$('s-share'); if(b) b.textContent = (state.sharing?'🛑 Остановить показ':'🖥 Показать экран'); }
+function refreshShareLabel(){ const b=$('s-share'); if(b) b.textContent = (state.sharing?'🛑 Остановить показ':'🖥 Показать экран'); const control=$('cb-share'); if(control){const label=state.sharing?'Остановить показ':'Показать экран';control.setAttribute('aria-label',label);control.title=label;} }
 
 function toggleSettings(){ const m=$('settings-menu'); m.classList.toggle('show'); $('cb-settings').classList.toggle('on', m.classList.contains('show')); if(m.classList.contains('show')) populateDevices(); }
 
