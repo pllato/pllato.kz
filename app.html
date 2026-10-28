@@ -9016,6 +9016,27 @@ function calTimeLabel(ms){
   const d=new Date(ms);
   return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
+function calNearestEventIndex(events,now){
+  // A task deadline is not an ongoing meeting.
+  let running=-1;
+  events.forEach((item,i)=>{
+    if(item.kind!=='task' && item.at<=now && item.end>now && (running<0 || item.at>events[running].at))running=i;
+  });
+  if(running>=0)return running;
+  const next=events.findIndex(item=>item.at>=now);
+  return next>=0?next:events.length-1;
+}
+function calPositionList(box,events,now,previous){
+  const list=box.querySelector('.cw-list');
+  if(!list || !events.length)return;
+  const day=new Date(now).toLocaleDateString('en-CA');
+  if(previous && box.dataset.scrollDay===day){list.scrollTop=previous.top;return;}
+  const chip=list.querySelector(`[data-cw="${calNearestEventIndex(events,now)}"]`);
+  if(!chip)return;
+  const row=chip.closest('.cw-entry')||chip;
+  list.scrollTop=Math.max(0,list.scrollTop+row.getBoundingClientRect().top-list.getBoundingClientRect().top);
+  box.dataset.scrollDay=day;
+}
 function renderTodayCalendar(){
   const box=document.getElementById('calWidget');
   if(!box) return;
@@ -9030,6 +9051,8 @@ function renderTodayCalendar(){
     return;
   }
   const now=Date.now();
+  const oldList=box.querySelector('.cw-list');
+  const previous=oldList?{top:oldList.scrollTop}:null;
   // Статус строки считаем по встречам: дедлайн задачи — не «идёт сейчас».
   const meetList=CAL_EVENTS.filter(e=>e.kind!=='task');
   const base=meetList.length?meetList:CAL_EVENTS;
@@ -9067,6 +9090,7 @@ function renderTodayCalendar(){
       <span class="cw-sub">${counts} · ${status}</span></div>
     <div class="cw-list">${chips}</div>${open}`;
   calBindTips(box);
+  calPositionList(box,CAL_EVENTS,now,previous);
 }
 
 /* Карточка встречи при наведении: полное название, воронка, стадия и сумма —
