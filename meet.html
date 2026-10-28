@@ -527,12 +527,8 @@ const MEDIA_PROFILE = MOBILE_MEDIA
 function deviceBackground(mode){ return MOBILE_MEDIA ? 'none' : mode; }
 const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
-const ICE_SERVERS = [
-  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-];
+let ICE_SERVERS = [{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}];
+
 
 /* ---------- small helpers ---------- */
 const meetingGrid = document.getElementById('video-grid');
@@ -1274,7 +1270,7 @@ function handleWsMessage(m){
       presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
       for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
       participantNames.add(state.name);
-      if(state.admitted){ onAdmitted(); connectToAdmittedPeers();reconcileRecordingOwner(); }
+      if(state.admitted){ wsSend({t:'ice-servers'}); onAdmitted(); connectToAdmittedPeers();reconcileRecordingOwner(); }
       else{ showWaitingPreview(); }
       break;
     }
@@ -1299,11 +1295,23 @@ function handleWsMessage(m){
     }
     case 'recording-transfer-failed':toast('Передача записи не состоялась. Прежний администратор продолжает запись.',8000);break;
     case 'peer-leave': removePeer(m.peer); break;
-    case 'you-admitted': if(!state.admitted){ state.admitted=true; const me=presenceCache.get(peerId); if(me) me.admitted=true; onAdmitted(); connectToAdmittedPeers(); } break;
+    case 'you-admitted': if(!state.admitted){ state.admitted=true; wsSend({t:'ice-servers'}); const me=presenceCache.get(peerId); if(me) me.admitted=true; onAdmitted(); connectToAdmittedPeers(); } break;
     case 'meeting-ending': showMeetingEnding(m.endAt); break;
     case 'meeting-resumed': clearInterval(meetingEndTimer);$('meeting-ending')?.remove();break;
     case 'meeting-ended': finishRemoteMeeting();break;
     case 'room-update': state.locked=!!m.locked; break;
+    case 'ice-servers': {
+      if(m.available && Array.isArray(m.iceServers)){
+        ICE_SERVERS=m.iceServers;
+        for(const [id,peer] of peers){
+          try{peer.pc.setConfiguration({...peer.pc.getConfiguration(),iceServers:ICE_SERVERS});
+            if(peer.pc.connectionState!=='connected'){peer.recoveryAttempts=0;peer.pc.restartIce();}
+          }catch{}
+          updatePeerConnection(peer);
+        }
+      }
+      break;
+    }
     case 'signal': handleSignal(m.from, m.data); break;
     case 'chat': onChatMessage(m); break;
     case 'transcript': onTranscriptMessage(m); break;
@@ -1343,7 +1351,7 @@ function onAdmitted(){
 function removePeer(id){
   presenceCache.delete(id);
   const peer=peers.get(id);
-  if(peer){ [peer.videoEl,peer.screenVideoEl,peer.screenAudioEl].forEach(detachMedia); try{peer.pc.close();}catch{} peer.tile?.remove(); peer.screenTile?.remove(); peers.delete(id); }
+  if(peer){ clearTimeout(peer.recoveryTimer); [peer.videoEl,peer.screenVideoEl,peer.screenAudioEl].forEach(detachMedia); try{peer.pc.close();}catch{} peer.tile?.remove(); peer.screenTile?.remove(); peers.delete(id); }
   relayoutGrid();
   renderPeopleList(); updateBadges();
 }
@@ -1404,6 +1412,7 @@ function ensurePeer(id, info){
   if(peers.has(id)) return peers.get(id);
   const pc=new RTCPeerConnection({ iceServers: ICE_SERVERS });
   const peer={ pc, makingOffer:false, settingRemoteAnswer:false, ignoreOffer:false, polite: peerId>id,
+    signalQueue:Promise.resolve(),pendingCandidates:[],recoveryAttempts:0,
     tile:null, videoEl:null, camStream:new MediaStream(),
     screenTile:null, screenVideoEl:null, screenStream:new MediaStream(),
     camSender:null, audioSender:null, screenSender:null, hasCamVideo:false, info };
@@ -1436,10 +1445,35 @@ function ensurePeer(id, info){
       tuneCamSender(peer.camSender,peer);
       if(peer.screenSender) tuneScreenSender(peer.screenSender,peer);
     }
-    if(st==='failed'){ try{pc.restartIce();}catch{} }
+    updatePeerConnection(peer);
+    if(st==='connected'){clearTimeout(peer.recoveryTimer);peer.recoveryTimer=null;peer.recoveryAttempts=0;}
+    else if(['failed','disconnected','connecting'].includes(st)) schedulePeerRecovery(peer);
   };
   createPeerTile(id, peer, info);
+  updatePeerConnection(peer);
+  schedulePeerRecovery(peer);
   return peer;
+}
+
+function updatePeerConnection(peer){
+  const label=peer.tile?.querySelector('.connection-status');
+  if(!label)return;
+  const connected=peer.pc.connectionState==='connected';
+  label.hidden=connected;
+  label.textContent=peer.recoveryAttempts>=3
+    ? 'Нет связи со звуком и видео. Проверьте сеть или перезайдите.'
+    : peer.recoveryAttempts ? 'Восстанавливаем звук и видео…' : 'Подключаем звук и видео…';
+}
+function schedulePeerRecovery(peer){
+  if(peer.recoveryTimer || peer.recoveryAttempts>=3 || ['closed','connected'].includes(peer.pc.connectionState))return;
+  peer.recoveryTimer=setTimeout(()=>{
+    peer.recoveryTimer=null;
+    if(state._leaving || ['closed','connected'].includes(peer.pc.connectionState))return;
+    peer.recoveryAttempts++;
+    try{peer.pc.restartIce();}catch{}
+    updatePeerConnection(peer);
+    schedulePeerRecovery(peer);
+  },12000);
 }
 
 // MIDs are sent with the SDP before ontrack runs; track order is not identity.
@@ -1513,7 +1547,13 @@ async function handleSignal(from, data){
   if(!from || from===peerId || !data) return;
   let peer=peers.get(from);
   if(!peer){ const info=presenceCache.get(from)||{name:'Участник'}; peer=ensurePeer(from, info); }
+  const operation=()=>applyPeerSignal(from,peer,data);
+  peer.signalQueue=peer.signalQueue.then(operation,operation);
+  return peer.signalQueue;
+}
+async function applyPeerSignal(from,peer,data){
   const pc=peer.pc;
+  if(pc.signalingState==='closed')return;
   try{
     if(data.description){
       const desc=data.description;
@@ -1523,9 +1563,12 @@ async function handleSignal(from, data){
       peer.remoteSlots=data.mediaSlots||null;
       peer.settingRemoteAnswer=desc.type==='answer';
       try{await pc.setRemoteDescription(desc);}finally{peer.settingRemoteAnswer=false;}
+      for(const candidate of peer.pendingCandidates.splice(0)){try{await pc.addIceCandidate(candidate);}catch(e){console.warn('Meet queued candidate rejected',e.name);}}
       if(desc.type==='offer'){ await pc.setLocalDescription(); sendDescription(from,peer); }
     }else if(data.candidate){
-      try{ await pc.addIceCandidate(data.candidate); }catch(e){ if(!peer.ignoreOffer){} }
+      if(peer.ignoreOffer)return;
+      if(!pc.remoteDescription){if(peer.pendingCandidates.length<100)peer.pendingCandidates.push(data.candidate);return;}
+      try{ await pc.addIceCandidate(data.candidate); }catch(e){console.warn('Meet candidate rejected',e.name);}
     }
   }catch(e){ console.warn('Meet signal failed',e); }
 }
@@ -1537,6 +1580,7 @@ function createPeerTile(id, peer, info){
   if(peer.tile) return;
   const tile=document.createElement('div'); tile.className='tile'+(info?.role==='host'?' host':''); tile.id='tile_'+id; tile.dataset.kind='camera';
   tile.innerHTML=`<video autoplay playsinline></video>
+    <div class="connection-status" style="position:absolute;top:12px;left:12px;right:12px;z-index:4;background:#fff4df;color:#563f1e;padding:8px;border-radius:8px;font-size:13px" role="status"></div>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(info?.name)}</div></div>
     <div class="tile-name"><span class="mic-off hidden">${MIC_OFF}</span><span class="host-tag${info?.role==='host'?'':' hidden'}">Ведущий</span><span class="nm">${escapeHtml(info?.name||'Участник')}</span><button class="tile-quality connection-quality" type="button" data-quality="unknown" title="Проверка связи" aria-label="Проверка связи"><span class="signal-bars" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="15" width="4" height="6" rx="1.2"/><rect x="10" y="10" width="4" height="11" rx="1.2"/><rect x="17" y="3" width="4" height="18" rx="1.2"/></svg></span></button></div>`;
   $('video-grid').appendChild(tile);
