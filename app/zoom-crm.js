@@ -74,7 +74,7 @@ export function zoomClient({ base, getToken, compact = false }) {
       if(meeting?.status==='cancelled'){container.textContent='Встреча отменена';return;}
       if (meetingUrl(meeting?.join_url)) {
         if(compact){
-          const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать ссылку';
+          const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent=isMeet(meeting)?'Копировать ссылку Pllato Meet':'Копировать ссылку Zoom';
           copy.onclick=async e=>{
             e.stopPropagation();
             try{await navigator.clipboard.writeText(meeting.join_url);copy.textContent='Скопировано ✓';}
@@ -85,7 +85,7 @@ export function zoomClient({ base, getToken, compact = false }) {
         }
         container.innerHTML = ` ${isMeet(meeting)?'':`<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>`}
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
-          <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
+          <button type="button" class="tbtn" data-copy>Копировать ссылку ${isMeet(meeting)?'Pllato Meet':'Zoom'}</button>
           <button type="button" class="tbtn tbtn-a" data-host>${isMeet(meeting)?'Войти как организатор':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка встречи: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
         const invitation=zoomInvitation(meeting);

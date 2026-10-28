@@ -1,5 +1,5 @@
 import {initMeetingProgress} from './meeting-progress.js?v=20261028-history';
-import {mountProjectMeetings} from './project-meetings.js?v=20261027-recorder';
+import {mountProjectMeetings} from './project-meetings.js?v=20261028-copy-label';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261027-delivery';
 import {transcriptText} from './zoom-crm.js?v=20261027-recorder';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
