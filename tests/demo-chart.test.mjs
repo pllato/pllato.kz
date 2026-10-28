@@ -40,5 +40,5 @@ const start=buckets[1].startMs,end=buckets[1].endMs;
 const result=await details(new Request(`https://test/api/charts/pllato-details?kind=demos&start=${start}&end=${end}`),env);
 assert.equal(result.status,200);assert.deepEqual(result.body.items.map(x=>x.dealId),['boundary','after']);
 const src=readFileSync(new URL('../app.html',import.meta.url),'utf8');
-assert.ok(src.includes("['inquiries','kep','demos','orders','cash','releases']"));
+assert.ok(src.includes("['social','inquiries','kep','demos','orders','cash','releases']"));
 console.log('Demo chart: exact stage, first entry, no re-entry duplicates, later-stage retention, pipeline isolation, Thursday 14:00 boundary, manager totals and drilldown agree.');

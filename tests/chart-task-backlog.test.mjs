@@ -6,7 +6,7 @@ const source=fs.readFileSync(new URL('../app.html',import.meta.url),'utf8');
 const names=['financeCurrentWeekPoint','financeWeekShortDate','financeWeekTaskPeriod','financeWeekTasks','financeWeekTaskBlockForPoint','financeWeekTaskIsAutomatic','financeWeekTaskAutoBadge','financeWeekTaskOpenAction','financeWeekTaskAmount','moveFinanceWeekTaskForward','moveAutomaticPaymentPlanTaskForward','carryFinanceWeekTaskToCurrent'];
 const code=names.map(name=>{const start=source.search(new RegExp('(?:async )?function '+name+'\\('));const end=source.indexOf('\n}',start)+2;return source.slice(start,end);}).join('\n');
 function setup(){
- const c=vm.createContext({Date,console,FINANCE_WEEK_TASKS:[],FINANCE_WEEK_TASK_HISTORY_OPEN:new Set(),CURRENT:{email:'me'},mEsc:String,fmtT:String,financeTaskManagerLabel:()=>'',canConfigureFinanceChart:()=>true,canEditFinanceTask:()=>true,financeWeekTaskHistoryBlock:()=>'',paymentPlanProjectToken:String,confirm:()=>true,_mmId:null,alert:msg=>{throw Error(msg);}});
+ const c=vm.createContext({Date,console,FINANCE_WEEK_TASKS:[],FINANCE_WEEK_TASK_HISTORY_OPEN:new Set(),CURRENT:{email:'me'},mEsc:String,fmtT:String,financeTaskManagerLabel:()=>'',financeDemoTaskLink:()=>'',canConfigureFinanceChart:()=>true,canEditFinanceTask:()=>true,financeWeekTaskHistoryBlock:()=>'',paymentPlanProjectToken:String,confirm:()=>true,_mmId:null,alert:msg=>{throw Error(msg);}});
  vm.runInContext(code,c);return c;
 }
 test('all previous unfinished weeks remain visible; completed/deleted/moved and future tasks stay out',()=>{
