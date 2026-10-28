@@ -1,7 +1,7 @@
 // Сборка договоров центра Бубновского (два заказчика по 50%): DOCX + HTML → PDF. Запуск: WHO=timur|talgat NODE_PATH=~/.local/sales-kit/node_modules node build.js
 const fs = require('fs'), path = require('path');
 const D = require('docx');
-const { B, NUM, SLUG, CU, DOCL = 'Договор № ' } = (process.env.DOP ? require('./dop') : require('./content'))(process.env.WHO || 'timur');
+const { B, NUM, SLUG, CU, DOCL = 'Договор № ' } = (process.env.SRC ? require('./' + process.env.SRC) : require('./content'))(process.env.WHO || 'timur');
 const ROOT = path.resolve(__dirname, '../../../..');
 const OUT = path.join(ROOT, 'app');
 const FONT = 'Arial', SZ = 20; // 10pt
