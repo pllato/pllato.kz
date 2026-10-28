@@ -721,11 +721,25 @@ async function captureMedia(constraints,timeoutMs=15000){
   })]);}finally{clearTimeout(timer);}
 }
 
+// Prefer the laptop microphone over Continuity only until the user chooses one.
+function preferredLaptopMic(devices){
+  if(MOBILE_MEDIA) return null;
+  return devices.find(d=>d.kind==='audioinput' && d.deviceId && !['default','communications'].includes(d.deviceId)
+    && !/iphone|continuity|airpods|bluetooth/i.test(d.label||'')
+    && /macbook|built[ -]?in|internal|встроенн|microphone array|массив микрофон/i.test(d.label||'')) || null;
+}
+async function findLaptopMic(){
+  if(state.manualMic || MOBILE_MEDIA) return null;
+  try{return preferredLaptopMic(await navigator.mediaDevices.enumerateDevices());}catch{return null;}
+}
+
 async function getLocalMedia(){
   state.mediaReady=false; state.noCameraConfirmed=false;
   if(state.rawStream){ state.rawStream.getTracks().forEach(t=>t.stop()); }
   const vBase = { width:{ideal:MEDIA_PROFILE.width,...(MOBILE_MEDIA?{max:640}:{})}, height:{ideal:MEDIA_PROFILE.height,...(MOBILE_MEDIA?{max:360}:{})}, frameRate:{ideal:MEDIA_PROFILE.cameraFps, max:MEDIA_PROFILE.cameraFps} };
   const vc = state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase;
+  const preferredMic = await findLaptopMic();
+  if(preferredMic) state.selMic=preferredMic.deviceId;
   const ac = state.selMic ? { deviceId:{exact:state.selMic}, echoCancellation:true, noiseSuppression:true, autoGainControl:true } : { echoCancellation:true, noiseSuppression:true, autoGainControl:true };
   let stream=null, camErr=null, micErr=null;
   try{
@@ -743,6 +757,20 @@ async function getLocalMedia(){
       }
     }
     try{ const a=await captureMedia({ audio:ac }); a.getAudioTracks().forEach(t=>stream.addTrack(t)); }catch(e2){ micErr=e2; }
+  }
+  // Labels can be hidden until the first permission grant. Replace only audio;
+  // keep the camera and keep the working track if the built-in input is busy.
+  const unlockedMic = await findLaptopMic();
+  const audioTrack = stream?.getAudioTracks()[0];
+  if(unlockedMic && audioTrack && audioTrack.getSettings().deviceId!==unlockedMic.deviceId){
+    try{
+      const preferredStream=await captureMedia({audio:{deviceId:{exact:unlockedMic.deviceId},echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      const replacement=preferredStream.getAudioTracks()[0];
+      if(replacement){
+        stream.getAudioTracks().forEach(t=>{stream.removeTrack(t);t.stop();});
+        stream.addTrack(replacement);
+      }
+    }catch{} // Preserve the available microphone when switching fails.
   }
   state.rawStream = stream || new MediaStream();
   const hasAudio = state.rawStream.getAudioTracks().length>0;
@@ -804,7 +832,7 @@ async function populateDevices(){
 }
 // смена устройства в зале ожидания/превью
 $('sel-cam').onchange = async (e)=>{ state.selCam=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
-$('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
+$('sel-mic').onchange = async (e)=>{ state.manualMic=true; state.selMic=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
 // устройства подключили/отключили (например, надели наушники) — обновляем списки
 navigator.mediaDevices?.addEventListener?.('devicechange', async ()=>{
   try{ await populateDevices(); }catch{}
@@ -1660,7 +1688,7 @@ function initControls(){
   $('s-chat').onclick=()=>{ toggleSettings(); openPane('chat'); };
   $('s-transcript').onclick=()=>{ toggleSettings(); openPane('transcript'); };
   $('r-cam').onchange = async (e)=>{ state.selCam=e.target.value; await changeDevicesRuntime(); toast('Камера переключена'); };
-  $('r-mic').onchange = async (e)=>{ state.selMic=e.target.value; await changeDevicesRuntime(); toast('Микрофон переключён'); };
+  $('r-mic').onchange = async (e)=>{ state.manualMic=true; state.selMic=e.target.value; await changeDevicesRuntime(); toast('Микрофон переключён'); };
   document.querySelectorAll('#r-bg-options .bg-opt').forEach(b=> b.onclick=()=>{ setBgRuntime(b.dataset.bg); });
   applyBgUI();
 }

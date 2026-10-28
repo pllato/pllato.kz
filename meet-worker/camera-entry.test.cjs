@@ -3,7 +3,7 @@ const {join}=require('node:path');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
 const source=readFileSync(join(__dirname,'../meet.html'),'utf8');
-const getMedia=source.slice(source.indexOf('async function getLocalMedia(){'),source.indexOf('\nfunction mediaErrText'));
+const getMedia=source.slice(source.indexOf('function preferredLaptopMic(devices){'),source.indexOf('\nfunction mediaErrText'));
 const gate=source.slice(source.indexOf('function canEnterWithCamera(){'),source.indexOf('// Permission denial'));
 const error=name=>Object.assign(new Error(name),{name});
 function track(kind){return{kind,enabled:true,readyState:'live',stop(){this.readyState='ended'},getSettings(){return{}}}}
