@@ -1,7 +1,7 @@
 // Сборка договоров центра Бубновского (два заказчика по 50%): DOCX + HTML → PDF. Запуск: WHO=timur|talgat NODE_PATH=~/.local/sales-kit/node_modules node build.js
 const fs = require('fs'), path = require('path');
 const D = require('docx');
-const { B, NUM, SLUG, CU } = require('./content')(process.env.WHO || 'timur');
+const { B, NUM, SLUG, CU, DOCL = 'Договор № ' } = (process.env.DOP ? require('./dop') : require('./content'))(process.env.WHO || 'timur');
 const ROOT = path.resolve(__dirname, '../../../..');
 const OUT = path.join(ROOT, 'app');
 const FONT = 'Arial', SZ = 20; // 10pt
@@ -40,10 +40,10 @@ for (const b of B) {
   else if (b.t === 'signs2') { kids.push(para('', { after: 120 })); kids.push(two(sig('Исполнитель', b.ex, b.exs), sig('Заказчик', b.cu, b.cus))); }
 }
 const doc = new D.Document({
-  creator: 'Pllato', title: 'Договор № ' + NUM,
+  creator: 'Pllato', title: DOCL + NUM,
   styles: { default: { document: { run: { font: FONT, size: SZ } } } },
   sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
-    footers: { default: new D.Footer({ children: [new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [new D.TextRun({ text: 'Договор № ' + NUM + ' · стр. ', font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ children: [D.PageNumber.CURRENT], font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ text: ' из ', font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ children: [D.PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: '6B7B88' })] })] }) },
+    footers: { default: new D.Footer({ children: [new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [new D.TextRun({ text: DOCL + NUM + ' · стр. ', font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ children: [D.PageNumber.CURRENT], font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ text: ' из ', font: FONT, size: 16, color: '6B7B88' }), new D.TextRun({ children: [D.PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: '6B7B88' })] })] }) },
     children: kids }]
 });
 D.Packer.toBuffer(doc).then(buf => { fs.writeFileSync(path.join(OUT, SLUG + '.docx'), buf); console.log('docx ok', buf.length); });
@@ -76,5 +76,5 @@ table{width:100%;border-collapse:collapse;margin:4px 0 8px;font-size:9pt;break-i
 .pb{break-after:page}.ak{text-align:right;color:#4a5560;font-size:9pt;margin-bottom:8px}.ah{margin-top:0}
 .tzm{margin:0 0 7px;break-inside:avoid}.tzm b{display:block;margin-bottom:2px}.req{display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:9pt;break-inside:avoid;margin-top:6px}.req .nm{font-weight:700}.sl{font-weight:700;font-size:10pt;margin-bottom:3px}.ln{margin-top:22px}.mp{color:#6b7b88;font-size:8pt}.s2{margin-top:16px}
 .act{border:1px solid #bfc7cf;padding:8px 10px;margin:4px 0}.act b{display:block;text-align:center;margin-bottom:6px}`;
-fs.writeFileSync(path.join(OUT, SLUG + '.html'), `<!doctype html><html lang="ru"><head><script src="/app/gate.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Договор № ${NUM} · Центр Бубновского · ${CU.label} × Pllato</title><style>${css}@media screen{body{max-width:180mm;margin:20px auto;padding:0 12px}}</style></head><body>${ht.join('\n')}</body></html>`);
+fs.writeFileSync(path.join(OUT, SLUG + '.html'), `<!doctype html><html lang="ru"><head><script src="/app/gate.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${DOCL}${NUM} · Центр Бубновского · ${CU.label} × Pllato</title><style>${css}@media screen{body{max-width:180mm;margin:20px auto;padding:0 12px}}</style></head><body>${ht.join('\n')}</body></html>`);
 console.log('html ok');
