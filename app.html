@@ -10,7 +10,7 @@ window.addEventListener('pageshow', event => {
 });
 </script>
 <!-- Start authentication dependencies before parsing the full workspace. -->
-<link rel="modulepreload" href="./pllato-kz-shared/pllato-api.js?v=20260813-access-timeout">
+<link rel="modulepreload" href="./pllato-kz-shared/pllato-api.js?v=20261028-storage">
 <link rel="modulepreload" href="./app/project-payouts.js?v=20261016-access">
 <link rel="modulepreload" href="./app/project-recordings.js?v=20260923">
 <link rel="stylesheet" href="/app/contracts/panel.css?v=20261003-1">
@@ -5204,7 +5204,7 @@ import {
   signOut as localSignOut,
   apiFetch,
   requireSession,
-} from './pllato-kz-shared/pllato-api.js?v=20260813-access-timeout';
+} from './pllato-kz-shared/pllato-api.js?v=20261028-storage';
 
 
 
@@ -5663,9 +5663,11 @@ function buildCurrent(userAuth, foundUser, foundUid) {
 
 function syncCurrentAccessToSession() {
   if (!CURRENT) return;
+  for (const storageName of ['localStorage', 'sessionStorage']) {
   try {
-    const raw = JSON.parse(localStorage.getItem('pllato_session') || 'null');
-    if (!raw?.user || String(raw.user.email || '').toLowerCase() !== String(CURRENT.email || '').toLowerCase()) return;
+    const storage = window[storageName];
+    const raw = JSON.parse(storage.getItem('pllato_session') || 'null');
+    if (!raw?.user || String(raw.user.email || '').toLowerCase() !== String(CURRENT.email || '').toLowerCase()) continue;
     raw.user = {
       ...raw.user,
       isAdmin: Boolean(CURRENT.isAdmin),
@@ -5676,8 +5678,9 @@ function syncCurrentAccessToSession() {
         canWidget: Boolean(CURRENT.isAdmin || CURRENT.calendarAccess?.canWidget),
       },
     };
-    localStorage.setItem('pllato_session', JSON.stringify(raw));
+    storage.setItem('pllato_session', JSON.stringify(raw));
   } catch (_) {}
+  }
 }
 
 function writeUsersRegistryCache(users) {
@@ -5813,7 +5816,7 @@ onAuthStateChanged(auth, async (user) => {
       calendarAccess: { canCreate: true, canWidget: true },
       cachedAt: Date.now(),
     };
-    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+    try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
     showApp({
       email: user.email,
       name: userData.name,
@@ -5891,7 +5894,7 @@ onAuthStateChanged(auth, async (user) => {
       calendarAccess: CURRENT.calendarAccess,
       cachedAt: Date.now(),
     };
-    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+    try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
 
     showApp({
       email: user.email,
@@ -5920,7 +5923,7 @@ onAuthStateChanged(auth, async (user) => {
         calendarAccess: CURRENT.calendarAccess,
         cachedAt: Date.now(),
       };
-      localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+      try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
       showApp({
         email: user.email,
         name: userData.name,
@@ -6003,7 +6006,7 @@ async function refreshUserDataInBackground(user) {
       calendarAccess: CURRENT.calendarAccess,
       cachedAt: Date.now(),
     };
-    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+    try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
     // Перерисовать карточки и кнопку админа (вдруг права изменились)
     applyPermissionsAndAdminUI();
   } catch (e) {

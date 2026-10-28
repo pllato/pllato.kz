@@ -175,7 +175,7 @@ body {
 <script src="app.config.js"></script>
 
 <script type="module">
-import { getSession, mountGoogleButton } from './pllato-kz-shared/pllato-api.js';
+import { getSession, mountGoogleButton } from './pllato-kz-shared/pllato-api.js?v=20261028-storage';
 
 const errorEl = document.getElementById('error-msg');
 const loadingEl = document.getElementById('loading-msg');
@@ -208,7 +208,7 @@ function hideLoading() {
 
 function cacheUserForApp(session) {
   const user = session?.user || {};
-  localStorage.setItem('pllato_user_cache', JSON.stringify({
+  try { localStorage.setItem('pllato_user_cache', JSON.stringify({
     email: user.email || '',
     name: user.name || (user.email || '').split('@')[0] || 'Сотрудник',
     photoURL: '',
@@ -222,7 +222,7 @@ function cacheUserForApp(session) {
       position: user.position || '',
     },
     cachedAt: Date.now(),
-  }));
+  })); } catch {}
 }
 
 const existing = getSession();

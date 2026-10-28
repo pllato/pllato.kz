@@ -64,23 +64,41 @@ function saveSessionFromAuthResponse(data) {
     exp,
     user,
   };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
-}
-
-export function getSession() {
-  const raw = localStorage.getItem(SESSION_KEY);
-  const parsed = parseJsonSafe(raw);
-  const session = validateSession(parsed);
-  if (!session) {
-    localStorage.removeItem(SESSION_KEY);
-    return null;
+  const serialized = JSON.stringify(session);
+  // Keep the login usable when the origin's persistent cache is full.
+  // sessionStorage survives navigation/reload in this tab; never erase drafts.
+  try {
+    localStorage.setItem(SESSION_KEY, serialized);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  } catch {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch {}
+    try {
+      sessionStorage.setItem(SESSION_KEY, serialized);
+    } catch {
+      throw new Error("Браузер не может сохранить вход. Откройте сайт в другой вкладке или разрешите хранение данных сайта и повторите вход.");
+    }
   }
   return session;
 }
 
+export function getSession() {
+  for (const name of ["localStorage", "sessionStorage"]) {
+    try {
+      const storage = window[name];
+      const session = validateSession(parseJsonSafe(storage.getItem(SESSION_KEY)));
+      if (session) return session;
+      storage.removeItem(SESSION_KEY);
+    } catch {}
+  }
+  return null;
+}
+
 export function signOut() {
-  localStorage.removeItem(SESSION_KEY);
+  for (const name of ["localStorage", "sessionStorage"]) {
+    try { window[name].removeItem(SESSION_KEY); } catch {}
+  }
   try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
 }
 
