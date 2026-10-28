@@ -273,6 +273,17 @@ button{font-family:inherit;cursor:pointer}
 #pre-devices summary{font-size:13px;color:var(--text-2);cursor:pointer;padding:8px 0}#pre-devices[open] .field{margin-top:12px}
 #pre-name[readonly]{background:var(--surface-2)}.tile-name,.round-btn,.tile-noimg{color:#fff}.tile-noimg{background:#e9e5dd}.tile-noimg .avatar-lg{color:var(--navy)}
 @media(max-width:600px){.prejoin-form{padding:22px 18px}.prejoin-form h2{font-size:22px}}
+
+#cb-mic{position:relative}#cb-mic[data-mic-state="active"]{color:#128447;background:#e3f6e9;border-color:#128447}
+#cb-mic[data-mic-state="error"]{color:#b4372d;border-color:#b4372d}
+#mic-level-bars{display:flex;gap:2px;align-items:end;position:absolute;right:5px;top:7px;height:12px}
+#mic-level-bars i{width:3px;background:currentColor;opacity:.2;height:4px}#mic-level-bars i:nth-child(2){height:8px}#mic-level-bars i:nth-child(3){height:12px}
+#cb-mic[data-mic-state="active"] #mic-level-bars i{opacity:1}
+.connection-quality[data-quality="good"]{color:#128447}.connection-quality[data-quality="warn"]{color:#b77913}.connection-quality[data-quality="bad"]{color:#c13c35}
+.connection-quality[data-quality="unknown"]{color:#8b9199}.signal-bars{font-size:21px;line-height:1;letter-spacing:1px}
+.tile-quality{border:0;background:transparent;color:#c5ccd4;padding:0 2px;cursor:help;font:inherit}.tile-quality .signal-bars{font-size:15px}
+.local-mic{display:inline-flex;align-items:center;gap:2px}.local-mic svg{width:15px;height:15px}.local-mic[data-mic-state="active"]{color:#67e69d}.local-mic[data-mic-state="error"]{color:#ff897e}
+#cb-mic[data-mic-state="error"] #mic-level-bars:after{content:'!';font-size:14px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -448,9 +459,10 @@ button{font-family:inherit;cursor:pointer}
   </div>
 
   <div class="controlbar">
-    <button class="cb" id="cb-mic"><span id="cb-mic-ic"></span><span>Звук</span></button>
+    <button class="cb" id="cb-mic" aria-label="Выключить микрофон"><span id="cb-mic-ic"></span><span id="mic-level-bars" aria-hidden="true"><i></i><i></i><i></i></span><span id="mic-state-label">Микрофон</span></button>
     <button class="cb hidden" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
     <button class="cb" id="cb-floating" title="Собеседники поверх других окон" aria-label="Собеседники поверх других окон" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><rect x="11" y="11" width="8" height="7" rx="1"/></svg><span>Поверх</span></button>
+    <button class="cb connection-quality" id="connection-quality" type="button" title="Проверка связи" aria-label="Проверка связи"><span class="signal-bars" aria-hidden="true">▂▄▆</span><span>Связь</span></button>
     <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span><span class="badge hidden" id="settings-badge">0</span></button>
     <button class="cb btn-danger" id="cb-leave" style="background:var(--red);border-color:var(--red);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Выйти</span></button>
   </div>
@@ -483,6 +495,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import {connectionQuality,microphoneStatus,audioRms} from './meet-media-status.js?v=20261028';
 import {MEET_BACKGROUNDS,hostBackground} from '/meet-backgrounds.js?v=20261028';
 import {readMeetStaffAccess} from '/meet-staff-access.js';
 import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-ratio';
@@ -1204,6 +1217,7 @@ async function changeDevicesRuntime(){
   await applyAudioToPeers();
   selfPatch({camOn:state.camOn,micOn:state.micOn});
   setLocalTileStream();
+  monitorLocalAudio();
   if(state.recording) connectRecordingAudio(state.rawStream);
 }
 
@@ -1520,9 +1534,10 @@ function createPeerTile(id, peer, info){
   const tile=document.createElement('div'); tile.className='tile'+(info?.role==='host'?' host':''); tile.id='tile_'+id; tile.dataset.kind='camera';
   tile.innerHTML=`<video autoplay playsinline></video>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(info?.name)}</div></div>
-    <div class="tile-name"><span class="mic-off hidden">${MIC_OFF}</span><span class="host-tag${info?.role==='host'?'':' hidden'}">Ведущий</span><span class="nm">${escapeHtml(info?.name||'Участник')}</span></div>`;
+    <div class="tile-name"><span class="mic-off hidden">${MIC_OFF}</span><span class="host-tag${info?.role==='host'?'':' hidden'}">Ведущий</span><span class="nm">${escapeHtml(info?.name||'Участник')}</span><button class="tile-quality connection-quality" type="button" data-quality="unknown" title="Проверка связи" aria-label="Проверка связи"><span class="signal-bars" aria-hidden="true">▂▄▆</span></button></div>`;
   $('video-grid').appendChild(tile);
   peer.tile=tile; peer.videoEl=tile.querySelector('video');
+  tile.querySelector('.tile-quality').onclick=e=>toast(e.currentTarget.title);
   relayoutGrid();
 }
 function attachPeerTile(id, peer){
@@ -1571,27 +1586,70 @@ function setupLocalTile(){
   localTile=document.createElement('div'); localTile.className='tile local'+(state.isHost?' host':''); localTile.id='tile_local'; localTile.dataset.kind='camera';
   localTile.innerHTML=`<video autoplay playsinline muted></video>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(state.name)}</div></div>
-    <div class="tile-name"><span class="mic-off ${state.micOn?'hidden':''}">${MIC_OFF}</span><span class="host-tag${state.isHost?'':' hidden'}">Ведущий</span><span class="nm">${escapeHtml(state.name)} (вы)</span></div>`;
+    <div class="tile-name"><span class="host-tag${state.isHost?'':' hidden'}">Ведущий</span><span class="local-mic" title="Проверка микрофона">${MIC_ON}</span><span class="nm">${escapeHtml(state.name)} (вы)</span></div>`;
   $('video-grid').appendChild(localTile);
   setLocalTileStream();
   monitorLocalAudio();
   relayoutGrid();
 }
 // подсветка «вы говорите» на своей плитке
-let localMeterOn=false;
-function monitorLocalAudio(){
-  try{
-    if(MOBILE_MEDIA || localMeterOn || !state.rawStream?.getAudioTracks().length) return;
-    localMeterOn=true;
-    const ac=getMixAudioContext();
-    const src=ac.createMediaStreamSource(state.rawStream);
-    const an=ac.createAnalyser(); an.fftSize=512; src.connect(an);
-    const buf=new Uint8Array(an.frequencyBinCount);
-    const tick=()=>{ if(!localTile || !state._joined){ localMeterOn=false; src.disconnect(); an.disconnect(); return; } an.getByteFrequencyData(buf);
-      const v=buf.reduce((a,b)=>a+b,0)/buf.length; localTile.classList.toggle('speaking', state.micOn && v>22); setTimeout(tick,150); };
-    tick();
-  }catch{}
+let localMeterCleanup=null;
+function paintLocalMic(level=0,available=false){
+  const status=microphoneStatus(state.rawStream?.getAudioTracks()[0],state.micOn,level,available);
+  const button=$('cb-mic');
+  if(button.dataset.micState===status.state && localTile?.querySelector('.local-mic')?.dataset.micState===status.state)return;
+  button.dataset.micState=status.state;button.title=status.label;
+  button.setAttribute('aria-label',status.label+'. '+(state.micOn?'Выключить':'Включить'));
+  $('mic-state-label').textContent={active:'Звук есть',quiet:'Микрофон',off:'Выключен',error:'Нет микрофона',unknown:'Микрофон'}[status.state];
+  const icon=localTile?.querySelector('.local-mic');
+  if(icon){icon.dataset.micState=status.state;icon.title=status.label;icon.innerHTML=state.micOn?MIC_ON:MIC_OFF;icon.setAttribute('aria-label',status.label);}
+  localTile?.classList.toggle('speaking',status.state==='active');
 }
+function monitorLocalAudio(){
+  localMeterCleanup?.();localMeterCleanup=null;
+  paintLocalMic();
+  if(!state.rawStream?.getAudioTracks().length)return;
+  let timer,src,an,stopped=false;
+  const cleanup=()=>{stopped=true;clearTimeout(timer);try{src?.disconnect();an?.disconnect();}catch{}};
+  localMeterCleanup=cleanup;
+  try{
+    const ac=getMixAudioContext();
+    src=ac.createMediaStreamSource(new MediaStream(state.rawStream.getAudioTracks()));
+    an=ac.createAnalyser();an.fftSize=256;src.connect(an);
+    const buf=new Uint8Array(an.fftSize);let activeUntil=0;
+    const tick=()=>{
+      if(stopped)return;
+      if(state._leaving || !localTile?.isConnected){cleanup();return;}
+      an.getByteTimeDomainData(buf);const level=audioRms(buf);
+      if(level>.012)activeUntil=Date.now()+250;
+      paintLocalMic(Date.now()<activeUntil?Math.max(level,.02):level,ac.state==='running');
+      timer=setTimeout(tick,document.hidden?500:150);
+    };tick();
+  }catch{cleanup();paintLocalMic();}
+}
+let qualityTimer=null,qualityGeneration=0;
+function paintQuality(node,result){
+  if(!node)return;node.dataset.quality=result.state;node.title=result.title;node.setAttribute('aria-label',result.title);
+}
+function startQualityMonitor(){
+  stopQualityMonitor();const generation=qualityGeneration;
+  const tick=async()=>{
+    if(generation!==qualityGeneration || state._leaving)return;
+    const results=await Promise.all([...peers.values()].map(async peer=>{
+      let result;
+      try{result=connectionQuality(await peer.pc.getStats(),peer._qualitySamples,peer.pc.connectionState);peer._qualitySamples=result.samples;}
+      catch{result={state:'unknown',label:'Статистика недоступна',title:'Статистика связи недоступна'};}
+      if(generation===qualityGeneration)paintQuality(peer.tile?.querySelector('.tile-quality'),result);
+      return result;
+    }));
+    if(generation!==qualityGeneration)return;
+    const rank={good:0,unknown:1,warn:2,bad:3};
+    const worst=results.sort((a,b)=>rank[b.state]-rank[a.state])[0]||{state:'unknown',title:'Ожидаем подключения собеседника'};
+    paintQuality($('connection-quality'),worst);
+    qualityTimer=setTimeout(tick,document.hidden?10000:4000);
+  };tick();
+}
+function stopQualityMonitor(){clearTimeout(qualityTimer);qualityGeneration++;}
 function setLocalTileStream(){
   if(!localTile) return;
   localTile.classList.toggle('office-background',state.bgMode.startsWith('office-'));
@@ -1661,6 +1719,8 @@ function peerIdOf(peer){ for(const [k,v] of peers) if(v===peer) return k; return
    ============================================================ */
 function initControls(){
   refreshControlIcons();
+  startQualityMonitor();
+  $('connection-quality').onclick=()=>toast($('connection-quality').title);
   $('cb-mic').onclick=toggleMic;
   $('cb-share').onclick=toggleShare;
   $('cb-floating').onclick=async()=>{
@@ -1703,10 +1763,11 @@ function refreshControlIcons(){
   $('cb-mic-ic').innerHTML=state.micOn?MIC_ON:MIC_OFF; $('cb-mic').classList.toggle('off',!state.micOn);
   $('cb-share')?.classList.toggle('on',state.sharing);
   refreshShareLabel();
+  paintLocalMic();
 }
 
 function selfPatch(patch){ const me=presenceCache.get(peerId); if(me){ Object.assign(me, patch); renderPeopleList(); } wsSend({t:'presence',patch}); }
-function toggleMic(){ state.micOn=!state.micOn; state.rawStream.getAudioTracks().forEach(t=>t.enabled=state.micOn); selfPatch({micOn:state.micOn}); localTile?.querySelector('.mic-off').classList.toggle('hidden',state.micOn); refreshControlIcons(); }
+function toggleMic(){ state.micOn=!state.micOn; state.rawStream.getAudioTracks().forEach(t=>t.enabled=state.micOn); selfPatch({micOn:state.micOn}); localTile?.querySelector('.mic-off')?.classList.toggle('hidden',state.micOn); refreshControlIcons(); }
 
 // кнопка «Фон» циклически: нет → размытие → логотип → нет
 async function cycleBackground(){
@@ -1791,6 +1852,7 @@ function showMeetingEnding(endAt){
   tick();meetingEndTimer=setInterval(tick,1000);
 }
 async function finishRemoteMeeting(){
+  localMeterCleanup?.();stopQualityMonitor();
   clearInterval(meetingEndTimer);wsClosedByUser=true;clearTimeout(wsReconnectTimer);
   try{ws?.close();}catch{}
   for(const {pc} of peers.values())pc.close();
@@ -1823,6 +1885,7 @@ function showHostExitError(error){
   $('host-exit-retry').classList.remove('hidden');
 }
 function stopMeetingMedia(){
+  localMeterCleanup?.();stopQualityMonitor();
   for(const {pc} of peers.values())pc.close();
   state._joined=false;
   state.rawStream?.getTracks().forEach(t=>t.stop());
