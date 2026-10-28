@@ -1,3 +1,4 @@
+import {issueTurnCredentials} from './turn.js';
 import {beginDelivery,acceptAudio,finishDelivery,processDelivery} from './delivery.js';
 import {crmMeeting,authorizeCrmArchive,indexCrmArchive} from './crm-archive.js';
 /**
@@ -264,6 +265,15 @@ export class MeetRoom {
 
     switch (m.t) {
       case 'join': return this.onJoin(ws, m);
+      case 'ice-servers': {
+        if (!self?.info.admitted) return;
+        const now=Date.now();
+        if(self.turnRequestedAt && now-self.turnRequestedAt<60000)return;
+        self.turnRequestedAt=now;this.setAtt(ws,self);
+        try{this.send(ws,{t:'ice-servers',...await issueTurnCredentials(this.env)});}
+        catch{this.send(ws,{t:'ice-servers',available:false});console.warn('Meet TURN credential service unavailable');}
+        return;
+      }
       case 'signal': {
         if (!self?.info.admitted) return;
         const target = this.sockFor(m.to);

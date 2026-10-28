@@ -33,7 +33,8 @@ console.log('PASS: bounded frame scheduling, compact mask/full output, stop-duri
 // Receiver-aware limits prevent a desktop sender from feeding HD30 to phones.
 (async()=>{
 const applied=[];
-const tune=vm.createContext({MOBILE_MEDIA:false,MEDIA_PROFILE:{bitrate:2_000_000,cameraFps:30}});
+const {groupVideoBudget}=await import('../meet-group-budget.js');
+const tune=vm.createContext({groupVideoBudget,peers:new Map(),MOBILE_MEDIA:false,MEDIA_PROFILE:{bitrate:2_000_000,cameraFps:30}});
 vm.runInContext(script.slice(script.indexOf('async function tuneVideoSender('),script.indexOf('// заменить исходящий видео-трек')),tune);
 const sender={track:{getSettings:()=>({width:1280,height:720})},getParameters:()=>({encodings:[{}]}),setParameters:async p=>applied.push(p)};
 await tune.tuneCamSender(sender,{info:{mobileMedia:true}});
