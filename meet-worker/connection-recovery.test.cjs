@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync(__dirname+'/../meet.html','utf8');
+const code=source.slice(source.indexOf('function updatePeerConnection('),source.indexOf('// MIDs are sent'));
+let timers=[],restarts=0;const label={};
+const context=vm.createContext({state:{},setTimeout:fn=>{timers.push(fn);return timers.length;}});
+vm.runInContext(code,context);
+const peer={recoveryAttempts:0,pc:{connectionState:'disconnected',restartIce(){restarts++}},tile:{querySelector:()=>label}};
+context.schedulePeerRecovery(peer);context.schedulePeerRecovery(peer);assert.equal(timers.length,1);
+while(timers.length)timers.shift()();
+assert.equal(restarts,3);assert.match(label.textContent,/Нет связи/);
+peer.recoveryAttempts=0;peer.pc.connectionState='connected';context.updatePeerConnection(peer);context.schedulePeerRecovery(peer);assert.equal(label.hidden,true);assert.equal(timers.length,0);
+peer.pc.connectionState='disconnected';context.schedulePeerRecovery(peer);context.state._leaving=true;timers.shift()();assert.equal(restarts,3);
+console.log('PASS: bounded recovery, connected status, no restart after leaving');

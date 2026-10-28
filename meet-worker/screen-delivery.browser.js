@@ -10,6 +10,10 @@ async function testScreenDelivery(){
   const endpoints={}, errors=[];let descriptions=0;
   function endpoint(id,sharing=false,noCamera=false){
     const state={outStream:noCamera?new MediaStream():video('blue'),sharing,screenStream:sharing?video('red'):null};
+    const audioContext=new AudioContext(),oscillator=audioContext.createOscillator(),destination=audioContext.createMediaStreamDestination();
+    oscillator.connect(destination);oscillator.start();audioContext.resume();
+    destination.stream.getAudioTracks().forEach(t=>state.outStream.addTrack(t));
+    sources.push(()=>{oscillator.stop();audioContext.close();});
     const peers=new Map();
     const make=new Function('state','peers','peerId','wsSend','errors',`
       const $=()=>document.createElement('button');
@@ -28,6 +32,13 @@ async function testScreenDelivery(){
     const pa=a.api.ensurePeer('b',{sharing:false}),pb=b.api.ensurePeer('a',{sharing:late});
     await wait(()=>pa.pc.connectionState==='connected'&&pb.pc.connectionState==='connected','connect');
     await wait(()=>pb.screenStream.getVideoTracks().length===1,'reserved screen receiver');
+    const received=async(pc,kind)=>{const stats=await pc.getStats();return [...stats.values()].some(s=>s.type==='inbound-rtp'&&s.kind===kind&&s.bytesReceived>0)};
+    for(let i=0;i<100 && !(await received(pb.pc,'audio'));i++)await new Promise(r=>setTimeout(r,50));
+    assert(await received(pb.pc,'audio'),'microphone RTP received');
+    if(!noCamera){
+      for(let i=0;i<100 && !(await received(pb.pc,'video'));i++)await new Promise(r=>setTimeout(r,50));
+      assert(await received(pb.pc,'video'),'camera RTP received');
+    }
     const before=descriptions,receiver=pb.screenStream.getVideoTracks()[0];
     for(let i=0;i<2;i++){
       const stream=late&&i===0?a.state.screenStream:video('red');
