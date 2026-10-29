@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {pageSource,requestSource,pairRequest,cleanName,snapshot,addCount,HOUR} from '../tools/browser-activity/model.mjs';
+const now=Date.now();
+assert.equal(pageSource('https://chatgpt.com/codex/task_abc'),'codex');
+assert.equal(pageSource('https://chatgpt.com/c/test'),null);
+assert.equal(pageSource('https://claude.ai.evil.test/chat'),null);
+assert.equal(cleanName(' Ернар  Ахметов '),'Ернар Ахметов');assert.throws(()=>cleanName('<script>'));
+const request=(url,method='POST')=>({url,method,tabId:1,type:'xmlhttprequest'});
+assert.equal(requestSource(request('https://claude.ai/api/organizations/org/chat_conversations/chat/completion')),'claude');
+assert.equal(requestSource(request('https://chatgpt.com/backend-api/wham/tasks')),'codex');
+assert.equal(requestSource(request('https://chatgpt.com/backend-api/wham/tasks/task_1/turns')),'codex');
+for(const d of [request('https://chatgpt.com/backend-api/wham/tasks','GET'),request('https://chatgpt.com/backend-api/wham/tasks/123/archive'),request('https://chatgpt.com/backend-api/conversation'),request('https://claude.ai/api/event'),{...request('https://chatgpt.com/backend-api/wham/tasks'),tabId:-1}])assert.equal(requestSource(d),null);
+assert.equal(pairRequest({tabId:1,source:'codex',at:now},[{tabId:2,source:'codex',at:now}]),undefined);
+assert.equal(pairRequest({tabId:1,source:'codex',at:now},[{tabId:1,source:'codex',at:now-16000}]),undefined);
+const state={startedAt:now,services:{codex:{},claude:{}}};assert(addCount(state,'codex','event',now));assert(!addCount(state,'codex','event',now));
+assert.equal(snapshot(state,'codex',now).buckets[0].count,1);assert.equal(snapshot(state,'claude',now).buckets.length,0);
+
+// Exercise the actual MV3 worker using a storage/runtime/network harness.
+const event=()=>({callbacks:[],addListener(fn){this.callbacks.push(fn);},fire(...args){this.callbacks.forEach(fn=>fn(...args));}});
+const area=()=>({data:{},async get(key){return structuredClone({[key]:this.data[key]});},async set(value){Object.assign(this.data,structuredClone(value));},async remove(key){delete this.data[key];},async setAccessLevel(){}});
+const local=area(),session=area(),sent=[];let offline=false;
+globalThis.chrome={storage:{local,session},action:{async setBadgeText(){},async setBadgeBackgroundColor(){}},alarms:{async create(){},onAlarm:event()},runtime:{id:'test-extension',getURL:p=>'chrome-extension://test-extension/'+p,onMessage:event(),onInstalled:event(),onStartup:event(),async openOptionsPage(){}},webRequest:{onBeforeRequest:event(),onResponseStarted:event(),onErrorOccurred:event()}};
+globalThis.fetch=async(url,opts)=>{
+  if(url.endsWith('config.json'))return {json:async()=>({enrollmentToken:'e'.repeat(64)})};
+  if(offline)throw Error('Offline');
+  sent.push({url,body:JSON.parse(opts.body),headers:opts.headers});return {ok:true,json:async()=>({ok:true})};
+};
+await import('../tools/browser-activity/background.js');
+const popup={id:chrome.runtime.id,url:chrome.runtime.getURL('popup.html')};
+const message=(m,sender=popup)=>new Promise(resolve=>chrome.runtime.onMessage.callbacks[0](m,sender,resolve));
+const content={url:'https://chatgpt.com/codex',tab:{id:1},frameId:0};
+let result=await message({type:'setup',name:'Ернар Ахметов'});assert(result.ok);assert.equal(sent.length,4);assert(!JSON.stringify(result).includes('token'));
+const identity=local.data.state.machineId;
+assert.equal((await message({type:'status'},content)).ok,false);
+const sendEvent=async(id,tabId=1,statusCode=200)=>{
+  const at=Date.now();await message({type:'intent',id:crypto.randomUUID(),at},{...content,tab:{id:tabId}});
+  const d={...request('https://chatgpt.com/backend-api/wham/tasks'),tabId,requestId:id,timeStamp:at,statusCode};
+  chrome.webRequest.onBeforeRequest.fire(d);chrome.webRequest.onResponseStarted.fire(d);chrome.webRequest.onResponseStarted.fire(d);
+};
+await sendEvent('one');result=await message({type:'status'});assert.equal(result.services.codex.count,1);
+await sendEvent('bad',1,403);result=await message({type:'status'});assert.equal(result.services.codex.count,1);
+await Promise.all([sendEvent('two',2),sendEvent('three',3)]);result=await message({type:'status'});assert.equal(result.services.codex.count,3);
+offline=true;await message({type:'sync'});assert(local.data.state.error);assert.equal(local.data.state.services.codex.buckets[Math.floor(now/HOUR)*HOUR],3);
+await sendEvent('four');result=await message({type:'status'});assert.equal(result.services.codex.count,4);
+offline=false;result=await message({type:'sync'});assert.equal(result.services.codex.syncedTotal,4);assert.equal(result.error,'');assert.equal(local.data.state.machineId,identity);
+await message({type:'pause',paused:true});await sendEvent('paused');result=await message({type:'status'});assert.equal(result.services.codex.count,4);
+await message({type:'pause',paused:false});await message({type:'sync'});assert.equal(local.data.state.machineId,identity);
+const existingSession=structuredClone(session.data.activity);
+for(const group of [chrome.runtime,chrome.webRequest,chrome.alarms])for(const value of Object.values(group))if(value?.callbacks)value.callbacks=[];
+await import('../tools/browser-activity/background.js?restart');
+result=await message({type:'status'});assert.equal(result.services.codex.count,4);assert.equal(local.data.state.machineId,identity);
+await sendEvent('after-restart');result=await message({type:'status'});assert.equal(result.services.codex.count,5);
+// A failed network attempt must leave its intent available for automatic retry.
+await sendEvent('retry-failed',8,500);await message({type:'status'});
+const retry={...request('https://chatgpt.com/backend-api/wham/tasks'),tabId:8,requestId:'retry-success',timeStamp:Date.now(),statusCode:200};
+chrome.webRequest.onBeforeRequest.fire(retry);chrome.webRequest.onResponseStarted.fire(retry);
+result=await message({type:'status'});assert.equal(result.services.codex.count,6);
+assert(sent.every(r=>!JSON.stringify(r.body).includes('prompt')));
+const manifest=JSON.parse(fs.readFileSync(new URL('../tools/browser-activity/manifest.json',import.meta.url)));
+assert(!manifest.permissions.includes('cookies'));assert(!manifest.host_permissions.includes('<all_urls>'));
+console.log('PASS browser activity: URL scope, accepted sends, deduplication, parallel tabs, offline retry, stable identity, pause, no UI secrets');

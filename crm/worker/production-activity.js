@@ -30,7 +30,7 @@ export async function handleProductionActivity(request,env,actor,{get,save,list,
   if(request.method!=='POST')fail(405,'Метод не поддерживается');
   if(token.length<32||token.length>128)fail(401,'Нет доступа');
   const hash=await digest(token),issuer=sources.find(d=>d.enrollment&&d.tokenHash===hash);
-  if(!issuer)fail(401,'Нет доступа');
+  if(!issuer||issuer.revoked)fail(401,'Нет доступа');
   const b=await readBody(request,fail,4096);
   if(!/^[a-f0-9-]{36}$/.test(b.machineId||'')||!['codex','claude'].includes(b.source)||!/^device_[a-f0-9-]{36}_(codex|claude)$/.test(b.id||'')||b.id!==`device_${b.machineId}_${b.source}`||!/^[a-f0-9]{64}$/.test(b.tokenHash||''))fail(400,'Некорректное устройство');
   const name=typeof b.name==='string'?b.name.trim():'';
@@ -40,7 +40,9 @@ export async function handleProductionActivity(request,env,actor,{get,save,list,
    if(existing.tokenHash!==b.tokenHash)fail(409,'Устройство уже зарегистрировано с другим ключом');
    return {ok:true,id:b.id};
   }
-  await save(env,PRODUCTION_COLLECTION,{id:'key_'+b.id,deviceId:b.id,machineId:b.machineId,name,source:b.source,tokenHash:b.tokenHash,createdAt:Date.now()},'activity-enrollment');
+  if(issuer.expiresAt&&Date.now()>issuer.expiresAt)fail(403,'Срок установки пакета истёк. Запросите новый архив у администратора.');
+  const meta=issuer.transport==='browser'?{transport:'browser',personName:name,issuerId:issuer.id}:{};
+  await save(env,PRODUCTION_COLLECTION,{...meta,id:'key_'+b.id,deviceId:b.id,machineId:b.machineId,name,source:b.source,tokenHash:b.tokenHash,createdAt:Date.now()},'activity-enrollment');
   return {ok:true,id:b.id};
  }
  if(path.endsWith('/ingest')){
@@ -72,7 +74,16 @@ export async function handleProductionActivity(request,env,actor,{get,save,list,
    if(!Number.isSafeInteger(value)||value<1||value>100000000)fail(400,'Максимум должен быть положительным целым числом');
    scales[period]=value;
   }
-  await save(env,PRODUCTION_COLLECTION,{id:'settings',viewers,scales,updatedAt:Date.now()},actor.email);
+  const people={...(settings.people||{})};
+  if(b.people!==undefined){
+   if(!b.people||typeof b.people!=='object'||Array.isArray(b.people)||Object.keys(b.people).length>500)fail(400,'Некорректные имена');
+   for(const key of Object.keys(people))delete people[key];
+   for(const [id,value] of Object.entries(b.people)){
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id)||['__proto__','constructor','prototype'].includes(id)||typeof value!=='string'||!value.trim()||value.length>70||/[\x00-\x1f]/.test(value))fail(400,'Некорректное имя сотрудника');
+    people[id]=value.trim();
+   }
+  }
+  await save(env,PRODUCTION_COLLECTION,{id:'settings',viewers,scales,people,updatedAt:Date.now()},actor.email);
   return {ok:true};
  }
  if(request.method!=='GET')fail(405,'Метод не поддерживается');
@@ -81,7 +92,7 @@ export async function handleProductionActivity(request,env,actor,{get,save,list,
  const devices=[...sources.filter(d=>!d.enrollment),...all.filter(r=>r.id.startsWith('key_')).map(r=>({...r,id:r.deviceId}))];
  const result=await Promise.all(devices.map(async device=>{
   const r=await get(env,PRODUCTION_COLLECTION,device.id);
-  return {id:device.id,machineId:device.machineId||device.id,name:device.name||device.id,source:device.source,connected:!!r,available:r?.available===true,observedAt:r?.observedAt||0,dataObservedAt:r?.dataObservedAt||r?.observedAt||0,coverageStart:r?.coverageStart||0,buckets:r?.buckets||[]};
+  return {personName:device.personName||null,transport:device.transport||'local',id:device.id,machineId:device.machineId||device.id,name:device.name||device.id,source:device.source,connected:!!r,available:r?.available===true,observedAt:r?.observedAt||0,dataObservedAt:r?.dataObservedAt||r?.observedAt||0,coverageStart:r?.coverageStart||0,buckets:r?.buckets||[]};
  }));
- return {ok:true,sources:result,canManage:admin,settings:{scales:settings.scales||{},...(admin?{viewers:settings.viewers||[]}: {})}};
+ return {ok:true,sources:result,canManage:admin,settings:{people:settings.people||{},scales:settings.scales||{},...(admin?{viewers:settings.viewers||[]}: {})}};
 }
