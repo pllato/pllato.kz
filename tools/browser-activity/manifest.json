@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Pllato Activity",
+  "version": "1.0.0",
+  "minimum_chrome_version": "114",
+  "description": "Прозрачный учёт обращений к Claude и Codex для команды Pllato. Без текста переписок.",
+  "permissions": ["storage", "alarms", "webRequest"],
+  "host_permissions": ["https://claude.ai/*", "https://chatgpt.com/*", "https://pllato-comm.uurraa.workers.dev/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "action": {"default_popup": "popup.html", "default_title": "Pllato Activity"},
+  "options_page": "popup.html",
+  "content_scripts": [{"matches": ["https://claude.ai/*", "https://chatgpt.com/*"], "js": ["content.js"], "run_at": "document_start"}]
+}
