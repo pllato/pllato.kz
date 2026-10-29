@@ -67,8 +67,9 @@ def link(name):
     nxt = s.find('class="tool-card"', i)
     if not m or (nxt > 0 and m.start() > nxt):
         return 'нет конца блока материалов'
-    j = s.rfind('\n', 0, m.start()) + 1 if s[s.rfind('\n', 0, m.start()) + 1:m.start()].strip() == '' else m.start()
-    line = '          <a href="%s" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>\n' % href
+    j += len('<div class="tool-dd-menu">')
+    if s[j:j+1] == '\n': j += 1
+    line = '          <a href="%s" download target="_blank" rel="noopener"><span class="dot"></span>Скачать Standalone · демо одним HTML-файлом</a>\n' % href
     s = s[:j] + line + s[j:]
     open(p, 'w', encoding='utf-8').write(s)
     return 'ссылка добавлена'
