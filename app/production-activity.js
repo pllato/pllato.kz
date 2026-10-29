@@ -50,10 +50,10 @@
  }
  function peopleList(data,period){
   if(!period)return '<p>Нет периода для расчёта.</p>';
-  return `<div data-pa-people><p style="font-weight:600;color:var(--text)">Активность · ${esc(period.label)}</p>${people(data).map(g=>{
+  return `<div data-pa-people style="font-size:11px;line-height:1.4"><p style="font-weight:600;color:var(--text)">Активность · ${esc(period.label)}</p>${people(data).map(g=>{
    const lines=series(g,[period]),total=lines[0].points[0],lastSync=Math.max(0,...g.sources.map(r=>r.observedAt||0));
    const value=p=>p.value===null?'—':p.value.toLocaleString('ru-RU')+(p.incomplete?'*':'');
-   return `<div style="display:flex;align-items:start;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line-2)"><div><strong style="color:var(--text);font-size:14px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${personColor(g.id)};margin-right:7px"></i>${esc(g.name)}</strong><div style="margin-top:4px">Codex ${value(lines[1].points[0])} · Claude ${value(lines[2].points[0])}</div><small>${lastSync?'Обновлено '+esc(date(lastSync)):'Ожидает первых данных'}</small></div><strong style="font-size:20px;color:var(--text)">${value(total)}</strong></div>`;
+   return `<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line-2)"><div><strong style="color:var(--text);font-size:12px;font-weight:600"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${personColor(g.id)};margin-right:7px"></i>${esc(g.name)}</strong><div style="margin-top:2px">Codex ${value(lines[1].points[0])} · Claude ${value(lines[2].points[0])}</div><small style="font-size:10px">${lastSync?'Обновлено '+esc(date(lastSync)):'Ожидает первых данных'}</small></div><strong style="font-size:14px;font-weight:600;white-space:nowrap;color:var(--text)">${value(total)}</strong></div>`;
   }).join('')}</div>`;
  }
  function svg(lines,maximum){
