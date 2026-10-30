@@ -24,3 +24,15 @@ test('persistent changes converge instead of freezing the contour',()=>{
  let f;for(let i=1;i<=30;i++){f=frame(200);filter.apply(f,1,1,i*50);}
  assert.ok(f[3]>=199);
 });
+test('receding uncertain edge cannot leave old foreground confidence behind',()=>{
+ const filter=new TemporalPersonMask();filter.apply(frame(190),1,1,0);
+ const edge=frame(145);filter.apply(edge,1,1,50);
+ assert.ok(edge[3]<=153,`background edge retained alpha ${edge[3]}`);
+});
+test('history remains close to the current soft edge in either direction',()=>{
+ for(const [before,after] of [[210,170],[170,210]]){
+  const filter=new TemporalPersonMask();filter.apply(frame(before),1,1,0);
+  const edge=frame(after);filter.apply(edge,1,1,50);
+  assert.ok(Math.abs(edge[3]-after)<=8);
+ }
+});
