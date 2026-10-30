@@ -509,7 +509,7 @@ import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-
 import { createMeetStorage } from "/meet-storage.js";
 const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionStorage);
 import { EdgeMaskRenderer } from '/meet-edge-mask.js';
-import { TemporalPersonMask } from '/meet-temporal-mask.js?v=20261027-stable';
+import { TemporalPersonMask } from '/meet-temporal-mask.js?v=20261030-bounded';
 import { FloatingParticipants } from '/meet-floating.js?v=20261027-screen';
 import { getSession } from '/pllato-kz-shared/pllato-api.js';
 import {captureTranscriptAudio} from '/meet-audio.js?v=20261027-delivery';
@@ -1014,6 +1014,7 @@ class BgPipeline{
   constructor(stream, canvas, mode){
     this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.running=true; this.stream=stream; this.mode=mode||'blur';
     this.temporalMask=new TemporalPersonMask();
+    this.frame=document.createElement('canvas'); this.frameCtx=this.frame.getContext('2d');
     this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d', {willReadFrequently:true});
     try{ this.edgeRenderer=new EdgeMaskRenderer(); }catch{ this.edgeRenderer=null; }
     this.video=document.createElement('video'); this.video.muted=true; this.video.playsInline=true; this.video.autoplay=true;
@@ -1035,7 +1036,16 @@ class BgPipeline{
   update(stream){ if(stream && stream!==this.stream){ this.temporalMask.reset(); this.stream=stream; this.video.srcObject=stream; this.video.play().catch(()=>{}); } }
   async loop(){
     if(!this.running) return;
-    if(this.stream.getVideoTracks().some(t=>t.enabled && t.readyState!=='ended') && this.video.readyState>=2 && this.seg){ try{ await this.seg.send({image:this.video}); }catch{} }
+    if(this.stream.getVideoTracks().some(t=>t.enabled && t.readyState!=='ended') && this.video.readyState>=2 && this.seg){
+      const w=this.video.videoWidth,h=this.video.videoHeight;
+      if(w && h) try{
+        if(this.frame.width!==w || this.frame.height!==h){this.frame.width=w;this.frame.height=h;}
+        // One immutable camera frame for inference, edge guidance and compositing.
+        // Do not advance it until the model's results callback has finished.
+        this.frameCtx.drawImage(this.video,0,0,w,h);
+        await this.seg.send({image:this.frame});
+      }catch{}
+    }
     if(this.running) this.timer=setTimeout(()=>this.loop(),1000/MEDIA_PROFILE.backgroundFps);
   }
   fallbackLoop(){
@@ -1080,9 +1090,8 @@ class BgPipeline{
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     ctx.drawImage(refinedMask,0,0,w,h);
     ctx.globalCompositeOperation='source-in';
-    // Subpixel softness reduces camera oversharpening without changing the
-    // refined silhouette. Reuse the existing desktop draw; mobile stays raw.
-    ctx.filter=`blur(${(0.45*h/720).toFixed(2)}px) contrast(0.98) brightness(1.01)`;
+    // Keep camera detail sharp; only the alpha edge is smoothed.
+    ctx.filter='none';
     ctx.drawImage(results.image,0,0,w,h);
     ctx.filter='none';
     // 3) фон позади человека

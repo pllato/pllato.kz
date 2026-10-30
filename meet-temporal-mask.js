@@ -15,7 +15,9 @@ export class TemporalPersonMask {
       // bypasses history. This avoids trailing opaque silhouettes during movement.
       const motion=Math.max(0,Math.min(1,(Math.abs(current-previous)-20)/55));
       const weight=fresh?1:steady+(1-steady)*motion*motion*(3-2*motion);
-      const value=previous+(current-previous)*weight;
+      // Keep denoising within 8 confidence levels of this frame: old edges
+      // must not turn background into translucent foreground (or erase hair).
+      const value=Math.max(current-8,Math.min(current+8,previous+(current-previous)*weight));
       this.history[i]=value;rgba[offset]=Math.round(value);
     }
   }
