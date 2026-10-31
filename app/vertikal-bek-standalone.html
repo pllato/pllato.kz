@@ -1,0 +1,987 @@
+<!doctype html>
+<!--
+  Автономная версия демо «Вертикаль · учёт проектов и времени строительной компании · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/vertikal-bek.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Вертикаль · учёт проектов и времени строительной компании · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='%23ff7a1a'/><path d='M50 18v64M34 82h32M38 34h24M38 50h24M38 66h24' stroke='%232b1200' stroke-width='9' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#0e1116;--rail2:#0a0c0f;--rail-h:#171d27;--rail-a:#ff7a1a;
+ --brand:#ff7a1a;--brand2:#ffa055;--brandl:#ff7a1a1f;--steel:#93a0b4;
+ --bg:#0a0c0f;--card:#12161d;--card2:#171d27;--card3:#1f2733;
+ --text:#eef2f7;--muted:#93a0b4;--muted2:#5f6b7e;--line:#1f2733;--line2:#2c3a4e;
+ --acc:#ff7a1a;--acc2:#ffa055;--accl:#ff7a1a1f;
+ --ok:#22c55e;--ok-l:#22c55e1f;--bad:#ef4444;--bad-l:#ef44441f;--warn:#f59e0b;--warn-l:#f59e0b1f;
+ --info:#3b82f6;--info-l:#3b82f61f;--violet:#a855f7;--violet-l:#a855f71f;
+ --r:12px;--sh:none;--sh2:0 18px 48px rgba(0,0,0,.5);
+}
+body.light{
+ --rail:#ffffff;--rail2:#f6f7f9;--rail-h:#f1f3f6;
+ --bg:#f4f5f7;--card:#ffffff;--card2:#f7f8fa;--card3:#eceff3;
+ --text:#151a22;--muted:#5b6575;--muted2:#8b94a3;--line:#e3e7ed;--line2:#cfd6df;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#d8b25a}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'IBM Plex Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#6e4620;border-color:#6e4620;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'IBM Plex Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'IBM Plex Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'IBM Plex Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'IBM Plex Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* ===== Вертикаль: дизайн GTA Detailing — графит, оранжевый, Manrope + IBM Plex Mono ===== */
+body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.mono,td.mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.red{color:#f87171!important}.grn{color:#4ade80!important}
+.mini{font-size:10.4px;color:var(--muted);line-height:1.5}
+.wrapb{white-space:normal;text-align:right;max-width:60%}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.tag{border-radius:20px;padding:3px 8px;font-size:8.6px}
+.tag.g{background:#22c55e1f;color:#4ade80}.tag.r{background:#ef44441f;color:#f87171}.tag.w{background:#f59e0b1f;color:#fbbf24}.tag.i{background:#3b82f61f;color:#60a5fa}
+/* гейт */
+.gate{background:var(--bg);grid-template-columns:1.1fr .9fr}
+.gate-l{background:radial-gradient(circle at 80% 30%,#ff7a1a1c,transparent 55%)}
+.glogo{display:flex;gap:12px;align-items:center}
+.gname{font-size:17px;font-weight:800;color:#fff;display:block;letter-spacing:.02em}
+.gsub{font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--muted2)}
+.kicker{font:600 9.6px 'IBM Plex Mono',monospace;color:var(--acc2);letter-spacing:.16em;text-transform:uppercase;margin-top:44px}
+.gate h1{font-size:46px;line-height:1.06;letter-spacing:-.032em;margin:16px 0 15px;font-weight:800;color:#fff}
+.gate h1 span{color:var(--acc2)}
+.glead{font-size:14.4px;line-height:1.7;color:var(--muted);max-width:600px;margin:0}
+.gstat{border-top:1px solid var(--line)}
+.gstat small{font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.gstat b.a{color:var(--acc2)}
+.gate-r{background:var(--bg2,#0e1116)}
+.lform{background:var(--card);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh2)}
+.lform h2{color:var(--text)}.lform>p{color:var(--muted)}
+.role{background:var(--card2);border:1px solid var(--line2);border-radius:10px;color:var(--text)}
+.role:hover{border-color:var(--acc);transform:translateY(-2px)}
+.role .rav{background:var(--acc);color:#2b1200;border-radius:50%}
+.role b{color:var(--text)}.role span{color:var(--muted)}
+.lnote{color:var(--muted)}.lnote b{color:var(--text)}
+/* каркас */
+.app{grid-template-columns:236px 1fr;background:var(--bg)}
+.side{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.slogo{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.slogo b{display:block;font-size:12.8px;font-weight:800}.slogo small{display:block;font:600 6.8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.12em;margin-top:2px}
+#rail{flex:1;overflow-y:auto;padding:4px 9px 14px}
+.ng{font:600 7.6px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:var(--muted2);margin:15px 0 5px;padding-left:10px;text-transform:uppercase}
+.side .ri{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:6px;width:auto;padding:8px 10px;margin:1px 0;color:var(--muted);font-size:12.4px;font-weight:600;border-radius:8px;cursor:pointer;position:relative;place-items:initial}
+.side .ri span{font-size:12.4px;font-weight:600;text-align:left;letter-spacing:0;line-height:1.25}
+.side .ri code{font:600 7.4px 'IBM Plex Mono',monospace;color:var(--acc2);opacity:.9}
+.side .ri:hover{background:var(--card);color:var(--text)}
+.side .ri.on{background:linear-gradient(90deg,var(--accl),transparent);color:var(--text)}
+.side .ri.on:before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--acc);border-radius:0 3px 3px 0}
+.side .ri em{font:600 7.4px 'IBM Plex Mono',monospace;font-style:normal;background:var(--bad);color:#fff;padding:2px 6px;border-radius:9px}
+.sfoot{display:flex;align-items:center;gap:9px;padding:11px 14px;border-top:1px solid var(--line)}
+.sfoot .me{background:var(--acc);color:#2b1200;border-radius:50%;width:31px;height:31px;font-size:9.4px}
+#mename b{display:block;font-size:11.6px}#mename small{font-size:9.2px;color:var(--muted2)}
+.top{height:60px;background:var(--rail);border-bottom:1px solid var(--line);padding:0 20px;gap:10px}
+.tt h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.01em}.tt p{font-size:10.6px;color:var(--muted);margin:3px 0 0}
+.top-r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.srch{background:var(--card);border-color:var(--line2);border-radius:10px}.srch input{color:var(--text);width:180px}
+.live{display:inline-flex;align-items:center;gap:6px;border:1px solid #22c55e55;background:#22c55e14;color:#4ade80;border-radius:20px;padding:6px 11px;font:600 8.6px 'IBM Plex Mono',monospace;white-space:nowrap}
+.live i{width:6px;height:6px;border-radius:50%;background:#22c55e}
+.tb{border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:0 13px;height:34px;font-size:11.6px;font-weight:700;white-space:nowrap}
+.tb.acc{background:var(--acc);border-color:var(--acc);color:#2b1200}
+.ib,.rsel{background:var(--card);border-color:var(--line2);border-radius:10px;color:var(--text)}
+.content{padding:22px 24px 30px}
+.hd h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.crumbl{font-size:11px;color:var(--muted);margin-bottom:4px}.crumbl a{color:var(--acc2);cursor:pointer}
+.bt{background:var(--card);border-color:var(--line2);color:var(--text);border-radius:10px}
+.bt.p{background:var(--acc);border-color:var(--acc);color:#2b1200}.bt.p:hover{background:var(--acc2);color:#2b1200}
+.bt.sm{padding:4px 10px;font-size:10.4px}
+.pan{background:var(--card);border-color:var(--line);border-radius:12px}
+.pan>h3{font-size:14px}
+/* KPI полоса как в GTA */
+.kpi{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);background:var(--card);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.kpi>div{padding:14px 15px;border-left:1px solid var(--line)}.kpi>div:first-child{border:0}
+.kpi small{display:block;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.08em}
+.kpi b{display:block;font-size:20px;font-weight:800;margin:7px 0 4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi b.r{color:#f87171}.kpi b.g{color:#4ade80}
+.kpi span{font-size:9.8px;color:var(--muted)}.kpi span.g{color:#4ade80}.kpi span.w{color:#fbbf24}
+.bar{background:var(--card3);height:8px}.bar i{background:var(--acc)}.bar i.b{background:linear-gradient(90deg,#c74e00,var(--acc))}.bar i.g{background:#22c55e}.bar i.r{background:#ef4444}
+table.t{color:var(--text)}table.t th{background:var(--card2);color:var(--muted2);font-family:'IBM Plex Mono',monospace}
+table.t td,table.t th{border-color:var(--line)}table.t tbody tr:hover{background:var(--card2)}
+.tw{border-color:var(--line);background:var(--card);border-radius:12px}
+.said{background:#ff7a1a14;border-left:3px solid var(--acc);border-radius:0 10px 10px 0}.said b{color:var(--acc2)}.said i{color:var(--text)}.said-a{color:var(--muted)}
+.al{border-left:3px solid var(--info);padding:9px 12px;margin-bottom:7px;background:var(--card2);cursor:pointer;border-radius:0 8px 8px 0}
+.al.r{border-left-color:#ef4444}.al.w{border-left-color:#f59e0b}
+.al b{display:block;font-size:12px}.al span{font-size:10.6px;color:var(--muted);line-height:1.5}
+.al:hover{background:var(--card3)}
+.prow2{display:grid;grid-template-columns:10px 1.5fr 1fr 1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.prow2:last-child{border:0}.prow2>i{width:10px;height:36px;border-radius:3px}
+.prow2 b{display:block;font-size:12.6px}.prow2>div>span{font-size:10.4px;color:var(--muted)}
+.pr-b small{font-size:9.6px;color:var(--muted)}
+.hl{display:grid;grid-template-columns:160px 1fr 48px;gap:10px;align-items:center;padding:6px 0;font-size:11.6px}
+.hl b{text-align:right;font:600 10.6px 'IBM Plex Mono',monospace}
+.kv{border-color:var(--line)}
+.li i{background:var(--accl);color:var(--acc2);min-width:40px;width:auto;padding:0 4px}
+/* карта */
+.mapw{padding:8px}
+.cmap{width:100%;display:block;background:#0e1116;border-radius:10px}
+.cmap .rd{fill:none;stroke:#1f2733;stroke-width:2.4}.cmap .rd2{fill:none;stroke:#1f2733;stroke-width:1.2;stroke-dasharray:2 2}
+.cmap text{font:700 2.6px Manrope,sans-serif;fill:#eef2f7}.cmap text.sm{font-weight:500;fill:#93a0b4;font-size:2.2px}.cmap text.r{fill:#f87171}
+.pin{cursor:pointer}
+body.light .cmap{background:#eef1f5}body.light .cmap text{fill:#151a22}
+.obj{padding:6px 0 10px;border-bottom:1px solid var(--line)}.obj>b{display:flex;align-items:center;gap:7px;font-size:12.4px;margin-bottom:3px}.obj>b i{width:8px;height:8px;border-radius:50%}
+/* график */
+.gnt{position:relative;overflow-x:auto}
+.gm{display:grid;grid-template-columns:repeat(15,1fr);margin-left:220px;font:600 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);border-bottom:1px solid var(--line);padding-bottom:6px}
+.gr{display:grid;grid-template-columns:220px 1fr;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+.gr b{font-size:11.8px;padding-right:10px}
+.gl{position:relative;height:22px}
+.gl i{position:absolute;top:0;height:22px;border:1px solid;border-radius:6px;overflow:hidden}
+.gl em{display:block;height:100%;opacity:.85}
+.gtoday{position:absolute;top:30px;bottom:8px;width:2px;background:#ef4444}
+.gtoday span{position:absolute;top:-14px;left:-18px;font:600 8px 'IBM Plex Mono',monospace;color:#f87171}
+/* доска */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.bcol{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.bh{display:flex;justify-content:space-between;font:600 9.6px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.oc{background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:pointer}
+.oc:hover{border-color:var(--acc)}.oc.over{border-color:#ef444477}
+.oc small{display:block;font:600 8px 'IBM Plex Mono',monospace;color:var(--acc2)}
+.oc b{display:block;font-size:12px;margin:4px 0 2px}.oc>span{display:block;font-size:10.2px;color:var(--muted);margin-bottom:7px}
+.oc em{display:block;font-style:normal;font:600 9px 'IBM Plex Mono',monospace;color:var(--muted);margin-top:5px}
+/* табель */
+.tw.sheet{overflow-x:auto}
+table.tb{min-width:1300px}table.tb th.c,table.tb td.c{text-align:center;padding:5px 2px;font:500 9.6px 'IBM Plex Mono',monospace;min-width:26px}
+table.tb th small{display:block;font-size:7px;color:var(--muted2)}
+table.tb .st{position:sticky;left:0;background:var(--card);min-width:150px;z-index:1}
+td.ot{background:#f59e0b26;color:#fbbf24}td.sick,i.sick{background:#3b82f626;color:#60a5fa}td.abs,i.abs{background:#ef444426;color:#f87171}th.we,i.we{background:var(--card3)}i.ot{background:#f59e0b26}
+.legend{display:flex;gap:14px;margin:10px 0;font-size:10.6px;color:var(--muted)}.legend i{display:inline-block;width:14px;height:12px;margin-right:5px;vertical-align:-2px;border-radius:2px}
+/* телефон */
+.phones{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.ph{width:300px;border:9px solid #05070a;border-radius:38px;background:#0e1116;overflow:hidden;box-shadow:var(--sh2);flex:none}
+.pht{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;font:600 10px 'IBM Plex Mono',monospace;background:#0a0c0f;color:#eef2f7}.pht b{font-size:11px;letter-spacing:.06em}
+.pb{padding:14px;min-height:540px;color:#eef2f7}
+.phh small{font:600 8px 'IBM Plex Mono',monospace;color:#ffa055;letter-spacing:.12em}.phh b{display:block;font-size:22px;font-weight:800}.phh span{font-size:10.6px;color:#93a0b4}
+.geo{display:flex;gap:10px;align-items:center;margin:14px 0 10px;padding:11px;border-radius:12px;background:#171d27;border:1px solid #2c3a4e}
+.geo i{width:12px;height:12px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 5px #f59e0b22}
+.geo.on i{background:#22c55e;box-shadow:0 0 0 5px #22c55e22}
+.geo b{display:block;font-size:12px}.geo span{font-size:10px;color:#93a0b4}
+.pbig{width:100%;padding:15px;border-radius:14px;background:#ff7a1a;color:#2b1200;font-weight:800;font-size:13.4px}
+.pbig.out{background:#171d27;color:#eef2f7;border:1px solid #2c3a4e}
+.phl{display:block;font:600 7.6px 'IBM Plex Mono',monospace;color:#5f6b7e;letter-spacing:.12em;margin:16px 0 6px}
+.pt{padding:10px 11px;border:1px solid #2c3a4e;border-radius:12px;margin-bottom:6px;cursor:pointer}
+.pt.on{border-color:#ff7a1a;background:#ff7a1a14}.pt b{display:block;font-size:11.6px}.pt span{font-size:9.8px;color:#93a0b4}
+.pkv{display:flex;justify-content:space-between;font-size:11.4px;padding:6px 0;border-bottom:1px solid #1f2733}.pkv span{color:#93a0b4}
+/* отчёты */
+.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer}.rep:hover{border-color:var(--acc)}
+.rep b{display:block;font-size:13px;margin-bottom:5px}.rep span{font-size:10.6px;color:var(--muted);line-height:1.5}
+.ck{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--acc)}
+table.t th.c,table.t td.c{text-align:center}
+.toast{background:var(--card2);border:1px solid var(--line2);color:var(--text)}.toast b{color:var(--acc2)}
+@media(max-width:1200px){.kpi{grid-template-columns:repeat(3,1fr)}.rgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100vh}
+ .side{border-right:0;border-bottom:1px solid var(--line)}.slogo{padding:9px 12px}.sfoot,.ng{display:none}
+ #rail{display:flex;overflow-x:auto;padding:0 6px 8px;flex:none}
+ .side .ri{display:flex;white-space:nowrap;padding:7px 10px}.side .ri code{display:none}.side .ri.on:before{display:none}
+ .top{height:auto;flex-wrap:wrap;padding:8px 12px}.top-r{width:100%;flex-wrap:wrap}.srch{flex:1;min-width:0}.srch input{width:100%}.live{display:none}
+ .content{padding:14px 12px 24px}.kpi{grid-template-columns:repeat(2,1fr)}.kpi>div{border-left:0;border-top:1px solid var(--line)}
+ .prow2{grid-template-columns:8px 1fr;}.prow2 .pr-b,.prow2 .tag{grid-column:2}
+ .board{grid-template-columns:1fr}.hl{grid-template-columns:110px 1fr 40px}
+ .gnt .gm{margin-left:120px}.gr{grid-template-columns:120px 1fr}.gate h1{font-size:32px}
+ .ph{width:280px}
+}
+@media(max-width:600px){.hd{flex-direction:column}.btns{justify-content:flex-start}.rgrid{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="50" height="50" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#ff7a1a"/><path d="M50 18v64M34 82h32M38 34h24M38 50h24M38 66h24" stroke="#2b1200" stroke-width="8" stroke-linecap="round"/></svg><div><b class="gname">Вертикаль</b><small class="gsub">УЧЁТ ПРОЕКТОВ И ВРЕМЕНИ · СТРОИТЕЛЬНАЯ КОМПАНИЯ</small></div></div>
+  <div class="kicker">Демо под вашу компанию · 25 человек · 5 объектов</div>
+  <h1>Каждый час каждого человека — <span>на своём проекте. И сразу в деньгах.</span></h1>
+  <p class="glead">Рабочий отмечается на объекте с телефона, время ложится на наряд и этап, табель собирается сам, а себестоимость и маржа каждого объекта видны руководителю в моменте — не после сдачи. Зарплата и акты уходят в 1С.</p>
+  <div class="gstat">
+   <div><small>ЭКРАНОВ</small><b class="a">21</b></div>
+   <div><small>РОЛЕЙ</small><b>7</b></div>
+   <div><small>ОБМЕН</small><b>1С</b></div>
+   <div><small>СТОИМОСТЬ</small><b>11,3 млн</b></div>
+  </div>
+ </div>
+ <div class="gate-r">
+  <div class="lform">
+   <h2>Вход в систему</h2>
+   <p>Выберите роль — система покажет только нужное.</p>
+   <div class="roles" id="roles"></div>
+   <div class="lnote"><b>Демо-макет на вымышленных данных</b>Объекты, люди, ставки и суммы придуманы для примера. Кнопка «Сценарий» — показ по шагам.</div>
+  </div>
+ </div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="side">
+  <div class="slogo"><svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#ff7a1a"/><path d="M50 18v64M34 82h32M38 34h24M38 50h24M38 66h24" stroke="#2b1200" stroke-width="8" stroke-linecap="round"/></svg><div><b>Вертикаль</b><small>СТРОИТЕЛЬНАЯ КОМПАНИЯ</small></div></div>
+  <nav id="rail"></nav>
+  <div class="sfoot"><div class="me" id="me">БК</div><div id="mename"></div></div>
+ </aside>
+ <main class="main">
+  <header class="top">
+   <div class="tt"><h1 id="ttl">Вертикаль</h1><p id="subt"></p></div>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="проект, заказчик, сотрудник" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <span class="live"><i></i>1С · обмен 09:00</span>
+    <button class="tb" id="tourBtn" onclick="tour()">▶ Сценарий</button>
+    <button class="tb acc" onclick="go('mobile')">Отметка рабочего</button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Тема">◐</button>
+    <select class="rsel" id="rsel"></select>
+   </div>
+  </header>
+  <div class="content" id="content"></div>
+ </main>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ВЕРТИКАЛЬ — учёт проектов, времени сотрудников и себестоимости строительной компании (Бек, 25 человек).
+   Демо-макет на вымышленных данных. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const tg=n=>fmt(n)+' ₸';
+const mln=n=>(n<0?'−':'')+(Math.round(Math.abs(n)/100000)/10).toString().replace('.',',')+' млн';
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+const dd=s=>{const [y,m,d]=s.split('-');return d+'.'+m};
+const TODAY='2026-10-30',NOW='10:15';
+const addDays=(s,n)=>new Date(new Date(s+'T00:00:00').getTime()+n*864e5).toISOString().slice(0,10);
+const dow=s=>['вс','пн','вт','ср','чт','пт','сб'][new Date(s+'T00:00:00').getDay()];
+const said=(q,a)=>`<div class="said"><b>Вы сказали на встрече</b><i>${q}</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
+const tag=(t,c)=>`<span class="tag ${c||''}">${t}</span>`;
+const hh=m=>Math.floor(m/60)+' ч'+(m%60?' '+String(m%60).padStart(2,'0')+' м':'');
+
+const SEC=[
+ {k:'day',n:'Сегодня',sub:[['today','Пульт руководителя','DSH'],['map','Где люди сейчас','MAP']]},
+ {k:'proj',n:'Проекты',sub:[['projects','Все проекты','PRJ'],['project','Карточка проекта','CRD'],['gantt','График работ','GNT'],['tasks','Наряды и задачи','TSK']]},
+ {k:'time',n:'Время',sub:[['time','Учёт времени сегодня','TIM'],['sheet','Табель за месяц','TBL'],['mobile','Отметка с телефона','MOB']]},
+ {k:'people',n:'Люди',sub:[['staff','Сотрудники','STF'],['safety','Допуски и охрана труда','SAF']]},
+ {k:'money',n:'Деньги',sub:[['cost','Себестоимость и маржа','CST'],['payroll','Зарплата','PAY'],['clients','Заказчики и оплаты','CLI'],['acts','Акты выполненных работ','ACT']]},
+ {k:'supply',n:'Снабжение',sub:[['materials','Заявки на материалы','MAT'],['machines','Техника','MCH']]},
+ {k:'sys',n:'Система',sub:[['c1','Обмен с 1С','1C'],['reports','Отчёты','REP'],['roles','Роли и права','ROL'],['launch','Запуск и стоимость','LNC']]}
+];
+const SECOF={},SUBN={},CODE={};
+SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1];CODE[x[0]]=x[2]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+
+const ROLES={
+ 'Руководитель':{av:'БК',n:'Бек',note:'Все проекты, люди, часы, деньги и маржа',s:ALL.slice()},
+ 'Руководитель проекта':{av:'АН',n:'Асхат Нуров',note:'Свои проекты: график, наряды, часы, бюджет, акты',s:['today','map','projects','project','gantt','tasks','time','sheet','staff','cost','acts','materials','machines','reports']},
+ 'Прораб':{av:'ЕР',n:'Ерлан · прораб',note:'Свой объект: кто вышел, наряды, приёмка, заявки на материалы',s:['map','project','tasks','time','mobile','safety','materials','machines']},
+ 'Рабочий':{av:'ДМ',n:'Данияр · монолитчик',note:'Телефон: отметка на объекте, свои наряды и часы',s:['mobile']},
+ 'Сметчик / ПТО':{av:'ЖС',n:'Жанар · ПТО',note:'Сметы, бюджет по этапам, акты выполненных работ',s:['projects','project','gantt','cost','acts','reports']},
+ 'Снабженец':{av:'СР',n:'Серик · снабжение',note:'Заявки на материалы, закуп, техника',s:['materials','machines','projects']},
+ 'Бухгалтер':{av:'ГЛ',n:'Гульнара',note:'Табель, зарплата, оплаты заказчиков, обмен с 1С',s:['sheet','payroll','clients','acts','c1','reports','staff']}
+};
+let role='Руководитель',cur='today',theme='dark';
+
+/* ===== Проекты ===== */
+let PROJECTS=[
+ {id:'P1',n:'ЖК «Тау Самал», блок 3',k:'Монолитный каркас 12 этажей',cl:'ТОО «Тау Девелопмент»',pm:'АН',fore:'ЕР',addr:'мкр. Хан Тенгри, ул. Ахмади Ыскака',budget:186000000,labPlan:41000000,start:'2026-04-01',end:'2026-12-20',prog:62,st:'go',c:'#ff7a1a',
+  stages:[['Фундамент',100,9800000,9600000],['Каркас 1–6 этажей',100,14500000,15900000],['Каркас 7–12 этажей',48,14200000,8100000],['Кладка',10,6300000,600000],['Кровля',0,2400000,0]]},
+ {id:'P2',n:'БЦ «Нурлы», отделка 2–4 этажей',k:'Внутренняя отделка 3 200 м²',cl:'ТОО «Нурлы Пропертиз»',pm:'АН',fore:'МК',addr:'пр. Аль-Фараби, 77',budget:74000000,labPlan:21000000,start:'2026-09-01',end:'2027-01-31',prog:35,st:'go',c:'#3b82f6',
+  stages:[['Демонтаж',100,1800000,1700000],['Перегородки ГКЛ',70,5200000,3900000],['Электрика',40,4600000,2100000],['Чистовая отделка',5,7400000,300000]]},
+ {id:'P3',n:'Склад «LogiPark»',k:'Металлокаркас и сэндвич-панели 4 800 м²',cl:'ТОО «LogiPark Kazakhstan»',pm:'ТБ',fore:'НС',addr:'Илийский тракт, 12 км',budget:128000000,labPlan:26000000,start:'2026-05-15',end:'2026-11-30',prog:80,st:'risk',c:'#a855f7',
+  stages:[['Фундамент',100,5100000,5400000],['Металлокаркас',100,8800000,10600000],['Стены и кровля',75,7600000,6900000],['Полы',30,4500000,1500000]]},
+ {id:'P4',n:'Частный дом, Ремизовка',k:'Дом 340 м² под ключ',cl:'Частный заказчик',pm:'ТБ',fore:'МК',addr:'ул. Кожамкулова, 214',budget:42000000,labPlan:9800000,start:'2026-10-01',end:'2027-06-30',prog:15,st:'go',c:'#22c55e',
+  stages:[['Фундамент',80,2100000,1500000],['Стены',0,3600000,0],['Кровля',0,1800000,0],['Инженерия',0,2300000,0]]},
+ {id:'P5',n:'Школа № 12, кровля',k:'Капитальный ремонт кровли · госзаказ',cl:'ГУ «Отдел образования»',pm:'АН',fore:'НС',addr:'Турксибский район',budget:58000000,labPlan:12000000,start:'2026-07-01',end:'2026-11-10',prog:91,st:'late',c:'#f59e0b',
+  stages:[['Демонтаж',100,1600000,1700000],['Основание',100,3900000,4300000],['Мембрана',85,4800000,4600000],['Водосток',40,1700000,800000]]}
+];
+const PR=id=>PROJECTS.find(p=>p.id===id)||PROJECTS[0];
+const PST={go:['в графике','g'],risk:['перерасход труда','w'],late:['отстаёт от срока','r']};
+let curP='P1';
+
+/* ===== Сотрудники =====
+ rate — ставка ₸ за час; pay: hour — почасовая, piece — сдельная, salary — оклад */
+const RAW=[
+ ['БК','Бек','Руководитель','office',0,'salary'],['АН','Асхат Нуров','Руководитель проекта','office',0,'salary'],['ТБ','Тимур Бекенов','Руководитель проекта','office',0,'salary'],
+ ['ЖС','Жанар Сейтова','Сметчик / ПТО','office',0,'salary'],['СР','Серик Рахимов','Снабженец','office',0,'salary'],['ГЛ','Гульнара Ли','Бухгалтер','office',0,'salary'],
+ ['ЕР','Ерлан Рысбеков','Прораб','P1',4200,'hour'],['МК','Марат Касымов','Прораб','P2',4200,'hour'],['НС','Нурлан Сарсенов','Прораб','P3',4200,'hour'],
+ ['ДМ','Данияр Муратов','Монолитчик','P1',3200,'hour'],['АК','Айдар Каримов','Монолитчик','P1',3200,'hour'],['РЖ','Руслан Жумабеков','Арматурщик','P1',3000,'hour'],['БС','Бауыржан Садыков','Арматурщик','P1',3000,'hour'],
+ ['ОТ','Олжас Тулеев','Сварщик','P3',3600,'hour'],['ВК','Виктор Ким','Сварщик','P3',3600,'hour'],['ЕА','Ербол Абенов','Монтажник','P3',3100,'hour'],
+ ['ИП','Игорь Пак','Электрик','P2',3400,'hour'],['СМ','Санжар Мухтаров','Отделочник','P2',2900,'piece'],['АТ','Азамат Темиров','Отделочник','P2',2900,'piece'],['КЕ','Кайрат Ермеков','Плиточник','P2',3000,'piece'],
+ ['ЖН','Жандос Нуриев','Кровельщик','P5',3100,'hour'],['ТС','Талгат Сулейменов','Кровельщик','P5',3100,'hour'],
+ ['АБ','Алмас Бейсенов','Разнорабочий','P4',2200,'hour'],['ДЖ','Дастан Жаксылыков','Разнорабочий','P1',2200,'hour'],['МТ','Медет Тлеубаев','Водитель-экскаваторщик','P4',3300,'hour']
+];
+let STAFF=RAW.map((r,i)=>({id:r[0],n:r[1],pos:r[2],p:r[3],rate:r[4],pay:r[5],ph:'+7 70'+(1+i%7)+' '+(300+i*17)+' '+String(10+i*3).slice(-2)+' '+String(40+i*7).slice(-2),
+ dop:addDays(TODAY,[-3,40,120,200,14,90][i%6])}));
+const SF=id=>STAFF.find(s=>s.id===id)||STAFF[0];
+const FIELD=()=>STAFF.filter(s=>s.p!=='office');
+
+/* ===== Отметки сегодня ===== */
+const MARKS={ЕР:['07:52','ok'],МК:['08:05','ok'],НС:['07:58','ok'],ДМ:['07:55','ok'],АК:['08:21','late'],РЖ:['07:59','ok'],БС:['','none'],ОТ:['08:00','ok'],ВК:['08:02','ok'],ЕА:['08:47','late'],ИП:['08:10','ok'],СМ:['08:03','ok'],АТ:['08:06','ok'],КЕ:['','sick'],ЖН:['07:49','ok'],ТС:['08:12','far'],АБ:['08:01','ok'],ДЖ:['07:57','ok'],МТ:['07:40','ok']};
+const MST={ok:['на объекте','g'],late:['опоздал','w'],none:['не вышел','r'],sick:['больничный','i'],far:['отметка вне объекта','r']};
+const minsSince=t=>{const [a,b]=t.split(':'),[c,d]=NOW.split(':');return (+c*60+ +d)-(+a*60+ +b)};
+
+/* ===== Наряды ===== */
+let TASKS=[
+ {id:'N-1041',p:'P1',t:'Армирование плиты перекрытия 8 этажа',who:['РЖ','БС'],plan:32,fact:21,st:'go',due:'2026-10-31'},
+ {id:'N-1042',p:'P1',t:'Бетонирование колонн 8 этажа, захватка 2',who:['ДМ','АК'],plan:24,fact:6,st:'go',due:'2026-11-02'},
+ {id:'N-1039',p:'P1',t:'Опалубка стен лестничной клетки',who:['ДМ','ДЖ'],plan:16,fact:18,st:'check',due:'2026-10-29'},
+ {id:'N-2017',p:'P2',t:'Перегородки ГКЛ, 3 этаж, оси 4–9',who:['СМ','АТ'],plan:40,fact:34,st:'go',due:'2026-11-03'},
+ {id:'N-2018',p:'P2',t:'Электрика: разводка 3 этаж',who:['ИП'],plan:28,fact:12,st:'go',due:'2026-11-06'},
+ {id:'N-3022',p:'P3',t:'Монтаж сэндвич-панелей, ось Г',who:['ОТ','ВК','ЕА'],plan:36,fact:41,st:'go',due:'2026-10-30',over:true},
+ {id:'N-5009',p:'P5',t:'Мембрана, секция В',who:['ЖН','ТС'],plan:20,fact:14,st:'go',due:'2026-10-31'},
+ {id:'N-4003',p:'P4',t:'Обратная засыпка фундамента',who:['МТ','АБ'],plan:12,fact:12,st:'done',due:'2026-10-28'}
+];
+const TST={go:['в работе','i'],check:['на приёмке','w'],done:['принят','g']};
+
+/* ===== Материалы и техника ===== */
+let MATS=[
+ {id:'З-311',p:'P1',t:'Бетон В25, 48 м³',sum:1680000,who:'ЕР',st:'new',need:'2026-10-31'},
+ {id:'З-309',p:'P1',t:'Арматура А500С Ø16, 6,2 т',sum:2790000,who:'ЕР',st:'buy',need:'2026-11-01'},
+ {id:'З-305',p:'P2',t:'Профиль и ГКЛ на 3 этаж',sum:940000,who:'МК',st:'deliv',need:'2026-10-30'},
+ {id:'З-302',p:'P3',t:'Саморезы кровельные, 40 000 шт',sum:310000,who:'НС',st:'done',need:'2026-10-27'},
+ {id:'З-312',p:'P5',t:'Водосточная система, 120 м',sum:860000,who:'НС',st:'new',need:'2026-11-03'}
+];
+const MSTS={new:['новая','w'],buy:['закупается','i'],deliv:['в пути','i'],done:['на объекте','g']};
+let MACH=[
+ ['Автокран 25 т','аренда','P1',38000,7.5],['Экскаватор-погрузчик JCB','своя','P4',14000,6],['Бетононасос','аренда','P1',42000,4],['Леса рамные, 600 м²','своя','P2',0,0],['Газель','своя','—',6000,5.5]
+];
+
+/* ===== Заказчики и оплаты ===== */
+let PAYIN=[
+ {p:'P1',d:'2026-10-05',sum:24000000,what:'Аванс по этапу «Каркас 7–12»'},
+ {p:'P3',d:'2026-10-12',sum:18500000,what:'Оплата по акту № 6'},
+ {p:'P2',d:'2026-10-20',sum:11000000,what:'Аванс 15%'},
+ {p:'P5',d:'2026-10-25',sum:9400000,what:'Оплата по акту № 3'}
+];
+let ACTS=[
+ {no:'АВР-17',p:'P1',per:'октябрь',sum:16800000,st:'draft'},
+ {no:'АВР-7',p:'P3',per:'октябрь',sum:21400000,st:'sent'},
+ {no:'АВР-4',p:'P5',per:'октябрь',sum:7900000,st:'signed'},
+ {no:'АВР-2',p:'P2',per:'октябрь',sum:6200000,st:'draft'}
+];
+const AST={draft:['черновик',''],sent:['у заказчика','w'],signed:['подписан','g']};
+
+/* ===== Расчёт часов ===== */
+// часы по проекту за месяц: сотрудники проекта × рабочие дни × ~9 ч, плюс переработки
+function monthHours(id){const s=SF(id);if(s.p==='office')return 0;const d=21-(id.charCodeAt(0)%3);return d*9*60+((id.charCodeAt(1)%5)*60)}
+function laborFact(pid){return STAFF.filter(s=>s.p===pid).reduce((a,s)=>a+monthHours(s.id)/60*s.rate,0)}
+const stageSum=(p,i)=>p.stages.reduce((a,s)=>a+s[i],0);
+
+const SC={};
+const bar=(w,c)=>`<div class="bar"><i class="${c||''}" style="--w:${Math.max(2,Math.min(100,w))}%"></i></div>`;
+const prog=p=>{const pl=stageSum(p,2),f=p.stages.reduce((a,s)=>a+s[2]*s[1]/100,0);return {pl,fact:stageSum(p,3),earned:f}};
+
+/* ===== Пульт руководителя ===== */
+SC.today=()=>{
+ const F=FIELD();const on=F.filter(s=>MARKS[s.id]&&['ok','late','far'].includes(MARKS[s.id][1])).length;
+ const late=F.filter(s=>MARKS[s.id]&&MARKS[s.id][1]==='late');const none=F.filter(s=>MARKS[s.id]&&MARKS[s.id][1]==='none');const far=F.filter(s=>MARKS[s.id]&&MARKS[s.id][1]==='far');
+ const tot=PROJECTS.reduce((a,p)=>a+p.budget,0);
+ const al=[
+  ['r','Склад «LogiPark»: труд дороже плана на 12%','Металлокаркас — 10,6 млн вместо 8,8 млн. Наряд N-3022 уже 41 ч из 36.',"openP('P3')"],
+  ['r','Школа № 12 отстаёт: сдача 10 ноября','Готово 91%, водосток — 40%. Нужно +2 кровельщика на неделю.',"openP('P5')"],
+  ['w',`${far.length} отметка вне объекта`,far.map(s=>s.n).join(', ')+' — отметился в 2,4 км от школы. Прораб уточняет.',"go('time')"],
+  ['w',`${late.length} опоздали, ${none.length} не вышел`,late.concat(none).map(s=>s.n.split(' ')[0]).join(', ')+' — часы посчитаны с фактического прихода.',"go('time')"],
+  ['w',`Допуск истёк: ${FIELD().filter(s=>s.dop<TODAY).length} чел.`,FIELD().filter(s=>s.dop<TODAY).map(s=>s.n).join(', ')+' — система не даст поставить на высотные работы.',"go('safety')"],
+  ['i','2 заявки на материалы ждут решения','Бетон на 31.10 и водосток для школы — 2,5 млн.',"go('materials')"]
+ ];
+ return `<div class="hd"><div><h2>Пульт руководителя</h2><p>Пятница, 30 октября. Пять объектов, 25 человек: кто где работает, сколько часов ушло и во что это обходится — без звонков прорабам и Excel-табелей.</p></div><div class="btns"><button class="bt" onclick="go('map')">Где люди</button><button class="bt p" onclick="go('cost')">Маржа по проектам</button></div></div>
+ <div class="kpi">
+  <div><small>НА ОБЪЕКТАХ СЕЙЧАС</small><b>${on} из ${F.length}</b><span class="g">отметились с телефона</span></div>
+  <div><small>ЧАСОВ СЕГОДНЯ</small><b>${Math.round(F.reduce((a,s)=>a+(MARKS[s.id]&&MARKS[s.id][0]?Math.max(0,minsSince(MARKS[s.id][0])):0),0)/60)} ч</b><span>к 18:00 будет ≈ 170 ч</span></div>
+  <div><small>ПРОЕКТОВ В РАБОТЕ</small><b>${PROJECTS.length}</b><span>портфель ${mln(tot)} ₸</span></div>
+  <div><small>ФОТ ОКТЯБРЯ</small><b>${mln(STAFF.reduce((a,s)=>a+monthHours(s.id)/60*s.rate,0)+6*650000)} ₸</b><span>по часам из системы</span></div>
+  <div><small>МАРЖА ПОРТФЕЛЯ</small><b>21,4%</b><span class="w">план 24% · LogiPark тянет вниз</span></div>
+ </div>
+ <div class="g21"><div class="pan"><h3>Проекты сегодня</h3><p>Готовность, освоение бюджета на труд и люди на объекте.</p>
+  ${PROJECTS.map(p=>{const g=prog(p);const ppl=FIELD().filter(s=>s.p===p.id&&MARKS[s.id]&&MARKS[s.id][0]).length;return `<div class="prow2" onclick="openP('${p.id}')"><i style="background:${p.c}"></i><div><b>${esc(p.n)}</b><span>${esc(p.k)} · ${ppl} чел. на объекте</span></div><div class="pr-b">${bar(p.prog,'b')}<small>готово ${p.prog}%</small></div><div class="pr-b">${bar(pct(g.fact,g.pl),g.fact>g.earned*1.05?'r':'g')}<small>труд ${pct(g.fact,g.pl)}% бюджета</small></div>${tag(PST[p.st][0],PST[p.st][1])}</div>`}).join('')}</div>
+ <div class="pan"><h3>Требует решения</h3>${al.map(a=>`<div class="al ${a[0]}" onclick="${a[3]}"><b>${esc(a[1])}</b><span>${esc(a[2])}</span></div>`).join('')}</div></div>
+ ${said('«25 человек в команде. Нужен учёт проектов и времени работы сотрудников.»','Каждый отмечается на объекте с телефона, часы ложатся на проект и этап, а из часов и ставок считается себестоимость — руководитель видит маржу каждого объекта в моменте, а не после сдачи.')}`};
+
+/* ===== Где люди сейчас ===== */
+SC.map=()=>{const pos={P1:[62,30],P2:[44,52],P3:[84,18],P4:[30,70],P5:[70,62]};
+ return `<div class="hd"><div><h2>Где люди сейчас</h2><p>Отметка прихода с телефона проверяет геолокацию: человек должен быть в радиусе объекта. Отметка «вне объекта» сразу видна прорабу и руководителю.</p></div></div>
+ <div class="g21"><div class="pan mapw"><svg viewBox="0 0 100 80" class="cmap"><path d="M0 40 Q30 34 50 44 T100 38" class="rd"/><path d="M40 0 Q46 40 38 80" class="rd"/><path d="M0 64 L100 58" class="rd2"/>
+  ${PROJECTS.map(p=>{const [x,y]=pos[p.id];const n=FIELD().filter(s=>s.p===p.id&&MARKS[s.id]&&MARKS[s.id][0]).length;return `<g onclick="openP('${p.id}')" class="pin"><circle cx="${x}" cy="${y}" r="6" fill="${p.c}" opacity=".18"/><circle cx="${x}" cy="${y}" r="2.6" fill="${p.c}"/><text x="${x+4}" y="${y-3}">${esc(p.n.split(',')[0])}</text><text x="${x+4}" y="${y+1.5}" class="sm">${n} чел.</text></g>`}).join('')}
+  <circle cx="58" cy="70" r="1.8" fill="#ef4444"/><text x="61" y="71" class="sm r">Талгат С. · вне объекта</text></svg></div>
+ <div class="pan"><h3>По объектам</h3>${PROJECTS.map(p=>{const L=FIELD().filter(s=>s.p===p.id);return `<div class="obj"><b><i style="background:${p.c}"></i>${esc(p.n)}</b>${L.map(s=>{const m=MARKS[s.id]||['','none'];return `<div class="kv"><span>${esc(s.n)} · ${esc(s.pos.toLowerCase())}</span><b>${m[0]||'—'} ${tag(MST[m[1]][0],MST[m[1]][1])}</b></div>`}).join('')}</div>`}).join('')}</div></div>`};
+
+/* ===== Проекты ===== */
+SC.projects=()=>`<div class="hd"><div><h2>Все проекты</h2><p>Каждый объект — с бюджетом, графиком, командой и фактическими часами. Новый проект создаётся из сметы: этапы и бюджет на труд подтягиваются сами.</p></div><div class="btns"><button class="bt p" onclick="toast('Новый проект: заказчик, адрес, смета Excel → этапы и бюджет, руководитель, прораб.')">+ Проект</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Проект</th><th>Заказчик</th><th>Руководитель · прораб</th><th class="r">Бюджет</th><th>Готово</th><th>Труд: факт / план</th><th>Срок</th><th>Статус</th></tr></thead><tbody>${PROJECTS.map(p=>{const g=prog(p);return `<tr onclick="openP('${p.id}')"><td><b><i class="dot" style="background:${p.c}"></i>${esc(p.n)}</b><div class="mini">${esc(p.k)}</div></td><td>${esc(p.cl)}</td><td>${esc(SF(p.pm).n)}<div class="mini">${esc(SF(p.fore).n)}</div></td><td class="r mono">${mln(p.budget)}</td><td style="min-width:110px">${bar(p.prog,'b')}<span class="mini">${p.prog}%</span></td><td class="mono">${mln(g.fact)} / ${mln(g.pl)}</td><td class="mono">${dd(p.end)}.${p.end.slice(2,4)}</td><td>${tag(PST[p.st][0],PST[p.st][1])}</td></tr>`}).join('')}</tbody></table></div>`;
+function openP(id){curP=id;go(allowed('project')?'project':'projects')}
+
+/* ===== Карточка проекта ===== */
+SC.project=()=>{const p=PR(curP);const g=prog(p);const team=FIELD().filter(s=>s.p===p.id);const T=TASKS.filter(t=>t.p===p.id);
+ return `<div class="hd"><div><div class="crumbl"><a onclick="go('projects')">Проекты</a> / ${esc(p.n)}</div><h2>${esc(p.n)}</h2><p>${esc(p.k)} · ${esc(p.cl)} · ${esc(p.addr)} · ${dd(p.start)} — ${dd(p.end)}</p></div><div class="btns"><select class="rsel" onchange="openP(this.value)">${PROJECTS.map(x=>`<option value="${x.id}" ${x.id===p.id?'selected':''}>${esc(x.n)}</option>`).join('')}</select><button class="bt p" onclick="go('acts')">Акт за месяц</button></div></div>
+ <div class="kpi"><div><small>БЮДЖЕТ ПРОЕКТА</small><b>${mln(p.budget)} ₸</b><span>по договору</span></div><div><small>ГОТОВНОСТЬ</small><b>${p.prog}%</b><span>по этапам</span></div><div><small>ТРУД ПО ПЛАНУ</small><b>${mln(g.pl)} ₸</b><span>заложено в смете</span></div><div><small>ТРУД ФАКТ</small><b class="${g.fact>g.earned*1.05?'r':''}">${mln(g.fact)} ₸</b><span>${g.fact>g.earned*1.05?'дороже выполненного объёма':'в пределах объёма'}</span></div><div><small>КОМАНДА</small><b>${team.length} чел.</b><span>прораб ${esc(SF(p.fore).n.split(' ')[0])}</span></div></div>
+ <div class="pan"><h3>Этапы: выполнено и сколько стоил труд</h3><p>Освоено — сколько труда «заработано» выполненным объёмом. Если факт больше освоенного — этап идёт дороже сметы.</p><div class="tw"><table class="t"><thead><tr><th>Этап</th><th>Готово</th><th class="r">Труд по смете</th><th class="r">Освоено</th><th class="r">Факт по часам</th><th class="r">Отклонение</th></tr></thead><tbody>${p.stages.map(s=>{const e=s[2]*s[1]/100,d=s[3]-e;return `<tr><td><b>${esc(s[0])}</b></td><td style="min-width:120px">${bar(s[1],'b')}<span class="mini">${s[1]}%</span></td><td class="r mono">${tg(s[2])}</td><td class="r mono">${tg(e)}</td><td class="r mono">${tg(s[3])}</td><td class="r mono ${d>e*0.05&&d>0?'red':'grn'}">${d>0?'+':''}${tg(d)}</td></tr>`}).join('')}</tbody></table></div></div>
+ <div class="g2"><div class="pan"><h3>Наряды</h3>${T.map(t=>`<div class="kv"><span><b>${t.id}</b> ${esc(t.t)}<br><small class="mini">${t.who.map(w=>SF(w).n.split(' ')[0]).join(', ')} · до ${dd(t.due)}</small></span><b>${t.fact} / ${t.plan} ч</b></div>`).join('')||'<p class="mini">Нарядов нет.</p>'}</div>
+ <div class="pan"><h3>Команда сегодня</h3>${team.map(s=>{const m=MARKS[s.id]||['','none'];return `<div class="kv"><span>${esc(s.n)} · ${esc(s.pos.toLowerCase())}</span><b>${m[0]||'—'} ${tag(MST[m[1]][0],MST[m[1]][1])}</b></div>`}).join('')}</div></div>`};
+
+/* ===== График ===== */
+SC.gantt=()=>{const a=new Date('2026-04-01'),b=new Date('2027-07-01'),W=b-a;const x=d=>((new Date(d)-a)/W*100);const months=['апр','май','июн','июл','авг','сен','окт','ноя','дек','янв','фев','мар','апр','май','июн'];
+ return `<div class="hd"><div><h2>График работ</h2><p>Все проекты на одной шкале: сроки договоров, готовность и сегодняшний день. Отставание видно до того, как заказчик позвонит.</p></div></div>
+ <div class="pan gnt"><div class="gm">${months.map(m=>`<span>${m}</span>`).join('')}</div>${PROJECTS.map(p=>`<div class="gr" onclick="openP('${p.id}')"><b>${esc(p.n)}</b><div class="gl"><i style="left:${x(p.start)}%;width:${x(p.end)-x(p.start)}%;background:${p.c}33;border-color:${p.c}"><em style="width:${p.prog}%;background:${p.c}"></em></i></div></div>`).join('')}<div class="gtoday" style="left:calc(220px + (100% - 220px) * ${x(TODAY)/100})"><span>сегодня</span></div></div>
+ <div class="pan"><h3>Этапы проекта «${esc(PR(curP).n)}»</h3>${PR(curP).stages.map(s=>`<div class="hl"><span>${esc(s[0])}</span>${bar(s[1],'b')}<b>${s[1]}%</b></div>`).join('')}</div>`};
+
+/* ===== Наряды и задачи ===== */
+SC.tasks=()=>`<div class="hd"><div><h2>Наряды и задачи</h2><p>Прораб выдаёт наряд бригаде с плановыми часами. Рабочие отмечают время на наряде в телефоне. Приёмка — с фото. Перерасход часов виден сразу.</p></div><div class="btns"><button class="bt p" onclick="newTask()">+ Наряд</button></div></div>
+ <div class="board">${Object.entries(TST).map(([k,v])=>{const L=TASKS.filter(t=>t.st===k);return `<div class="bcol"><div class="bh"><b>${v[0]}</b><span>${L.length}</span></div>${L.map(t=>`<div class="oc ${t.fact>t.plan?'over':''}" onclick="advTask('${t.id}')"><small>${t.id} · ${esc(PR(t.p).n.split(',')[0])}</small><b>${esc(t.t)}</b><span>${t.who.map(w=>SF(w).n.split(' ')[0]).join(', ')} · до ${dd(t.due)}</span>${bar(pct(t.fact,t.plan),t.fact>t.plan?'r':'g')}<em>${t.fact} из ${t.plan} ч${t.fact>t.plan?' · перерасход':''}</em></div>`).join('')}</div>`}).join('')}</div>
+ <p class="mini">Нажмите на наряд — он перейдёт на следующий этап: в работе → на приёмке → принят.</p>`;
+function advTask(id){const t=TASKS.find(x=>x.id===id);t.st=t.st==='go'?'check':t.st==='check'?'done':'done';render();toast(t.st==='check'?`${t.id} отправлен на приёмку — прорабу пришло уведомление с фото.`:`${t.id} принят. Часы закрыты на этап, сдельщикам начислено.`)}
+function newTask(){TASKS.unshift({id:'N-'+(1050+TASKS.length),p:'P1',t:'Монтаж опалубки плиты 9 этажа',who:['ДМ','АК','ДЖ'],plan:30,fact:0,st:'go',due:addDays(TODAY,4)});render();toast('Наряд выдан бригаде: у троих рабочих он появился в телефоне.')}
+
+/* ===== Учёт времени сегодня ===== */
+SC.time=()=>{const F=FIELD();
+ return `<div class="hd"><div><h2>Учёт времени сегодня</h2><p>Приход и уход — с телефона на объекте: геолокация и фото. Опоздания, отметки вне объекта и переработки считаются сами. Прораб может поправить отметку — с причиной в журнале.</p></div><div class="btns"><button class="bt" onclick="toast('Табель за день выгружен в Excel.')">Excel</button><button class="bt p" onclick="go('sheet')">Табель за месяц</button></div></div>
+ <div class="kpi">${Object.entries(MST).map(([k,v])=>`<div><small>${v[0].toUpperCase()}</small><b class="${v[1]==='r'?'r':''}">${F.filter(s=>(MARKS[s.id]||['','none'])[1]===k).length}</b><span>человек</span></div>`).join('')}</div>
+ <div class="tw"><table class="t"><thead><tr><th>Сотрудник</th><th>Объект</th><th>Пришёл</th><th>Проверка</th><th class="r">Отработано</th><th>Наряд</th><th></th></tr></thead><tbody>${F.map(s=>{const m=MARKS[s.id]||['','none'];const t=TASKS.find(x=>x.who.includes(s.id)&&x.st!=='done');return `<tr><td><b>${esc(s.n)}</b><div class="mini">${esc(s.pos)} · ${s.pay==='piece'?'сдельно':tg(s.rate)+'/ч'}</div></td><td>${esc(PR(s.p).n.split(',')[0])}</td><td class="mono">${m[0]||'—'}</td><td>${tag(MST[m[1]][0],MST[m[1]][1])}${m[1]==='ok'||m[1]==='late'?' <span class="mini">гео ✓ фото ✓</span>':''}</td><td class="r mono">${m[0]?hh(Math.max(0,minsSince(m[0]))):'—'}</td><td class="mini">${t?t.id+' · '+esc(t.t.slice(0,34))+'…':'—'}</td><td>${m[1]==='far'||m[1]==='none'?`<button class="bt sm" onclick="fixMark('${s.id}')">Поправить</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`};
+function fixMark(id){const s=SF(id);MARKS[id]=[MARKS[id][0]||'09:30','ok'];render();toast(`${esc(s.n)}: отметка подтверждена прорабом с причиной «работал на складе материалов» — запись в журнале.`)}
+
+/* ===== Табель за месяц ===== */
+let sheetP='all';
+SC.sheet=()=>{const days=[];for(let i=1;i<=30;i++){const d='2026-10-'+String(i).padStart(2,'0');days.push(d)}
+ const L=FIELD().filter(s=>sheetP==='all'||s.p===sheetP);
+ const cell=(s,d,i)=>{const w=dow(d);if(w==='вс')return ['','off'];if(d>TODAY)return ['',''];const k=(s.id.charCodeAt(0)+i*7)%23;if(s.id==='КЕ'&&i>25)return ['Б','sick'];if(k===3)return ['Н','abs'];const h=w==='сб'?6:k%5===0?10:9;return [h,h>9?'ot':'']};
+ return `<div class="hd"><div><h2>Табель за октябрь</h2><p>Собирается сам из отметок с телефона. Часы раскладываются по проектам. Переработки выделены, больничные и прогулы отмечены. Табель уходит в 1С и в расчёт зарплаты.</p></div><div class="btns"><select class="rsel" onchange="sheetP=this.value;render()"><option value="all">Все объекты</option>${PROJECTS.map(p=>`<option value="${p.id}" ${p.id===sheetP?'selected':''}>${esc(p.n)}</option>`).join('')}</select><button class="bt p" onclick="toast('Табель утверждён и отправлен в 1С.')">Утвердить и в 1С</button></div></div>
+ <div class="tw sheet"><table class="t tb"><thead><tr><th class="st">Сотрудник</th>${days.map(d=>`<th class="c ${dow(d)==='вс'?'we':''}">${d.slice(8)}<small>${dow(d)}</small></th>`).join('')}<th class="r">Часы</th><th class="r">Перераб.</th></tr></thead><tbody>${L.map(s=>{let t=0,o=0;const c=days.map((d,i)=>{const [v,k]=cell(s,d,i);if(typeof v==='number'){t+=v;if(v>8)o+=v-8}return `<td class="c ${k}">${v}</td>`}).join('');return `<tr><td class="st"><b>${esc(s.n)}</b><div class="mini">${esc(PR(s.p).n.split(',')[0])}</div></td>${c}<td class="r mono"><b>${t}</b></td><td class="r mono">${o}</td></tr>`}).join('')}</tbody></table></div>
+ <div class="legend"><span><i class="ot"></i>переработка</span><span><i class="sick"></i>Б — больничный</span><span><i class="abs"></i>Н — неявка</span><span><i class="we"></i>выходной</span></div>`};
+
+/* ===== Отметка с телефона ===== */
+let mobIn=false,mobTask='N-1042';
+SC.mobile=()=>{const me=SF('ДМ');const T=TASKS.filter(t=>t.who.includes('ДМ'));
+ return `<div class="hd"><div><h2>Отметка с телефона</h2><p>Рабочему не нужно ничего, кроме телефона: открыл ссылку — нажал «Я на объекте». Система проверит, что он в радиусе 300 м от объекта, попросит фото и засчитает время на выбранный наряд.</p></div></div>
+ <div class="phones"><div class="ph"><div class="pht"><span>9:41</span><b>ВЕРТИКАЛЬ</b><span>●●●</span></div><div class="pb">
+  <div class="phh"><small>ДОБРОЕ УТРО</small><b>${esc(me.n.split(' ')[0])}</b><span>Монолитчик · ЖК «Тау Самал»</span></div>
+  <div class="geo ${mobIn?'on':''}"><i></i><div><b>${mobIn?'Вы на объекте с 07:55':'Вы в 120 м от объекта'}</b><span>${mobIn?'Отработано сегодня: '+hh(minsSince('07:55')):'Радиус отметки — 300 м'}</span></div></div>
+  <button class="pbig ${mobIn?'out':''}" onclick="mobIn=!mobIn;render();toast(mobIn?'Приход отмечен: геолокация совпала, фото принято. Время идёт на наряд '+mobTask+'.':'Уход отмечен. За день: 9 ч 05 м, из них 1 ч 05 м переработка — прораб подтвердит.')">${mobIn?'Ушёл с объекта':'Я на объекте · сделать фото'}</button>
+  <small class="phl">НАРЯД НА СЕГОДНЯ</small>${T.map(t=>`<div class="pt ${t.id===mobTask?'on':''}" onclick="mobTask='${t.id}';render()"><b>${esc(t.t)}</b><span>${t.fact} из ${t.plan} ч · до ${dd(t.due)}</span></div>`).join('')}
+  <small class="phl">МОИ ЧАСЫ В ОКТЯБРЕ</small><div class="pkv"><span>Отработано</span><b>196 ч</b></div><div class="pkv"><span>Переработки</span><b>14 ч</b></div><div class="pkv"><span>Начислено</span><b>${tg(196*3200+14*1600)}</b></div>
+ </div></div>
+ <div class="pan" style="max-width:520px"><h3>Как защищены отметки</h3>${[['Геолокация','отметка только в радиусе объекта; вне радиуса — «на проверку»'],['Фото','селфи при приходе — нельзя отметиться за другого'],['Без интернета','отметка сохраняется и уходит, когда появится сеть'],['Правка','только прораб и только с причиной — всё в журнале'],['Телефон','обычный браузер, ставится на экран как приложение']].map(x=>`<div class="kv"><span>${x[0]}</span><b class="wrapb">${x[1]}</b></div>`).join('')}</div></div>`};
+
+/* ===== Сотрудники ===== */
+SC.staff=()=>`<div class="hd"><div><h2>Сотрудники</h2><p>25 человек: офис и объекты. У каждого — должность, ставка и способ оплаты (почасовая, сдельная, оклад), текущий объект и допуски.</p></div><div class="btns"><button class="bt p" onclick="toast('Новый сотрудник: ФИО, ИИН, должность, ставка, объект — данные уходят в 1С.')">+ Сотрудник</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Сотрудник</th><th>Должность</th><th>Объект</th><th>Оплата</th><th class="r">Часов в октябре</th><th>Допуск до</th><th>Телефон</th></tr></thead><tbody>${STAFF.map(s=>`<tr><td><b>${esc(s.n)}</b></td><td>${esc(s.pos)}</td><td>${s.p==='office'?'офис':esc(PR(s.p).n.split(',')[0])}</td><td>${s.pay==='salary'?'оклад':s.pay==='piece'?'сдельно':tg(s.rate)+' / ч'}</td><td class="r mono">${s.p==='office'?'—':Math.round(monthHours(s.id)/60)}</td><td class="mono ${s.dop<TODAY?'red':''}">${s.p==='office'?'—':dd(s.dop)}</td><td class="mono mini">${s.ph}</td></tr>`).join('')}</tbody></table></div>`;
+
+/* ===== Допуски и охрана труда ===== */
+SC.safety=()=>{const F=FIELD();const ex=F.filter(s=>s.dop<TODAY),soon=F.filter(s=>s.dop>=TODAY&&s.dop<=addDays(TODAY,30));
+ return `<div class="hd"><div><h2>Допуски и охрана труда</h2><p>Инструктажи, допуски к высотным и сварочным работам, медосмотры, выдача СИЗ. Человека с просроченным допуском система не поставит в наряд на опасные работы.</p></div></div>
+ <div class="kpi"><div><small>ПРОСРОЧЕНО</small><b class="r">${ex.length}</b><span>${ex.map(s=>s.n.split(' ')[0]).join(', ')}</span></div><div><small>ИСТЕКАЕТ ЗА 30 ДНЕЙ</small><b>${soon.length}</b><span>напоминание инженеру ОТ</span></div><div><small>ИНСТРУКТАЖ СЕГОДНЯ</small><b>19 / 19</b><span>подписали в телефоне</span></div><div><small>СИЗ ВЫДАНО</small><b>25</b><span>каски, пояса, перчатки</span></div><div><small>ДНЕЙ БЕЗ ТРАВМ</small><b class="g">214</b><span></span></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Сотрудник</th><th>Допуск</th><th>До</th><th>Медосмотр</th><th>Статус</th></tr></thead><tbody>${F.map(s=>`<tr><td><b>${esc(s.n)}</b><div class="mini">${esc(s.pos)}</div></td><td>${/Свар/.test(s.pos)?'сварочные работы':/Кров|Монол|Армат|Монтаж/.test(s.pos)?'работы на высоте':'общий'}</td><td class="mono">${dd(s.dop)}</td><td class="mono">${dd(addDays(s.dop,60))}</td><td>${s.dop<TODAY?tag('просрочен','r'):s.dop<=addDays(TODAY,30)?tag('скоро истекает','w'):tag('в порядке','g')}</td></tr>`).join('')}</tbody></table></div>`};
+
+/* ===== Себестоимость и маржа ===== */
+const COST={P1:[86.2,9.4,6.1,0],P2:[18.9,2.6,0.4,3.2],P3:[61.3,7.1,4.8,8.4],P4:[6.8,1.2,1.9,0],P5:[29.4,3.1,0.9,0]};
+SC.cost=()=>{const R=PROJECTS.map(p=>{const g=prog(p);const c=COST[p.id];const lab=g.fact/1e6;const tot=c[0]+lab+c[1]+c[2]+c[3];const earned=p.budget/1e6*p.prog/100;return {p,lab,c,tot,earned,m:pct(earned-tot,earned)}});
+ return `<div class="hd"><div><h2>Себестоимость и маржа</h2><p>Себестоимость проекта собирается из того, что и так вводится в работе: часы × ставки, материалы по заявкам, техника по моточасам, субподряд по актам. Маржа считается от выполненного объёма — видно, какой объект зарабатывает, а какой съедает прибыль.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Проект</th><th class="r">Выполнено на</th><th class="r">Материалы</th><th class="r">Труд</th><th class="r">Накладные</th><th class="r">Техника</th><th class="r">Субподряд</th><th class="r">Себестоимость</th><th class="r">Маржа</th></tr></thead><tbody>${R.map(r=>`<tr onclick="openP('${r.p.id}')"><td><b><i class="dot" style="background:${r.p.c}"></i>${esc(r.p.n)}</b></td><td class="r mono">${r.earned.toFixed(1)}</td><td class="r mono">${r.c[0].toFixed(1)}</td><td class="r mono">${r.lab.toFixed(1)}</td><td class="r mono">${r.c[1].toFixed(1)}</td><td class="r mono">${r.c[2].toFixed(1)}</td><td class="r mono">${r.c[3].toFixed(1)}</td><td class="r mono"><b>${r.tot.toFixed(1)}</b></td><td class="r mono"><b class="${r.m<15?'red':'grn'}">${r.m}%</b></td></tr>`).join('')}</tbody></table><p class="mini" style="padding:6px 10px">Суммы — млн ₸, нарастающим итогом.</p></div>
+ <div class="g2"><div class="pan"><h3>Куда уходит труд · LogiPark</h3>${PR('P3').stages.map(s=>`<div class="hl"><span>${esc(s[0])}</span>${bar(pct(s[3],s[2]),s[3]>s[2]?'r':'g')}<b>${pct(s[3],s[2])}%</b></div>`).join('')}<p class="mini">Металлокаркас: +1,8 млн к смете. Причина в нарядах — переделка узлов по оси Г (41 ч вместо 36).</p></div>
+ <div class="pan"><h3>Цена часа по должностям</h3>${[...new Set(FIELD().map(s=>s.pos))].map(pos=>{const L=FIELD().filter(s=>s.pos===pos);return `<div class="kv"><span>${esc(pos)} · ${L.length}</span><b>${tg(L[0].rate)}</b></div>`}).join('')}<p class="mini">С налогами и отчислениями работодателя час обходится в ×1,22 — коэффициент задаётся в настройках.</p></div></div>`};
+
+/* ===== Зарплата ===== */
+SC.payroll=()=>{const F=FIELD().map(s=>{const h=monthHours(s.id)/60;const ot=Math.max(0,h-176);const base=s.pay==='piece'?TASKS.filter(t=>t.who.includes(s.id)).reduce((a,t)=>a+t.fact,0)*s.rate*4.6:Math.min(h,176)*s.rate;const otp=ot*s.rate*1.5;const adv=150000;return {s,h,ot,base,otp,adv,tot:base+otp-adv}});
+ return `<div class="hd"><div><h2>Зарплата · октябрь</h2><p>Почасовым — часы из табеля × ставка, переработки × 1,5. Сдельщикам — по принятым нарядам. Минус аванс и удержания. Ведомость уходит в 1С, где считаются налоги и выплата.</p></div><div class="btns"><button class="bt" onclick="toast('Расчётные листки отправлены сотрудникам в телефон.')">Расчётные листки</button><button class="bt p" onclick="go('c1')">Отправить в 1С</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Сотрудник</th><th>Оплата</th><th class="r">Часы</th><th class="r">Перераб.</th><th class="r">Начислено</th><th class="r">Переработки</th><th class="r">Аванс</th><th class="r">К выплате</th></tr></thead><tbody>${F.map(r=>`<tr><td><b>${esc(r.s.n)}</b><div class="mini">${esc(r.s.pos)}</div></td><td>${r.s.pay==='piece'?'сдельно':tg(r.s.rate)+'/ч'}</td><td class="r mono">${Math.round(r.h)}</td><td class="r mono">${Math.round(r.ot)}</td><td class="r mono">${tg(r.base)}</td><td class="r mono">${tg(r.otp)}</td><td class="r mono">−${tg(r.adv)}</td><td class="r mono"><b>${tg(r.tot)}</b></td></tr>`).join('')}<tr class="total"><td colspan="7">Итого по объектам (офис — оклады в 1С)</td><td class="r">${tg(F.reduce((a,r)=>a+r.tot,0))}</td></tr></tbody></table></div>`};
+
+/* ===== Заказчики и оплаты ===== */
+SC.clients=()=>`<div class="hd"><div><h2>Заказчики и оплаты</h2><p>По каждому проекту: сумма договора, сколько выполнено по актам, сколько оплачено и сколько должен заказчик.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Заказчик · проект</th><th class="r">Договор</th><th class="r">Выполнено</th><th class="r">Оплачено</th><th class="r">Долг заказчика</th></tr></thead><tbody>${PROJECTS.map((p,i)=>{const done=p.budget*p.prog/100;const paid=done*[0.82,0.9,0.7,1.1,0.86][i];return `<tr onclick="openP('${p.id}')"><td><b>${esc(p.cl)}</b><div class="mini">${esc(p.n)}</div></td><td class="r mono">${mln(p.budget)}</td><td class="r mono">${mln(done)}</td><td class="r mono">${mln(paid)}</td><td class="r mono ${done-paid>0?'red':'grn'}">${done-paid>0?mln(done-paid):'аванс '+mln(paid-done)}</td></tr>`}).join('')}</tbody></table></div>
+ <div class="pan"><h3>Поступления в октябре</h3>${PAYIN.map(x=>`<div class="kv"><span>${dd(x.d)} · ${esc(PR(x.p).cl)} · ${esc(x.what)}</span><b>${tg(x.sum)}</b></div>`).join('')}</div>`;
+
+/* ===== Акты ===== */
+SC.acts=()=>`<div class="hd"><div><h2>Акты выполненных работ</h2><p>Акт за месяц собирается из выполненных объёмов по этапам: сметчик проверяет, отправляет заказчику, отмечает подпись. Подписанный акт уходит в 1С как реализация.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>№</th><th>Проект</th><th>Период</th><th class="r">Сумма</th><th>Статус</th><th></th></tr></thead><tbody>${ACTS.map((a,i)=>`<tr><td class="mono">${a.no}</td><td><b>${esc(PR(a.p).n)}</b><div class="mini">${esc(PR(a.p).cl)}</div></td><td>${a.per}</td><td class="r mono">${tg(a.sum)}</td><td>${tag(AST[a.st][0],AST[a.st][1])}</td><td>${a.st!=='signed'?`<button class="bt sm" onclick="advAct(${i})">${a.st==='draft'?'Отправить заказчику':'Отметить подпись'}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+function advAct(i){const a=ACTS[i];a.st=a.st==='draft'?'sent':'signed';render();toast(a.st==='sent'?`${a.no} отправлен заказчику в PDF.`:`${a.no} подписан — реализация ушла в 1С, долг заказчика обновлён.`)}
+
+/* ===== Заявки на материалы ===== */
+SC.materials=()=>`<div class="hd"><div><h2>Заявки на материалы</h2><p>Прораб создаёт заявку с телефона, снабженец закупает, прораб подтверждает приход на объект. Сумма сразу ложится в себестоимость проекта.</p></div><div class="btns"><button class="bt p" onclick="MATS.unshift({id:'З-3'+(13+MATS.length),p:'P2',t:'Шпаклёвка финишная, 80 мешков',sum:384000,who:'МК',st:'new',need:addDays(TODAY,3)});render();toast('Заявка создана прорабом — снабженцу пришло уведомление.')">+ Заявка</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>№</th><th>Проект</th><th>Что</th><th>Прораб</th><th>Нужно к</th><th class="r">Сумма</th><th>Статус</th><th></th></tr></thead><tbody>${MATS.map((m,i)=>`<tr><td class="mono">${m.id}</td><td>${esc(PR(m.p).n.split(',')[0])}</td><td><b>${esc(m.t)}</b></td><td>${esc(SF(m.who).n)}</td><td class="mono">${dd(m.need)}</td><td class="r mono">${tg(m.sum)}</td><td>${tag(MSTS[m.st][0],MSTS[m.st][1])}</td><td>${m.st!=='done'?`<button class="bt sm" onclick="advMat(${i})">Дальше</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+function advMat(i){const o=['new','buy','deliv','done'];const m=MATS[i];m.st=o[o.indexOf(m.st)+1];render();toast(`${m.id}: ${MSTS[m.st][0]}.${m.st==='done'?' Сумма списана на проект.':''}`)}
+
+/* ===== Техника ===== */
+SC.machines=()=>`<div class="hd"><div><h2>Техника</h2><p>Своя и арендованная: на каком объекте, сколько моточасов сегодня, во сколько обходится. Стоимость автоматически распределяется на проекты.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Техника</th><th>Тип</th><th>Объект</th><th class="r">Моточасов сегодня</th><th class="r">Цена часа</th><th class="r">Сегодня</th></tr></thead><tbody>${MACH.map(m=>`<tr><td><b>${esc(m[0])}</b></td><td>${m[1]}</td><td>${m[2]==='—'?'на базе':esc(PR(m[2]).n.split(',')[0])}</td><td class="r mono">${m[4]}</td><td class="r mono">${m[3]?tg(m[3]):'—'}</td><td class="r mono">${tg(m[3]*m[4])}</td></tr>`).join('')}</tbody></table></div>`;
+
+/* ===== 1С ===== */
+SC.c1=()=>`<div class="hd"><div><h2>Обмен с 1С</h2><p>Учёт работы — в системе, бухгалтерия — в 1С. Обмен двусторонний: что куда идёт, видно в журнале. Двойного ввода нет.</p></div><div class="btns"><button class="bt p" onclick="toast('Обмен выполнен: 19 табелей, 4 акта, 3 поступления. Ошибок нет.')">Обменяться сейчас</button></div></div>
+ <div class="g2"><div class="pan"><h3>Из системы в 1С</h3>${[['Табель','часы по сотрудникам за месяц'],['Начисления','почасовые, сдельные, переработки'],['Акты выполненных работ','как реализация по договору'],['Поступления материалов','по закрытым заявкам']].map(x=>`<div class="kv"><span>${x[0]}</span><b class="wrapb">${x[1]}</b></div>`).join('')}</div>
+ <div class="pan"><h3>Из 1С в систему</h3>${[['Сотрудники','ФИО, ИИН, должность, приём и увольнение'],['Контрагенты','заказчики и поставщики'],['Оплаты','поступления от заказчиков, оплаты поставщикам'],['Номенклатура','материалы и цены закупки']].map(x=>`<div class="kv"><span>${x[0]}</span><b class="wrapb">${x[1]}</b></div>`).join('')}</div></div>
+ <div class="pan"><h3>Журнал обмена</h3>${[['30.10 09:00','Получено 3 поступления от заказчиков','ok'],['29.10 18:30','Отправлен табель за 29.10 · 19 человек','ok'],['28.10 18:30','Акт АВР-4 · ГУ «Отдел образования»','ok'],['27.10 18:30','Сотрудник «Кайрат Ермеков» — больничный из 1С','ok']].map(x=>`<div class="li"><i>${x[0].slice(0,5)}</i><span>${x[1]}</span></div>`).join('')}</div>`;
+
+/* ===== Отчёты ===== */
+SC.reports=()=>`<div class="hd"><div><h2>Отчёты</h2><p>Всё, что сейчас собирается вручную из табелей и Excel, — кнопкой. Руководителю каждый вечер приходит короткая сводка в WhatsApp.</p></div></div>
+ <div class="rgrid">${[['Часы по проектам','сколько часов и денег ушло на каждый объект и этап'],['Производительность бригад','план и факт часов по нарядам'],['Опоздания и прогулы','по сотрудникам за период'],['Переработки','кто, где и сколько'],['Маржа по проектам','выполнено, себестоимость, маржа'],['Дебиторка','долги заказчиков по актам'],['Материалы','заявки и закуп по объектам'],['Вечерняя сводка','люди, часы, проблемы — в WhatsApp в 19:00']].map(x=>`<div class="rep" onclick="toast('Отчёт «${x[0]}» сформирован — можно открыть или выгрузить в Excel.')"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div>`;
+
+/* ===== Роли ===== */
+SC.roles=()=>`<div class="hd"><div><h2>Роли и права</h2><p>Каждый видит только своё: рабочий — телефон, прораб — свой объект, бухгалтер — табель и деньги.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Раздел</th>${Object.keys(ROLES).map(r=>`<th class="c">${esc(r)}</th>`).join('')}</tr></thead><tbody>${SEC.map(s=>s.sub.map(x=>`<tr><td>${esc(x[1])}</td>${Object.values(ROLES).map(r=>`<td class="c">${r.s.includes(x[0])?'<i class="ck"></i>':''}</td>`).join('')}</tr>`).join('')).join('')}</tbody></table></div>`;
+
+/* ===== Запуск и стоимость ===== */
+SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Система разрабатывается под вашу компанию, без абонентской платы и лимитов на сотрудников и проекты. Код и данные — ваши.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Что</th><th class="r">Цена</th><th class="r">Скидка</th><th class="r">Итого</th></tr></thead><tbody>
+  <tr><td><b>Система учёта проектов и времени</b><div class="mini">всё, что в демо, + мобильная отметка для рабочих</div></td><td class="r mono">12 000 000</td><td class="r mono">−1 200 000 (10%)</td><td class="r mono"><b>10 800 000 ₸</b></td></tr>
+  <tr><td><b>Интеграция с 1С</b><div class="mini">табель, начисления, акты, оплаты, сотрудники</div></td><td class="r mono">800 000</td><td class="r mono">−300 000</td><td class="r mono"><b>500 000 ₸</b></td></tr>
+  <tr class="total"><td>Итого</td><td class="r">12 800 000</td><td class="r">−1 500 000</td><td class="r">11 300 000 ₸</td></tr></tbody></table></div>
+ <div class="g2"><div class="pan"><h3>Оплата</h3>${[['10% · после договора','1 130 000 ₸'],['45% · после запуска ядра','5 085 000 ₸'],['45% · после полной сдачи','5 085 000 ₸']].map(x=>`<div class="kv"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div>
+ <div class="pan"><h3>После запуска</h3>${[['Исправление ошибок','3 месяца бесплатно'],['Сервер','от 10 000 ₸ в месяц'],['Доработки','по часам, около 20 $ в час'],['Абонентская плата','нет']].map(x=>`<div class="kv"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div></div>`;
+
+/* ===== Каркас ===== */
+function act(k){toast('Готово.')}
+function searchDemo(v){if(!v)return;const q=v.toLowerCase().trim();const p=PROJECTS.find(x=>(x.n+' '+x.cl).toLowerCase().includes(q));if(p){openP(p.id);return}const s=STAFF.find(x=>x.n.toLowerCase().includes(q));if(s&&allowed('staff')){go('staff');toast(esc(s.n)+' — '+esc(s.pos));return}toast('Не найдено. Попробуйте: «Тау», «LogiPark», «Данияр».')}
+function renderRoles(){const r=document.getElementById('roles');if(r)r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option>${esc(k)}</option>`).join('')}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Руководитель';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');const s=document.getElementById('rsel');if(s)s.value=role;setMe();if(!allowed(cur))cur=ROLES[role].s[0];build()}
+function setMe(){document.getElementById('me').textContent=ROLES[role].av;const n=document.getElementById('mename');if(n)n.innerHTML=`<b>${esc(ROLES[role].n)}</b><small>${esc(role)}</small>`}
+function switchRole(k){role=k;setMe();const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль <b>${esc(role)}</b>: ${esc(ROLES[role].note)}.`)}
+function buildRail(){const cnt={today:2,tasks:TASKS.filter(t=>t.st==='check').length,time:FIELD().filter(s=>MARKS[s.id]&&['none','far'].includes(MARKS[s.id][1])).length,safety:FIELD().filter(s=>s.dop<TODAY).length,materials:MATS.filter(m=>m.st==='new').length,acts:ACTS.filter(a=>a.st==='draft').length};
+ document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<div class="ng">${s.n}</div>`+s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="ri ${x[0]===cur?'on':''}" onclick="go('${x[0]}')"><code>${x[2]}</code><span>${esc(x[1])}</span>${cnt[x[0]]?`<em>${cnt[x[0]]}</em>`:''}</a>`).join('')).join('')}
+const SUBT={today:'Объекты, люди, часы и деньги — на одном экране',map:'Отметки с геолокацией',projects:'Бюджет, график, команда и факт',project:'Этапы, наряды, команда',gantt:'Сроки всех объектов',tasks:'Бригады, плановые и фактические часы',time:'Приход и уход с телефона',sheet:'Собирается сам из отметок',mobile:'Так это видит рабочий',staff:'Должности, ставки, допуски',safety:'Допуски, инструктажи, СИЗ',cost:'Материалы, труд, техника, субподряд',payroll:'Часы, сдельщина, переработки',clients:'Договоры, акты, долги',acts:'Выполненные объёмы за месяц',materials:'От прораба до объекта',machines:'Моточасы и стоимость',c1:'Табель, начисления, акты, оплаты',reports:'Кнопкой вместо Excel',roles:'Кто что видит',launch:'Цена, оплата, сроки'};
+function build(){buildRail();render()}
+function render(){const f=SC[cur]||SC.today;document.getElementById('ttl').textContent=SUBN[cur]||'Вертикаль';const sb=document.getElementById('subt');if(sb)sb.textContent=SUBT[cur]||'';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildRail();try{history.replaceState(null,'','?s='+cur)}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль справа вверху.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show')}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+function applyTheme(){document.body.classList.toggle('light',theme==='light')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme()}
+const TOUR=[
+ ['today','1 · Пульт руководителя: объекты, люди на местах, часы, ФОТ, маржа и что требует решения.'],
+ ['map','2 · Где люди сейчас: отметки с геолокацией, «вне объекта» видно сразу.'],
+ ['mobile','3 · Так отмечается рабочий: «Я на объекте» + фото, время идёт на наряд.'],
+ ['time','4 · Учёт времени сегодня: пришёл, опоздал, не вышел, отработано.'],
+ ['sheet','5 · Табель за месяц собирается сам и уходит в 1С.'],
+ ['projects','6 · Все проекты: бюджет, готовность, труд факт против плана.'],
+ ['project','7 · Карточка проекта: по каждому этапу видно, где труд дороже сметы.'],
+ ['tasks','8 · Наряды бригадам с плановыми часами — перерасход виден сразу.'],
+ ['cost','9 · Себестоимость и маржа каждого объекта в моменте.'],
+ ['payroll','10 · Зарплата из часов и нарядов: почасовые, сдельщики, переработки.'],
+ ['c1','11 · Обмен с 1С без двойного ввода.'],
+ ['launch','12 · Стоимость: 10 800 000 ₸ + 1С 500 000 ₸.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■ Стоп';step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){stopTour();toast('Сценарий закончен — всё кликается.');return}const [k,m]=TOUR[ti];if(!allowed(k))switchRole('Руководитель');cur=k;build();toast('<b>'+m+'</b>');setTimeout(step,5200)}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶ Сценарий'}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+
+</script>
+</body>
+</html>

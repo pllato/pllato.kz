@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Коммерческое предложение · Вертикаль · учёт проектов и времени · Pllato</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='%23ff7a1a'/><path d='M50 18v64M34 82h32M38 34h24M38 50h24M38 66h24' stroke='%232b1200' stroke-width='9' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0e1116;--ink2:#171d27;--y:#ff7a1a;--y2:#c74e00;--y3:#ffa055;--red:#c33c32;--steel:#8b96a3;--white:#fff;--text:#161a20;--muted:#5b6673;--line:#e1e5ea;--green:#16a34a;--blue:#2f6f9e;--violet:#6b4ea8;--warn:#cf8a22}
+*{box-sizing:border-box}body{margin:0;background:#e3e7ed;font-family:'Onest',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+.page{width:210mm;min-height:297mm;margin:0 auto 8mm;background:var(--white);padding:15mm 16mm 12mm;position:relative;box-shadow:0 12px 40px rgba(32,36,43,.18);display:flex;flex-direction:column}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:31px;line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+h2{font-size:16px;margin:0 0 9px;letter-spacing:-.02em;font-weight:800}
+h3{font-size:11.5px;margin:0 0 5px;font-weight:800}
+p{font-size:10.2px;line-height:1.6;margin:0 0 8px}
+.lead{font-size:11.2px;line-height:1.64;color:#2c343f}
+.kicker{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.15em;text-transform:uppercase}
+.wmk{display:inline-block;border:2.4px solid var(--y3);padding:6px 13px 7px;background:#fff;text-align:center;line-height:1}
+.wmk b{display:block;font-weight:800;color:var(--ink);letter-spacing:.08em;font-size:15px}
+.wmk hr{border:0;height:1.6px;background:var(--steel);margin:5px 0 4px}
+.wmk span{display:block;font-size:8.2px;color:var(--ink);letter-spacing:.05em;font-weight:500}
+.lg{display:flex;align-items:center;gap:12px}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:11px;margin-bottom:14px}
+.hd small{display:block;font:600 7.2px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.1em;margin-top:5px}
+.hd-r{text-align:right;font-size:9px;color:var(--muted);line-height:1.55}
+.cover{background:var(--ink);color:#fff;margin:-15mm -16mm 0;padding:16mm 16mm 13mm;position:relative;overflow:hidden}
+.cover:after{content:"";position:absolute;right:-30px;top:14px;width:300px;height:200px;background:repeating-linear-gradient(90deg,rgba(255,122,26,.16) 0 9px,transparent 9px 26px);border-radius:4px}
+.cover .lg{margin-bottom:14px;position:relative;z-index:1}
+.cover h1{color:#fff;font-size:29px;max-width:152mm;position:relative;z-index:1}
+.cover h1 span{color:var(--y3)}
+.cover .lead{color:#5f6b7e;max-width:142mm;position:relative;z-index:1}
+.cover .kicker{color:var(--y3)}
+.cvs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:15px;border-top:1px solid rgba(255,255,255,.15);padding-top:12px;position:relative;z-index:1}
+.cvs div{border-left:1px solid rgba(255,255,255,.15);padding-left:11px}
+.cvs div:first-child{border:0;padding-left:0}
+.cvs small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#93a0b4;letter-spacing:.08em}
+.cvs b{display:block;font-size:15px;margin-top:5px}
+.cvs div:first-child b{color:var(--y3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.card{border:1px solid var(--line);background:#f4f6f8;padding:11px 12px;border-radius:4px}
+.card.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.card.dark p{color:#5f6b7e}
+.card.y{background:#fff1e6;border-color:#ffd3b0}
+.card.l{background:#fbf3e1;border-color:#efdcae}
+.card code{font:700 7px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.1em}
+.card.dark code{color:var(--y3)}
+.card p{font-size:9.4px;line-height:1.52;margin:4px 0 0;color:#38414c}
+.num{display:flex;gap:11px;margin-bottom:9px}
+.num i{width:24px;height:24px;flex:none;background:var(--ink);color:var(--y3);display:grid;place-items:center;font:800 8.4px 'IBM Plex Mono',monospace;font-style:normal;border-radius:3px}
+.num b{font-size:10.6px;display:block}
+.num p{font-size:9.4px;margin:3px 0 0;color:#38414c;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin:9px 0}
+th{text-align:left;font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:7px 8px;border-bottom:1px solid #e9edf1;font-size:9.5px;vertical-align:top;line-height:1.5}
+td.r{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+tr.total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:800;font-size:11.2px;padding-top:9px}
+tr.total td.r{font-size:14px;color:var(--y2)}
+.badge{display:inline-block;font:700 7px 'IBM Plex Mono',monospace;padding:3px 6px;background:#e8ebef;color:#5b6673;border-radius:3px}
+.badge.g{background:#e6f4ee;color:var(--green)}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:10px 0}
+.pay div{border:1px solid var(--line);padding:11px;background:#f4f6f8;border-radius:4px}
+.pay div:first-child{border-color:var(--y);background:#fff1e6}
+.pay small{font:700 7px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.06em}
+.pay b{display:block;font-size:19px;margin:5px 0 2px;letter-spacing:-.02em}
+.pay span{font-size:8.8px;color:#38414c;line-height:1.45;display:block}
+.strip{background:var(--ink);color:#fff;padding:13px 15px;margin:11px 0;display:grid;grid-template-columns:repeat(4,1fr);border-radius:4px}
+.strip div{border-left:1px solid rgba(255,255,255,.15);padding-left:12px}
+.strip div:first-child{border:0;padding-left:0}
+.strip small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#93a0b4}
+.strip b{display:block;font-size:14px;margin-top:4px}
+.strip div:first-child b{color:var(--y3)}
+.quote{border-left:3px solid var(--y);background:#fff1e6;padding:10px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.quote p{font-size:9.6px;margin:0;line-height:1.58}
+.quote b{color:var(--y2)}
+.said{border-left:3px solid #b8613a;background:#fbf3e4;padding:9px 12px;margin:9px 0;border-radius:0 4px 4px 0}
+.said p{font-size:9.6px;margin:0;line-height:1.58;font-style:italic;color:#2c343f}
+.foot{margin-top:auto;padding-top:11px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;font-size:8.4px;color:var(--muted)}
+.foot b{color:var(--text);font-size:9.4px}
+.pnum{font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted)}
+.chk{display:flex;gap:7px;align-items:flex-start;margin-bottom:5px}
+.chk i{color:var(--green);font-style:normal;font-weight:800;font-size:10px;line-height:1.5}
+.chk.no i{color:var(--muted)}
+.chk.r i{color:var(--red)}
+.chk span{font-size:9.4px;line-height:1.5}
+.shots{display:grid;gap:8px;margin:9px 0 5px}
+.shots.two{grid-template-columns:1fr 1fr}
+.shot{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#f4f6f8;break-inside:avoid}
+.shot img{width:100%;display:block}
+.shot.big img{height:330px;object-fit:cover;object-position:left top}
+.shot.sm2 img{height:300px;object-fit:cover;object-position:left top}
+.shot.sm img{height:215px;object-fit:cover;object-position:left top}
+.shot.xs img{height:190px;object-fit:cover;object-position:left top}
+.shot.xxs img{height:160px;object-fit:cover;object-position:left top}
+.shot .cap{font-size:8.4px;color:var(--muted);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;background:#fff}
+.shot .cap b{color:var(--text)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.compare>div{padding:11px 13px}
+.compare .was{background:#f4f6f8;border-right:1px solid var(--line)}
+.compare .now{background:#fff1e6}
+.compare h4{font:700 7.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;margin:0 0 7px;color:var(--muted)}
+.compare .now h4{color:var(--y2)}
+.compare .row{font-size:9.3px;padding:4.4px 0;border-bottom:1px solid #e9edf1;line-height:1.45}
+.compare .row:last-child{border:0}
+.tl{border-left:2px solid var(--line);margin-left:9px;padding-left:15px}
+.tli{position:relative;padding:6px 0 7px}
+.tli:before{content:'';position:absolute;left:-21px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid #fff}
+.tli b{font-size:10.6px;display:block}
+.tli p{margin:2px 0 0;font-size:9.4px;color:#38414c;line-height:1.5}
+.formula{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:9.2px;line-height:1.5;margin:6px 0}
+.formula code{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--y2);white-space:nowrap;padding-top:1px}
+.page.dense td{padding:4.6px 7px;font-size:9.1px}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}
+ .page{margin:0;box-shadow:none;min-height:auto;padding:12mm 14mm 9mm;page-break-after:always}
+ .page:last-child{page-break-after:auto}
+ p,.chk span{font-size:9.3px;line-height:1.5}
+ .card p{font-size:8.7px}
+ h1{font-size:28px}.cover h1{font-size:26px}h2{font-size:15px;margin-bottom:7px}
+ td{font-size:8.9px;padding:4.6px 7px;line-height:1.45}
+ .page.dense td{padding:3.4px 6px;font-size:8.6px}
+ .pay div{padding:9px}.pay b{font-size:17px}.pay span{font-size:8.3px}
+ .quote{padding:9px 11px;margin:8px 0}.quote p{font-size:9.1px}
+ .grid3 .card p{font-size:8.5px}
+}
+h1,h2,.wmk b{font-family:'Onest','Onest',sans-serif;letter-spacing:-.005em}
+h1{font-weight:700}h2{font-weight:600}
+.shot.xxs img{height:150px;object-fit:cover;object-position:left top}
+.chk i{min-width:10px}
+
+h1{font-weight:800;font-size:32px;text-transform:none;letter-spacing:-.025em}.cover h1{font-size:28px}h2{font-weight:800;font-size:19px}
+td.r,.cvs b,.strip b,.pay b{font-variant-numeric:tabular-nums}
+.cover:after{right:-60px;top:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.22),transparent 65%)}
+.paytab tr.cur td{background:#fff1e6}
+th.r{text-align:right}
+.paytab td span{display:block;font-size:8px;color:var(--muted)}
+.card,.shot,.pay div,.strip,.quote,.said,.compare{border-radius:12px}
+.said{border-left-color:#ff7a1a;background:#fff1e6}
+.strip div:last-child b{color:#ffa055}
+@media print{h1{font-size:30px}.cover h1{font-size:26px}}
+</style>
+</head><body>
+
+<section class="page">
+ <div class="cover">
+  <div class="lg"><svg width="48" height="48" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="26" fill="#ff7a1a"/><path d="M50 18v64M34 82h32M38 34h24M38 50h24M38 66h24" stroke="#2b1200" stroke-width="8" stroke-linecap="round"/></svg>
+   <div class="wmk"><b>ВЕРТИКАЛЬ · УЧЁТ ПРОЕКТОВ И ВРЕМЕНИ</b><hr><span>проекты и этапы · отметка с телефона на объекте · табель · наряды · себестоимость и маржа · зарплата · акты · материалы и техника · охрана труда · обмен с 1С</span></div>
+  </div>
+  <div class="kicker">Коммерческое предложение · 30 октября 2026 · по встрече · Бек</div>
+  <h1>Каждый час каждого человека — на своём проекте <span>и сразу в деньгах</span></h1>
+  <p class="lead">Бек, в команде 25 человек и несколько объектов одновременно. Вам нужен учёт проектов и времени работы сотрудников: кто, где и сколько работал, во что это обошлось каждому объекту и сколько он реально зарабатывает. Мы собрали демо на 21 экран в стиле GTA Detailing и это предложение.</p>
+  <div class="cvs">
+   <div><small>СИСТЕМА</small><b>10 800 000 ₸</b></div>
+   <div><small>ИНТЕГРАЦИЯ 1С</small><b>500 000 ₸</b></div>
+   <div><small>ИТОГО</small><b>11 300 000 ₸</b></div>
+   <div><small>ОПЛАТА</small><b>10 · 45 · 45 %</b></div>
+  </div>
+ </div>
+ <h2 style="margin-top:16px">Что вы получаете</h2>
+ <div class="grid3">
+  <div class="card y"><code>ВРЕМЯ</code><h3 style="margin-top:4px">Отметка на объекте с телефона</h3><p>Геолокация и фото при приходе, время на наряд и этап, табель за месяц собирается сам. Опоздания, прогулы, переработки и «вне объекта» видны сразу.</p></div>
+  <div class="card"><code>ПРОЕКТЫ</code><h3 style="margin-top:4px">Бюджет, график, наряды</h3><p>Этапы из сметы, план и факт труда по каждому этапу, наряды бригадам с плановыми часами, график всех объектов, акты выполненных работ.</p></div>
+  <div class="card"><code>ДЕНЬГИ</code><h3 style="margin-top:4px">Себестоимость и маржа в моменте</h3><p>Труд, материалы, техника и субподряд собираются в себестоимость объекта. Зарплата из часов и нарядов, обмен с 1С без двойного ввода.</p></div>
+ </div>
+ <div class="said" style="margin-top:12px"><p>«25 человек в команде. Нужен учёт проектов и времени работы сотрудников». Система отвечает на три вопроса руководителя: где сейчас люди, сколько стоит их время на каждом объекте и какой объект зарабатывает.</p></div>
+ <div class="strip">
+  <div><small>ПОСЛЕ ДОГОВОРА · 10 %</small><b>1 130 000 ₸</b></div>
+  <div><small>ПОСЛЕ ЯДРА · 45 %</small><b>5 085 000 ₸</b></div>
+  <div><small>ПОСЛЕ СДАЧИ · 45 %</small><b>5 085 000 ₸</b></div>
+  <div><small>СКИДКА</small><b>−1 500 000 ₸</b></div>
+ </div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">01</span></div>
+</section>
+
+<section class="page dense">
+ <div class="hd"><div><div class="kicker">Что нужно строительной компании</div><h2 style="margin:4px 0 0">Задачи учёта → что сделано в демо</h2><small>25 ЧЕЛОВЕК · 5 ОБЪЕКТОВ · ПРОРАБЫ · БРИГАДЫ · ОФИС</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <table>
+  <tr><th style="width:38%">Задача</th><th>Что сделано в демо</th><th style="width:12%">Раздел</th></tr>
+  <tr><td>Где сейчас каждый сотрудник и вышел ли он</td><td>Отметка с телефона: геолокация + фото; «не вышел», «опоздал», «вне объекта» — на пульте</td><td>Время</td></tr>
+  <tr><td>Сколько часов ушло на проект и этап</td><td>Время идёт на наряд → этап → проект; часы и деньги по каждому объекту</td><td>Время</td></tr>
+  <tr><td>Табель без Excel</td><td>Табель за месяц собирается из отметок, переработки и больничные отмечены, уходит в 1С</td><td>Время</td></tr>
+  <tr><td>Работает ли бригада по плану</td><td>Наряды с плановыми часами; перерасход видно до приёмки</td><td>Проекты</td></tr>
+  <tr><td>Какой объект зарабатывает, а какой в минус</td><td>Себестоимость: труд + материалы + техника + субподряд; маржа от выполненного объёма</td><td>Деньги</td></tr>
+  <tr><td>Зарплата почасовым и сдельщикам</td><td>Начисление из табеля и принятых нарядов, переработки ×1,5, авансы</td><td>Деньги</td></tr>
+  <tr><td>Сроки и отставания по объектам</td><td>График всех проектов, готовность по этапам, сигнал «отстаёт»</td><td>Проекты</td></tr>
+  <tr><td>Акты и долги заказчиков</td><td>Акты выполненных работ за месяц, выполнено / оплачено / долг</td><td>Деньги</td></tr>
+  <tr><td>Материалы и техника</td><td>Заявки прораба с телефона, закуп, приход на объект; моточасы техники</td><td>Снабжение</td></tr>
+  <tr><td>Безопасность на стройке</td><td>Допуски, инструктажи, медосмотры; без допуска — не в наряд</td><td>Люди</td></tr>
+  <tr><td>Бухгалтерия в 1С</td><td>Двусторонний обмен: сотрудники, табель, начисления, акты, оплаты</td><td>1С</td></tr>
+ </table>
+ <div class="quote"><p><b>Дизайн — как у GTA Detailing.</b> Тёмный интерфейс, оранжевый акцент, разделы слева с кодами. Цвета, логотип и названия заменим на ваши за 1–2 дня.</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">02</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Пульт руководителя</div><h2 style="margin:4px 0 0">Объекты, люди, часы и маржа — на одном экране</h2><small>НА ОБЪЕКТАХ · ЧАСЫ · ФОТ · МАРЖА · ТРЕБУЕТ РЕШЕНИЯ</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot big"><img src="/app/img/kp-vertikal-bek/today.jpg" alt=""><div class="cap"><b>Пульт руководителя.</b> Сколько людей на объектах, часы за день, фонд оплаты труда месяца и маржа портфеля. По каждому проекту — готовность и сколько бюджета на труд уже съедено. Справа — что требует решения: перерасход, отставание, отметка вне объекта, просроченный допуск.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">03</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Время</div><h2 style="margin:4px 0 0">Рабочий отмечается на объекте с телефона</h2><small>ГЕОЛОКАЦИЯ · ФОТО · НАРЯД · БЕЗ ИНТЕРНЕТА</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/mobile-c.jpg" alt=""><div class="cap"><b>Отметка с телефона.</b> «Я на объекте» работает только в радиусе объекта, с фото — нельзя отметиться за другого. Время идёт на выбранный наряд. Без интернета отметка сохраняется и уйдёт позже.</div></div></div>
+ <div class="shots"><div class="shot sm"><img src="/app/img/kp-vertikal-bek/map-c.jpg" alt=""><div class="cap"><b>Где люди сейчас.</b> Объекты на карте и кто на каждом; отметка вне объекта — красным.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">04</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Время</div><h2 style="margin:4px 0 0">Учёт за день и табель за месяц — без Excel</h2><small>ПРИШЁЛ · ОПОЗДАЛ · НЕ ВЫШЕЛ · ПЕРЕРАБОТКИ · 1С</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/time-c.jpg" alt=""><div class="cap"><b>Учёт времени сегодня.</b> Кто когда пришёл, проверка геолокации и фото, сколько отработал, на каком наряде. Прораб правит отметку только с причиной.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/sheet-c.jpg" alt=""><div class="cap"><b>Табель за месяц.</b> Собирается из отметок; переработки, больничные и неявки выделены. Утвердили — ушёл в 1С.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">05</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Проекты</div><h2 style="margin:4px 0 0">Каждый объект: бюджет, этапы, команда и факт</h2><small>ЭТАПЫ ИЗ СМЕТЫ · ТРУД ПЛАН/ФАКТ · ОСВОЕНО · ОТКЛОНЕНИЕ</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/projects-c.jpg" alt=""><div class="cap"><b>Все проекты.</b> Заказчик, руководитель и прораб, бюджет, готовность, труд факт против плана, срок и статус.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/project-c.jpg" alt=""><div class="cap"><b>Карточка проекта.</b> По каждому этапу: труд по смете, освоено выполненным объёмом и факт по часам. Отклонение показывает, какой этап идёт дороже.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">06</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Проекты</div><h2 style="margin:4px 0 0">Наряды бригадам и график всех объектов</h2><small>ПЛАНОВЫЕ ЧАСЫ · ПРИЁМКА С ФОТО · СРОКИ · ОТСТАВАНИЕ</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/tasks-c.jpg" alt=""><div class="cap"><b>Наряды.</b> Прораб выдаёт наряд с плановыми часами, рабочие отмечают время на нём, приёмка с фото. Перерасход часов — красным.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/gantt-c.jpg" alt=""><div class="cap"><b>График работ.</b> Все объекты на одной шкале, готовность и сегодняшний день.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">07</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Деньги</div><h2 style="margin:4px 0 0">Себестоимость и маржа каждого объекта</h2><small>МАТЕРИАЛЫ · ТРУД · НАКЛАДНЫЕ · ТЕХНИКА · СУБПОДРЯД</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/cost-c.jpg" alt=""><div class="cap"><b>Себестоимость и маржа.</b> Собирается из того, что и так вводится в работе. Маржа считается от выполненного объёма — видно объект, который съедает прибыль, пока его ещё можно исправить.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/payroll-c.jpg" alt=""><div class="cap"><b>Зарплата.</b> Почасовым — часы × ставка, переработки × 1,5; сдельщикам — по принятым нарядам; минус аванс. Ведомость — в 1С.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">08</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Деньги и снабжение</div><h2 style="margin:4px 0 0">Акты, долги заказчиков, материалы</h2><small>АКТЫ ЗА МЕСЯЦ · ВЫПОЛНЕНО / ОПЛАЧЕНО · ЗАЯВКИ ПРОРАБА</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/clients-c.jpg" alt=""><div class="cap"><b>Заказчики и оплаты.</b> По каждому договору: выполнено, оплачено, долг.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/materials-c.jpg" alt=""><div class="cap"><b>Заявки на материалы.</b> Прораб — снабженец — объект; сумма сразу в себестоимости проекта.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">09</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Люди и 1С</div><h2 style="margin:4px 0 0">Охрана труда и обмен с бухгалтерией</h2><small>ДОПУСКИ · ИНСТРУКТАЖИ · СИЗ · ДВУСТОРОННИЙ ОБМЕН С 1С</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/safety-c.jpg" alt=""><div class="cap"><b>Допуски и охрана труда.</b> Просроченный допуск — человека нельзя поставить на опасные работы.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-vertikal-bek/c1-c.jpg" alt=""><div class="cap"><b>Обмен с 1С.</b> В 1С — табель, начисления, акты, приход материалов. Из 1С — сотрудники, контрагенты, оплаты, номенклатура.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">10</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div><div class="kicker">Стоимость и следующий шаг</div><h2 style="margin:4px 0 0">11 300 000 ₸ один раз — без абонентской платы</h2><small>СИСТЕМА 12 МЛН −10% · 1С 800 000 −300 000 · 10 · 45 · 45</small></div><div class="hd-r">Вертикаль · строительная компания<br>Коммерческое предложение</div></div>
+ <table>
+  <tr><th>Состав</th><th class="r">Цена</th><th class="r">Скидка</th><th class="r">Итого</th></tr>
+  <tr><td><b>Система учёта проектов и времени</b><br><span style="font-size:8.6px;color:var(--muted)">всё, что в демо: 21 экран, 7 ролей, отметка с телефона</span></td><td class="r">12 000 000 ₸</td><td class="r">−1 200 000 ₸ (10 %)</td><td class="r"><b>10 800 000 ₸</b></td></tr>
+  <tr><td><b>Интеграция с 1С</b><br><span style="font-size:8.6px;color:var(--muted)">сотрудники, табель, начисления, акты, оплаты</span></td><td class="r">800 000 ₸</td><td class="r">−300 000 ₸</td><td class="r"><b>500 000 ₸</b></td></tr>
+  <tr class="total"><td>Итого</td><td class="r">12 800 000 ₸</td><td class="r">−1 500 000 ₸</td><td class="r">11 300 000 ₸</td></tr>
+ </table>
+ <table class="paytab">
+  <tr><th>Когда</th><th class="r">Доля</th><th class="r">Сумма</th></tr>
+  <tr class="cur"><td><b>После договора</b><span>чтобы начать</span></td><td class="r">10 %</td><td class="r"><b>1 130 000 ₸</b></td></tr>
+  <tr><td><b>Ядро на сервере</b><span>после того, как вы его приняли</span></td><td class="r">45 %</td><td class="r"><b>5 085 000 ₸</b></td></tr>
+  <tr><td><b>Полная сдача</b><span>все разделы и обмен с 1С</span></td><td class="r">45 %</td><td class="r"><b>5 085 000 ₸</b></td></tr>
+ </table>
+ <div class="grid2" style="margin-top:8px">
+  <div><h3>Входит</h3>
+   <div class="chk"><i>✓</i><span>Всё, что в демо, мобильная версия для рабочих и прорабов</span></div>
+   <div class="chk"><i>✓</i><span>Перенос сотрудников, проектов и смет из Excel</span></div>
+   <div class="chk"><i>✓</i><span>Запас на ваши правки и 3 месяца отладки бесплатно</span></div>
+   <div class="chk"><i>✓</i><span>Код и данные — ваши, без абонплаты и лимитов</span></div>
+  </div>
+  <div><h3>Нужно от вас</h3>
+   <div class="chk no"><i>·</i><span>Список сотрудников со ставками и способом оплаты</span></div>
+   <div class="chk no"><i>·</i><span>Сметы по текущим объектам</span></div>
+   <div class="chk no"><i>·</i><span>Доступ к базе 1С для обмена</span></div>
+  </div>
+ </div>
+ <div class="card dark" style="margin-top:8px"><code>СЛЕДУЮЩИЙ ШАГ</code><h3 style="margin-top:5px;color:#fff">Демо → ТЗ и договор → 10 % → ядро на сервере</h3><p>Демо открыто — зайдите под ролями: руководитель, руководитель проекта, прораб, рабочий, сметчик, снабженец, бухгалтер.</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz · демо: pllato.kz/app/vertikal-bek.html</div><span class="pnum">11</span></div>
+</section>
+</body></html>
