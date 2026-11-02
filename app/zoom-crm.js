@@ -98,8 +98,9 @@ export function zoomClient({ base, getToken, compact = false }) {
           const b=e.currentTarget,box=container.querySelector('[data-host-status]');b.disabled=true;
           const popup=isMeet(meeting)?window.open('about:blank','_blank'):null;
           try {
+            const authToken=await getToken();
             const {hostKey,hostUrl}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
-            if(hostUrl && meetingUrl(hostUrl)){ if(popup){storeMeetStaffAccess(popup.sessionStorage,meeting.meeting_id,{hostKey,hostUrl});popup.opener=null;popup.location.replace(hostUrl);}else{storeMeetStaffAccess(sessionStorage,meeting.meeting_id,{hostKey,hostUrl});const a=document.createElement('a');a.href=hostUrl;a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
+            if(hostUrl && meetingUrl(hostUrl)){ if(popup){storeMeetStaffAccess(popup.sessionStorage,meeting.meeting_id,{hostKey,hostUrl,authToken});popup.opener=null;popup.location.replace(hostUrl);}else{storeMeetStaffAccess(sessionStorage,meeting.meeting_id,{hostKey,hostUrl,authToken});const a=document.createElement('a');a.href=hostUrl;a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
             box.textContent='Код организатора: '+hostKey+'. В Zoom: Участники → Принять права организатора → введите код. Не отправляйте его клиентам.';
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать код';
             copy.onclick=async()=>{try{await navigator.clipboard.writeText(hostKey);copy.textContent='Код скопирован';}catch{copy.textContent='Скопируйте код вручную';}};box.append(copy);

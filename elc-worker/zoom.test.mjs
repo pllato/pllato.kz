@@ -375,3 +375,14 @@ test('short public link resolves only room, remains stable and handles alias col
  const collision=await withShortLink(f.env,{meeting_id:room,join_url:''});
  assert.equal(new URL(collision.join_url).pathname,'/m/daaaaaaaaaaaa40');
 });
+
+test('Client card rejects anonymous requests and guests before loading private context',async()=>{
+ const f=fixture();const path='/meetings/crm-11111111-1111-1111-1111-111111111111/client-context';
+ f.deps.requireAuthFlexible=async()=>({error:'unauthorized',status:401});
+ assert.equal((await f.request(path)).status,401);
+ f.deps.requireAuthFlexible=async()=>({claims:{}});
+ f.deps.resolveCanonicalUser=async()=>({role:'guest'});
+ assert.equal((await f.request(path)).status,403);
+ const response=await f.request('/public-room/d111111111111');
+ assert.ok(!JSON.stringify(await response.json()).includes('client'));
+});

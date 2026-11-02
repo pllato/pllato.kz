@@ -141,6 +141,7 @@ button{font-family:inherit;cursor:pointer}
 @media(max-width:720px){.side{position:fixed;top:0;right:0;bottom:0;width:88%;max-width:360px;z-index:40;box-shadow:-20px 0 60px rgba(0,0,0,.5)}}
 .side-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
 .side-head h3{font-size:15px;font-weight:700}
+.client-eyebrow{font-size:10px;letter-spacing:.06em;color:var(--text-3);margin:18px 0 10px}.client-field{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}.client-field span{font-size:12px;color:var(--text-3)}.client-field strong{font-size:14px;font-weight:500;overflow-wrap:anywhere}#client-card h2{font-size:18px;line-height:1.45;overflow-wrap:anywhere;margin:0 0 14px}#client-card>a{display:block;margin-top:20px;text-align:center}
 .side-tabs{display:flex;border-bottom:1px solid var(--line)}
 .side-tab{flex:1;padding:11px;font-size:13px;font-weight:600;color:var(--text-3);background:transparent;border:none;border-bottom:2px solid transparent}
 .side-tab.active{color:var(--text);border-bottom-color:var(--bronze)}
@@ -411,6 +412,7 @@ button{font-family:inherit;cursor:pointer}
       <button class="btn hidden" id="rec-retry" role="alert" style="color:#ff7777">Запись не идёт — повторить</button>
     </div>
     <div class="tools">
+      <button class="btn hidden" id="btn-client" type="button">Клиент</button>
       <!-- только «Участники» (для впуска гостей ведущим); ссылка/чат/транскрипция — в «Настройках» -->
       <button class="icon-btn" id="btn-people" title="Участники">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -428,10 +430,12 @@ button{font-family:inherit;cursor:pointer}
 
     <aside class="side hidden" id="side-panel">
       <div class="side-tabs">
+        <button class="side-tab hidden" id="tab-client" data-pane="client">Клиент</button>
         <button class="side-tab active" data-pane="people">Участники</button>
         <button class="side-tab" data-pane="chat">Чат</button>
         <button class="side-tab" data-pane="transcript">Текст</button>
       </div>
+      <div class="side-pane" id="pane-client" style="flex:1;overflow:auto;display:none"><div class="side-content" id="client-card"></div></div>
       <!-- People -->
       <div class="side-pane active" id="pane-people" style="flex:1;overflow:hidden;display:none">
         <div class="host-banner hidden" id="waiting-banner" style="margin:12px 14px 4px">
@@ -504,6 +508,7 @@ button{font-family:inherit;cursor:pointer}
 import {groupVideoBudget} from './meet-group-budget.js?v=20261028';
 import {connectionQuality,microphoneStatus,audioRms} from './meet-media-status.js?v=20261028';
 import {MEET_BACKGROUNDS,hostBackground} from '/meet-backgrounds.js?v=20261028';
+import {createClientCardLoader,renderClientCard} from '/meet-client-card.js?v=20261102';
 import {readMeetStaffAccess} from '/meet-staff-access.js';
 import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-ratio';
 import { createMeetStorage } from "/meet-storage.js";
@@ -632,10 +637,13 @@ async function gotoPrejoin(roomId){
     finally{$('btn-enter').disabled=false;}
   }
 }
+let clientStaffToken=null;
 const CRM_MEET_API='https://pllato-elc-worker.uurraa.workers.dev/api/zoom';
 async function resolveStaffAccess(){
+  clientCardLoader.clear();
   state.hostKey=null;
   const passed=readMeetStaffAccess(sessionStorage,state.roomId);
+  clientStaffToken=passed?.authToken||null;
   if(passed){state.hostKey=passed.hostKey;state.publicLink=passed.hostUrl;}
   const token=sessionToken();
   if(token&&!passed){
@@ -1286,6 +1294,7 @@ function handleWsMessage(m){
       clearTimeout(wsConnectTimeout); $('btn-enter').disabled=false;
       state._everConnected=true;
       state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      if(!state.isHost)clientCardLoader.clear();
       state.recorderPeer=m.room?.recorderPeer||null;state.remoteRecording=!!m.room?.recordingActive;
       $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
       if(state.bgMode.startsWith('office-') && !state.manualBackground){
@@ -1364,6 +1373,7 @@ function onAdmitted(){
   $('room-pill').textContent = state.roomId + (state.isHost?' · вы организатор':'');
   setupLocalTile();
   initControls();
+  loadClientCard();
   startTimer();
   renderPeopleList(); updateBadges();
   // субтитры (транскрипция) включаются у всех — чтобы записывалась речь каждого
@@ -1999,6 +2009,7 @@ function stopMeetingMedia(){
 async function leaveRoom(options={}){
   if(state._leaving) return;
   state._leaving=true;
+  clientCardLoader.clear();
   if(state.isHost){if(!options.keepMeeting)wsSend({t:'end-meeting'});showHostExit();}
   clearTimeout(recordingRetryTimer);
   floatingParticipants.close();
@@ -2039,14 +2050,32 @@ window.addEventListener('pagehide', ()=>{
   // Не завершаем multipart через beacon: хвост записи ещё может быть в браузере.
 });
 
+let clientAutoOpenedRoom=null;
+const clientCardLoader=createClientCardLoader({onChange(result){
+  const visible=result.status!=='hidden'&&state.isHost;
+  $('btn-client').classList.toggle('hidden',!visible);
+  $('tab-client').classList.toggle('hidden',!visible);
+  if(!visible){$('client-card').replaceChildren();if(activePane==='client'){ $('side-panel').classList.add('hidden');activePane=null;}return;}
+  renderClientCard($('client-card'),result,{retry:loadClientCard,close:()=>openPane('client')});
+  if(result.status==='ready'&&clientAutoOpenedRoom!==state.roomId){
+    clientAutoOpenedRoom=state.roomId;
+    if(innerWidth>760&&!activePane)openPane('client');
+  }
+}});
+function loadClientCard(){
+  $('btn-client').onclick=()=>openPane('client');
+  void clientCardLoader.load({room:state.roomId?.startsWith('crm-')?state.roomId:null,host:state.isHost,token:sessionToken()||clientStaffToken});
+}
+
 /* side panel */
 let activePane=null;
 function openPane(name){
+  if(name==='client'&&!state.isHost)return;
   const panel=$('side-panel');
   if(activePane===name && !panel.classList.contains('hidden')){ panel.classList.add('hidden'); activePane=null; return; }
   panel.classList.remove('hidden'); activePane=name;
   document.querySelectorAll('.side-tab').forEach(t=>t.classList.toggle('active',t.dataset.pane===name));
-  ['people','chat','transcript'].forEach(p=>{ const el=$('pane-'+p); el.style.display = p===name?'flex':'none'; });
+  ['people','chat','transcript','client'].forEach(p=>{ const el=$('pane-'+p); el.style.display = p===name?'flex':'none'; });
   if(name==='chat'){ $('chat-badge')?.classList.add('hidden'); $('settings-badge')?.classList.add('hidden'); unreadChat=0; $('chat-input').focus(); }
 }
 

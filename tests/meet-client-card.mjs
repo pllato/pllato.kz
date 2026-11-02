@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {createClientCardLoader} from '../meet-client-card.js';
+let calls=0,updates=[];let finish;
+const loader=createClientCardLoader({fetcher:async()=>{calls++;return await new Promise(r=>finish=r);},onChange:v=>updates.push(v)});
+await loader.load({room:'r',host:false,token:'t'});assert.equal(calls,0);
+const pending=loader.load({room:'one',host:true,token:'t'});
+loader.clear();finish({ok:true,json:async()=>({client:{title:'Old'}})});await pending;
+assert.equal(updates.at(-1).status,'hidden');
+const blocked=createClientCardLoader({fetcher:async()=>({ok:false,status:403}),onChange:v=>updates.push(v)});
+await blocked.load({room:'r',host:true,token:'t'});assert.equal(updates.at(-1).status,'hidden');
+const failed=createClientCardLoader({fetcher:async()=>{throw Error('network');},onChange:v=>updates.push(v)});
+await failed.load({room:'r',host:true,token:'t'});assert.equal(updates.at(-1).status,'error');
+const ok=createClientCardLoader({fetcher:async()=>({ok:true,json:async()=>({client:null})}),onChange:v=>updates.push(v)});
+await ok.load({room:'r',host:true,token:'t'});assert.equal(updates.at(-1).status,'empty');
+console.log('Client loader: guest, stale response, denial, network failure, empty passed');
