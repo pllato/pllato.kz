@@ -3,7 +3,7 @@
 const prefix='pllato-meet-staff:';
 export function storeMeetStaffAccess(storage,room,access,now=Date.now()){
   if(!/^crm-[a-f0-9-]{36}$/.test(room)||!/^hk_[a-f0-9-]{36}$/.test(access?.hostKey||''))throw Error('Некорректный доступ организатора');
-  storage.setItem(prefix+room,JSON.stringify({hostKey:access.hostKey,hostUrl:access.hostUrl,expires:now+300000}));
+  storage.setItem(prefix+room,JSON.stringify({hostKey:access.hostKey,hostUrl:access.hostUrl,...(typeof access.authToken==='string'?{authToken:access.authToken}:{}),expires:now+300000}));
 }
 export function readMeetStaffAccess(storage,room,now=Date.now()){
   try{const value=JSON.parse(storage.getItem(prefix+room)||'null');

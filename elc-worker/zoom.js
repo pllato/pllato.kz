@@ -1,3 +1,4 @@
+import {meetingClientContext} from './meet-client-context.js';
 import {createPllatoMeeting,isPllatoMeeting,dealRoom,ensureDealRoom,withShortLink} from './meet-crm.js';
 import {transcriptDemoTasks} from './transcript-demo-tasks.js';
 // Zoom General App: один подключённый организатор, приватные материалы в R2.
@@ -388,6 +389,13 @@ export async function handleZoomRequest(request, env, deps) {
       const access=dealAccessSql(me);
       return !!await env.DB.prepare('SELECT id FROM deals WHERE id=?'+access.where).bind(id,...access.params).first();
     };
+    const clientContext=path.match(/^\/meetings\/(crm-[a-f0-9-]{36})\/client-context$/);
+    if(clientContext && request.method==='GET') {
+      const client=await meetingClientContext(env,clientContext[1],me,canReadDeal);
+      const response=json({client},200,request);
+      response.headers.set('Cache-Control','private, no-store');
+      return response;
+    }
     if(path==='/host-key' && request.method==='POST') {
       if(!admin) throw fail('Только администратор может настроить код организатора',403);
       const body=await request.json();
