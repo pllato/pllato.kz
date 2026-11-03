@@ -1,0 +1,1215 @@
+<!doctype html>
+<!--
+  Автономная версия демо «Глянец · CRM, склады и задачи для продажи уборочной техники · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/glyanets-alexandr.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Глянец · CRM, склады и задачи для продажи уборочной техники · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='14' fill='%230e7c86'/><circle cx='44' cy='54' r='24' fill='none' stroke='%23fff' stroke-width='8'/><circle cx='44' cy='54' r='7' fill='%23fff'/><path d='M74 14v18M65 23h18' stroke='%23f2c230' stroke-width='7' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#1d252c;--rail2:#151b20;--rail-h:#28323b;--rail-a:#f2c230;
+ --brand:#0e7c86;--brand2:#f2c230;--brandl:#e1f1f2;--steel:#7d8a94;
+ --bg:#f1f3f2;--card:#ffffff;--card2:#f7f8f8;--card3:#e8ecec;
+ --text:#1a2228;--muted:#56636c;--muted2:#88949c;--line:#e0e5e6;--line2:#c9d1d3;
+ --acc:#0e7c86;--acc2:#f2c230;--accl:#e1f1f2;
+ --ok:#24804a;--ok-l:#e3f2e8;--bad:#c4372b;--bad-l:#f9e3e0;--warn:#a87508;--warn-l:#fbf0d4;
+ --info:#2b62a3;--info-l:#e4edf8;--violet:#6a5a9a;--violet-l:#efecf6;
+ --r:6px;--sh:none;--sh2:0 16px 40px rgba(29,37,44,.22);
+}
+body.dark{
+ --bg:#11171b;--card:#192127;--card2:#1e272e;--card3:#28323a;--brand:#3fb3bd;--acc:#3fb3bd;
+ --text:#e6ecee;--muted:#9aa7ae;--muted2:#6b7880;--line:#27323a;--line2:#35424b;
+ --brandl:#16343a;--accl:#16343a;--ok-l:#15281d;--bad-l:#2e1916;--warn-l:#2d2512;--info-l:#17243a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Rubik',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#d8b25a}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'IBM Plex Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#6e4620;border-color:#6e4620;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'IBM Plex Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'IBM Plex Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'IBM Plex Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'IBM Plex Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* ===== Глянец: графит, бирюза пола, сигнальный жёлтый · Rubik + IBM Plex Mono ===== */
+body{background:var(--bg);color:var(--text);font-family:'Rubik',sans-serif}
+.mono,td.mono,code{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.bad{color:var(--bad)!important}.ok{color:var(--ok)!important}
+.lnk{color:var(--brand);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.tag{border-radius:3px}
+/* гейт */
+.gate-l{background:var(--rail);background-image:repeating-linear-gradient(135deg,transparent 0 22px,#ffffff05 22px 23px)}
+.gname{font-size:18px;font-weight:700;color:#fff;display:block;letter-spacing:.12em}
+.gsub{font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8fa0aa}
+.kicker{font:600 9.6px 'IBM Plex Mono',monospace;color:var(--brand2);letter-spacing:.14em;text-transform:uppercase;margin-top:40px}
+.gate h1{font-size:40px;font-weight:700;line-height:1.08;margin:14px 0}.gate h1 em{color:#5fd0d8}
+.glead{font-size:14px;line-height:1.7;color:#a9b6bd;max-width:600px;margin:0}
+.gstat b.a{color:var(--brand2)}
+.role .rav{background:var(--brand);color:#fff;border-radius:50%}
+/* каркас */
+.app{grid-template-columns:240px 1fr}
+.side{background:var(--rail);color:#d6dde1;display:flex;flex-direction:column;overflow:hidden}
+.slogo{display:flex;gap:10px;align-items:center;padding:14px 14px 10px}
+.slogo b{display:block;font-size:14px;font-weight:700;color:#fff;letter-spacing:.06em}.slogo small{display:block;font:600 7px 'IBM Plex Mono',monospace;color:#8494a0;letter-spacing:.12em;margin-top:2px}
+.burg{display:none;margin-left:auto;color:#fff;font-size:18px}
+.bizw{display:flex;align-items:center;gap:8px;margin:0 12px 6px;padding:7px 9px;border:1px solid #33404a;border-radius:6px;background:#161c21}
+.bizw i{width:9px;height:9px;border-radius:2px;flex:none;background:var(--brand)}
+.bizw select{background:none;border:0;color:#fff;font-size:11.6px;font-weight:600;width:100%;outline:0}.bizw option{color:#000}
+#rail{flex:1;overflow-y:auto;padding:0 8px 12px}
+.ng{font:600 7.6px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#71818c;margin:14px 0 4px;padding-left:10px;text-transform:uppercase}
+.side .ri{width:auto;place-items:center start;margin-bottom:1px;display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:4px;padding:7px 10px;border-radius:4px;cursor:pointer;color:#c4ced4;font-size:12px;position:relative}
+.side .ri span{font-size:12px;font-weight:500;text-align:left;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.side .ri code{font-size:8.6px;color:#6f7f8a;letter-spacing:.04em}
+.side .ri:hover{background:var(--rail-h);color:#fff}
+.side .ri.on{background:var(--rail-h);color:#fff}.side .ri.on:before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;background:var(--brand2);border-radius:2px}
+.side .ri.on code{color:var(--brand2)}
+.side .ri em{font:600 9px 'IBM Plex Mono',monospace;font-style:normal;background:var(--brand2);color:#1d252c;padding:1px 6px;border-radius:3px}
+.sfoot{display:flex;align-items:center;gap:9px;padding:11px 14px;border-top:1px solid #2c363f}
+.sfoot .me{background:var(--brand2);color:#1d252c}
+#mename b{display:block;font-size:11.6px;color:#fff}#mename small{font-size:9.6px;color:#8494a0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--card)}
+.tt h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}.tt p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.top-r{display:flex;gap:7px;align-items:center}
+.tb{height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:6px;background:var(--card);font-size:11.4px;font-weight:600;white-space:nowrap}
+.tb.acc{background:var(--brand2);border-color:var(--brand2);color:#1d252c}
+.bt.p{background:var(--brand);border-color:var(--brand)}.bt.p:hover{background:#0a6168;border-color:#0a6168}
+.bt.sm{padding:4px 9px;font-size:10.4px}.bt[disabled]{opacity:.45;pointer-events:none}
+.btns.l{justify-content:flex-start;margin-top:12px}
+.sel{height:30px;border:1px solid var(--line2);border-radius:6px;background:var(--card);font-size:11.4px;padding:0 8px;color:var(--text)}.sel.sm{height:26px;font-size:10.6px}
+input.sel{cursor:text;min-width:220px}
+.live{display:inline-flex;align-items:center;gap:6px;font:600 9.6px 'IBM Plex Mono',monospace;color:var(--ok);border:1px solid var(--line);padding:6px 9px;border-radius:5px;background:var(--card)}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.crumbl{font-size:11px;color:var(--muted);margin-bottom:8px}.crumbl a{color:var(--brand);cursor:pointer}.crumbl i{font-style:normal;color:var(--muted2);margin:0 4px}.crumbl b{color:var(--text)}
+.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--rail);color:#fff;font:600 8.4px 'IBM Plex Mono',monospace;font-style:normal;flex:none}
+.dt{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted2);flex:none}
+.dt.r{background:var(--bad)}.dt.w{background:var(--warn)}.dt.g{background:var(--ok)}.dt.i{background:var(--info)}
+/* пульт: полоса-гроссбух вместо карточек */
+.ledger{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);background:var(--card);border-radius:var(--r);margin-bottom:12px}
+.ledger>div{padding:13px 15px;border-left:1px solid var(--line)}.ledger>div:first-child{border-left:0}
+.ledger small{display:block;font:600 8.4px 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2)}
+.ledger b{display:block;font-size:21px;font-weight:700;margin:5px 0 3px;font-variant-numeric:tabular-nums;color:var(--text)}
+.ledger span{display:block;font-size:10.4px;color:var(--muted);line-height:1.45;margin-bottom:5px}
+.stbar{display:grid;gap:4px}
+.stbar a{display:grid;grid-template-columns:150px 30px 1fr 70px;align-items:center;gap:10px;font-size:11.6px;cursor:pointer;padding:4px 0;color:var(--text)}
+.stbar a:hover em{color:var(--brand)}.stbar em{font-style:normal}.stbar b{text-align:right;font-variant-numeric:tabular-nums}
+.stbar i{display:block;height:12px;width:var(--w);background:var(--brand);border-radius:2px}.stbar span{text-align:right;font:500 10.4px 'IBM Plex Mono',monospace;color:var(--muted)}
+.alist a{display:grid;grid-template-columns:14px 1fr;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--text)}
+.alist a:last-child{border:0}.alist .dt{margin-top:4px;grid-row:span 2}.alist b{font-size:12px}.alist span{font-size:10.6px;color:var(--muted)}
+.alist a:hover b{color:var(--brand)}
+table.t.sm td,table.t.sm th{padding:7px 9px}
+.frow{display:grid;grid-template-columns:30px 1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11.6px;color:var(--text)}
+.frow small{display:block;color:var(--muted);font-size:10.4px;margin-top:2px}.frow time{font:500 9.6px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.fic{width:28px;height:28px;border-radius:4px;display:grid;place-items:center;font:600 8.6px 'IBM Plex Mono',monospace;background:var(--card3);color:var(--muted)}
+.fic.wa{background:#e2f4e8;color:#1e7a43}.fic.call{background:var(--info-l);color:var(--info)}.fic.wh{background:var(--warn-l);color:var(--warn)}.fic.deal{background:var(--brandl);color:var(--brand)}
+.more{display:block;margin-top:8px;font-size:11px;color:var(--brand);cursor:pointer}
+/* канбан */
+.kanban{display:grid;grid-template-columns:repeat(8,minmax(190px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}
+.kanban.k4{grid-template-columns:repeat(4,minmax(230px,1fr))}
+.kcol{background:var(--card3);border-radius:var(--r);padding:7px;min-height:300px}
+.kh{display:flex;justify-content:space-between;align-items:baseline;padding:3px 4px 8px;font-size:11.4px;color:var(--text)}.kh span{font:500 9.6px 'IBM Plex Mono',monospace;color:var(--muted)}
+.kc,.tc{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:9px 10px;margin-bottom:6px;cursor:grab;font-size:11.4px;color:var(--text)}
+.kc:hover,.tc:hover{border-color:var(--brand)}
+.kc code{font-size:9px;color:var(--muted2)}.kc b{display:block;margin:2px 0}.kc>span{display:block;color:var(--muted);font-size:10.6px;line-height:1.4}
+.kf{display:flex;justify-content:space-between;align-items:center;margin-top:7px}.kf em{font-style:normal;font-weight:600;font-variant-numeric:tabular-nums}
+.kn{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:10px;color:var(--muted)}.kn.late{color:var(--bad)}
+.kempty{font-size:10.4px;color:var(--muted2);text-align:center;padding:20px 0;border:1px dashed var(--line2);border-radius:5px}
+.tch{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}.tch code{font-size:9px;color:var(--muted2)}
+.tc>b{display:block;line-height:1.4;font-weight:500}
+.tchk{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin-top:7px;font:500 9.4px 'IBM Plex Mono',monospace;color:var(--muted)}.tchk .bar{height:5px}
+.tcf{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10.4px;color:var(--muted)}.tcf time{margin-left:auto;font-family:'IBM Plex Mono',monospace}.tcf em{font-style:normal;background:var(--card3);padding:0 5px;border-radius:3px}
+/* сделка */
+.chainS{display:flex;margin-bottom:12px;overflow-x:auto}
+.chainS a{flex:1;min-width:110px;padding:8px 10px 8px 18px;font-size:10.6px;background:var(--card3);color:var(--muted);cursor:pointer;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%,9px 50%);margin-right:-5px;white-space:nowrap}
+.chainS a.ok{background:var(--brandl);color:var(--brand)}.chainS a.cur{background:var(--brand);color:#fff;font-weight:600}
+.sns{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.sns a{font-size:10.6px;border:1px solid var(--line2);padding:4px 8px;border-radius:4px;cursor:pointer;color:var(--text)}
+.tl2 .ti{display:grid;grid-template-columns:62px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11.4px}
+.tl2 .ti>span{font:500 9.6px 'IBM Plex Mono',monospace;color:var(--muted2)}.tl2 p{margin:3px 0 0;color:var(--muted);line-height:1.5}
+.tl2 .ti.wa b{color:#1e7a43}.tl2 .ti.call b{color:var(--info)}
+.play{margin-left:8px;font-size:10px;border:1px solid var(--line2);padding:2px 7px;border-radius:4px;color:var(--text)}
+.wsend{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}.wsend input{flex:1;min-width:180px;height:32px;border:1px solid var(--line2);border-radius:6px;padding:0 10px;background:var(--card);color:var(--text);font-size:11.6px}
+.wrap{white-space:normal;text-align:right;max-width:62%}
+.trow{display:grid;grid-template-columns:12px 1fr;gap:1px 8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:11.4px;color:var(--text)}.trow .dt{margin-top:4px;grid-row:span 2}.trow span{font-size:10.2px;color:var(--muted)}
+.doc2{display:flex;gap:8px;align-items:center;padding:6px 0;font-size:11.4px}.doc2 code{background:var(--bad-l);color:var(--bad);padding:2px 5px;border-radius:3px;font-size:8.6px}
+.player{display:flex;align-items:center;gap:12px;margin-bottom:12px}.wave{display:flex;align-items:center;gap:2px;flex:1;height:40px}.wave i{width:3px;background:var(--brand);border-radius:2px;opacity:.7}
+/* inbox */
+.inbox{display:grid;grid-template-columns:330px 1fr;border:1px solid var(--line);border-radius:var(--r);background:var(--card);min-height:480px}
+.ilist{border-right:1px solid var(--line)}
+.ilist a{display:grid;grid-template-columns:30px 1fr auto;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;color:var(--text)}
+.ilist a.on{background:var(--brandl)}.ilist b{font-size:11.6px;display:block}.ilist small{display:block;font-size:10.4px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.ilist time{font:500 9.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-align:right}.ilist em{display:block;font-style:normal;background:#1e7a43;color:#fff;border-radius:9px;padding:0 6px;margin-top:4px;text-align:center}
+.ch{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:600 8.6px 'IBM Plex Mono',monospace}.ch.wa{background:#e2f4e8;color:#1e7a43}.ch.tel{background:var(--info-l);color:var(--info)}
+.ichat{display:flex;flex-direction:column;padding:12px 14px;min-width:0}
+.ich{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}.ich small{display:block;font-size:10.4px;color:var(--muted)}
+.bubbles{flex:1;display:flex;flex-direction:column;gap:7px;padding:14px 0;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:14px 14px}
+.bb{max-width:72%;padding:8px 11px;border-radius:8px;font-size:11.8px;background:var(--card2);border:1px solid var(--line);color:var(--text)}.bb p{margin:0}.bb time{display:block;text-align:right;font:500 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);margin-top:3px}
+.bb.out{align-self:flex-end;background:#dcf3e4;border-color:#c3e6cf;color:#1a2228}
+.tpls{display:flex;flex-wrap:wrap;gap:5px}.tpls a{font-size:10.4px;border:1px solid var(--line2);border-radius:4px;padding:3px 8px;cursor:pointer;color:var(--text)}
+.callc{padding:20px 0}.callc p{color:var(--muted);font-size:12px;line-height:1.6}
+/* КП */
+.kpdoc{background:#fff;color:#1a2228;border:1px solid var(--line);max-width:760px;padding:26px 30px;border-radius:4px}
+.kph{display:flex;justify-content:space-between;border-bottom:3px solid #0e7c86;padding-bottom:10px;margin-bottom:14px}.kph b{letter-spacing:.14em;color:#0e7c86}.kph span{font-size:10.4px;color:#56636c}
+.kpdoc h3{margin:0;font-size:16px}.kpdoc .kv{color:#1a2228;border-color:#e0e5e6}
+.kpi{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid #e0e5e6}.kpi p{margin:3px 0;font-size:11px;color:#56636c}.kpi span{font-size:11.6px}
+.kpimg{background:#f1f3f2;border-radius:4px;display:grid;place-items:center;padding:8px}.kpimg svg{width:90px}
+/* склад */
+.whtabs{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:10px;overflow:hidden}
+.whtabs a{padding:10px 13px;border-left:1px solid var(--line);cursor:pointer;color:var(--text)}.whtabs a:first-child{border:0}
+.whtabs a.on{background:var(--rail);color:#fff}.whtabs a.on span{color:var(--brand2)}
+.whtabs b{display:block;font-size:12px;font-weight:600}.whtabs span{font:500 10px 'IBM Plex Mono',monospace;color:var(--muted)}
+.fbar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden;background:var(--card)}.seg a{padding:6px 11px;font-size:11px;cursor:pointer;border-left:1px solid var(--line2);color:var(--text)}.seg a:first-child{border:0}.seg a.on{background:var(--brand);color:#fff}
+.pcard{display:grid;grid-template-columns:170px 1fr;gap:14px;border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px;margin-bottom:12px}
+.pimg{background:var(--card2);border-radius:4px;display:grid;place-items:center}.pimg svg{width:130px}
+.pnums{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line)}
+.pnums>div{background:var(--card);padding:8px 10px}.pnums small{display:block;font:600 8px 'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--muted2);letter-spacing:.06em}.pnums b{font-size:15px;font-variant-numeric:tabular-nums}
+.mv{display:grid;grid-template-columns:78px 1fr auto;gap:2px 8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.2px}
+.mv time{font:500 9.4px 'IBM Plex Mono',monospace;color:var(--muted2);grid-row:span 2}.mv span{grid-column:2;color:var(--muted);font-size:10.4px}.mv em{font-style:normal;font-weight:600;grid-row:1;grid-column:3}.mv small{grid-column:3;color:var(--muted2);font-size:9.6px}
+.snlife{border-left:2px solid var(--line2);margin:4px 0 14px 6px;padding-left:16px}
+.sl{position:relative;padding:6px 0 10px}.sl>i{position:absolute;left:-22px;top:9px;width:10px;height:10px;border-radius:50%;background:var(--card3);border:2px solid var(--line2)}
+.sl.g>i{background:var(--ok);border-color:var(--ok)}.sl.w>i{background:var(--warn);border-color:var(--warn)}.sl.i>i{background:var(--info);border-color:var(--info)}.sl.r>i{background:var(--bad);border-color:var(--bad)}
+.sl b{display:block;font-size:12px}.sl span{font-size:10.6px;color:var(--muted)}
+.qr{display:flex;gap:14px;align-items:center;border:1px dashed var(--line2);padding:12px;border-radius:5px}.qrs{width:84px;fill:var(--text);flex:none}
+.steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.steps3.s4{grid-template-columns:repeat(4,1fr)}
+.steps3>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:10px 12px;font-size:11.6px;color:var(--muted)}
+.steps3 b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--card3);margin-right:7px;font-size:10px;color:var(--text)}
+.steps3 small{display:block;font-size:10px;color:var(--muted2);margin:3px 0 0 27px}
+.steps3 .ok{border-color:var(--ok);color:var(--ok)!important}.steps3 .ok b{background:var(--ok);color:#fff}
+.steps3 .cur{border-color:var(--brand);color:var(--text);box-shadow:inset 0 -3px 0 var(--brand2)}.steps3 .cur b{background:var(--brand);color:#fff}
+.snc{background:var(--brandl);color:var(--brand);padding:2px 5px;border-radius:3px;font-size:9.6px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form label{display:flex;flex-direction:column;gap:4px;font-size:10.6px;color:var(--muted)}
+.form input,.form select{border:1px solid var(--line2);border-radius:5px;padding:7px 9px;font-size:12px;background:var(--card);color:var(--text)}.form input{cursor:text}
+.form .cbx{flex-direction:row;align-items:center;gap:7px;grid-column:1/-1;font-size:11.4px;color:var(--text)}
+.qin{width:70px;height:28px;border:1px solid var(--line2);border-radius:5px;text-align:right;padding:0 7px;background:var(--card);color:var(--text);cursor:text;font-variant-numeric:tabular-nums}.qin.wide{width:100%;text-align:left;border:0}
+.ph2{background:var(--rail);border-radius:22px;padding:10px;max-width:240px;margin:auto}.ph2s{background:var(--card);border-radius:14px;padding:12px;color:var(--text)}.ph2s>small{display:block;color:var(--muted);font-size:10px;margin-bottom:8px}
+.scanbox{height:110px;border-radius:8px;background:#11171b;display:grid;place-items:center;position:relative;margin-bottom:8px}.scanbox i{position:absolute;inset:22px 40px;border:2px solid var(--brand2);border-radius:6px}.scanbox span{color:#cfd8dc;font-size:9.6px;position:absolute;bottom:6px}
+.full{width:100%;margin-top:8px}
+.pan.done{border-color:var(--ok);box-shadow:inset 4px 0 0 var(--ok)}
+.reps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rep{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:11px 13px}
+.rep code{background:#e3f2e8;color:#1e6b3c;padding:7px 0;text-align:center;border-radius:4px;font-size:9.6px;font-weight:600}.rep b{display:block;font-size:12.2px}.rep span{font-size:10.4px;color:var(--muted)}
+/* задачи и люди */
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.pcol{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:10px}
+.pch{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:5px}.pch b{display:block;font-size:11.6px}.pch small{font-size:9.6px;color:var(--muted)}.pch em{font-style:normal;font-weight:700}
+.pcol a{display:grid;grid-template-columns:10px 1fr auto;gap:7px;align-items:center;font-size:10.8px;padding:5px 0;cursor:pointer;color:var(--text)}.pcol time{font:500 9px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.cm{display:grid;grid-template-columns:26px 1fr;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11.4px}.cm time{margin-left:8px;font:500 9.4px 'IBM Plex Mono',monospace;color:var(--muted2)}.cm p{margin:3px 0 0}
+.chainS.c4 a{min-width:90px}
+.post{display:flex;gap:8px;margin-bottom:8px}.post textarea{flex:1;border:1px solid var(--line2);border-radius:6px;padding:8px;font:inherit;font-size:11.6px;min-height:46px;background:var(--card);color:var(--text)}
+.dep h4{font:600 9px 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.12em;color:var(--muted2);margin:14px 0 6px}
+tr.off td{opacity:.45}
+table.perm th.c,table.perm td.c{text-align:center}
+.pm{display:inline-grid;place-items:center;width:22px;height:22px;border:1.5px solid var(--line2);border-radius:4px;cursor:pointer;color:#fff;font-size:11px}.pm.on{background:var(--brand);border-color:var(--brand)}
+/* мультибизнес */
+.mbiz{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.mbiz a{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:14px;cursor:pointer;color:var(--text);border-top:4px solid var(--c)}
+.mbiz a.on{box-shadow:0 0 0 2px var(--c)}
+.mbiz a>i{display:none}.mbiz a>b{display:block;font-size:14px}.mbiz a>span{font-size:10.6px;color:var(--muted)}
+.share{height:6px;background:var(--card3);border-radius:3px;margin-top:10px}.share i{display:block;height:100%;background:var(--c);border-radius:3px}.mbiz small{font-size:10px;color:var(--muted)}
+.price .kv b{font-size:15px}.kv.opt span{max-width:70%}.kv.tot{border-top:2px solid var(--text)!important}.kv.tot b{color:var(--brand);font-size:18px}
+.kv span{color:var(--muted)}.kv b{color:var(--text)}.pan h3{color:var(--text)}
+/* адаптив */
+@media(max-width:1200px){.ledger{grid-template-columns:repeat(3,1fr)}.ledger>div:nth-child(4){border-left:0}.ledger>div{border-top:1px solid var(--line)}.whtabs{grid-template-columns:repeat(3,1fr)}.reps{grid-template-columns:1fr}.mbiz{grid-template-columns:1fr}}
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+ .side{overflow:visible}.slogo{padding:9px 12px}.burg{display:block}
+ #rail,.sfoot,.bizw{display:none}
+ body.nav #rail{display:block;max-height:60vh}body.nav .bizw{display:flex}
+ .top{flex-wrap:wrap;padding:8px 12px}.top-r{width:100%;flex-wrap:wrap}.srch{flex:1;min-width:0}.srch input{width:100%}.tt p{display:none}
+ .content{padding:12px 10px 24px}
+ .inbox{grid-template-columns:1fr}.ilist{border-right:0;border-bottom:1px solid var(--line)}
+ .pcard{grid-template-columns:1fr}.pnums{grid-template-columns:repeat(2,1fr)}
+ .steps3,.steps3.s4{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}
+ .stbar a{grid-template-columns:110px 24px 1fr 56px;gap:6px}
+ .gate{grid-template-columns:1fr;height:auto;min-height:100vh}.gate-l{padding:30px 20px}.gate h1{font-size:28px}.gate-r{padding:20px}.gstat{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){.hd{flex-direction:column}.btns{justify-content:flex-start}.ledger{grid-template-columns:1fr 1fr}.ledger>div{border-left:0!important}.whtabs{grid-template-columns:1fr 1fr}input.sel{min-width:0;width:100%}.ilist small{max-width:180px}.rsel{max-width:150px;min-width:0}.tb{padding:0 9px}}
+
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="52" height="52" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="14" fill="#0e7c86"/><circle cx="44" cy="54" r="24" fill="none" stroke="#fff" stroke-width="8"/><circle cx="44" cy="54" r="7" fill="#fff"/><path d="M74 14v18M65 23h18" stroke="#f2c230" stroke-width="7" stroke-linecap="round"/></svg><div><b class="gname">ГЛЯНЕЦ</b><small class="gsub">ПРОФЕССИОНАЛЬНАЯ УБОРОЧНАЯ ТЕХНИКА · CRM И СКЛАД</small></div></div>
+  <div class="kicker">Демо для Александра и Руслана · 15 человек · 4 склада</div>
+  <h1>Продали машину в ТРЦ — <em>склад, сервис и задачи знают об этом сразу.</em></h1>
+  <p class="glead">Воронка от лида до пусконаладки, общий WhatsApp и IP-телефония в карточке сделки, склады с ячейками и серийными номерами, инвентаризация с телефона, отчёты в Excel и задачи для всей команды.</p>
+  <div class="gstat"><div><small>Экранов</small><b class="a">21</b></div><div><small>Ролей</small><b>6</b></div><div><small>Складов</small><b>4</b></div><div><small>Интеграции</small><b>WA · АТС</b></div></div>
+ </div>
+ <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только нужное.</p><div class="roles" id="roles"></div>
+  <div class="lnote"><b>Демо на вымышленных данных</b>Клиенты, модели машин, цены и остатки придуманы. Кнопки работают, Excel реально скачивается. «Сценарий» — показ по шагам.</div></div></div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="side">
+  <div class="slogo"><svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="14" fill="#0e7c86"/><circle cx="44" cy="54" r="24" fill="none" stroke="#fff" stroke-width="8"/><circle cx="44" cy="54" r="7" fill="#fff"/><path d="M74 14v18M65 23h18" stroke="#f2c230" stroke-width="7" stroke-linecap="round"/></svg><div><b>Глянец</b><small>CRM · СКЛАД · ЗАДАЧИ</small></div><button class="burg" onclick="document.body.classList.toggle('nav')">☰</button></div>
+  <div class="bizw" id="bizw"><i id="bizdot"></i><select id="bizsel" title="Бизнес"></select></div>
+  <nav id="rail"></nav>
+  <div class="sfoot"><div class="me" id="me">АЛ</div><div id="mename"></div></div>
+ </aside>
+ <main class="main">
+  <header class="top">
+   <div class="tt"><h1 id="ttl">Глянец</h1><p id="subt"></p></div>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="сделка, клиент, серийный №" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <button class="tb" id="tourBtn" onclick="tour()">▶ Сценарий</button>
+    <button class="tb acc" onclick="if(allowed('tasks'))newTask();else toast('Нет доступа')">+ Задача</button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Тема">◐</button>
+    <select class="rsel" id="rsel"></select>
+   </div>
+  </header>
+  <div class="content" id="content"></div>
+ </main>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ГЛЯНЕЦ — CRM, склад и задачи для компании по продаже профессиональной уборочной техники
+   (Александр и Руслан, 15 человек). Демо на вымышленных данных. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const tg=n=>fmt(n)+' ₸';
+const mln=n=>(Math.round(n/100000)/10).toString().replace('.',',')+' млн';
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+const TODAY='04.11.2026',NOW='10:30';
+const tag=(t,c)=>`<span class="tag ${c||''}">${t}</span>`;
+const bar=(w,c)=>`<div class="bar"><i class="${c||''}" style="--w:${Math.max(2,Math.min(100,w))}%"></i></div>`;
+const said=(q,a)=>`<div class="said"><b>Из встречи</b><i>${q}</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
+const crumbs=(...a)=>`<div class="crumbl">${a.map((x,i)=>i<a.length-1?`<a onclick="${x[1]}">${esc(x[0])}</a>`:`<b>${esc(x[0])}</b>`).join(' <i>/</i> ')}</div>`;
+
+const SEC=[
+ {k:'day',n:'Сегодня',sub:[['dash','Пульт','DSH']]},
+ {k:'crm',n:'Продажи',sub:[['funnel','Воронка продаж','FNL'],['deal','Карточка сделки','DEAL'],['clients','Клиенты и объекты','CLI'],['inbox','WhatsApp и звонки','MSG'],['kp','Коммерческие предложения','KP']]},
+ {k:'wh',n:'Склад',sub:[['stock','Остатки','STK'],['product','Карточка товара','SKU'],['receive','Приход','IN'],['ship','Резерв и отгрузки','OUT'],['moves','Перемещения','MOV'],['inv','Инвентаризация','INV'],['whrep','Отчёты и Excel','XLS']]},
+ {k:'svc',n:'Сервис',sub:[['service','Сервис и ТО','SVC']]},
+ {k:'tasks',n:'Задачи',sub:[['tasks','Доска задач','TSK'],['task','Карточка задачи','CRD'],['feed','Лента','FD']]},
+ {k:'team',n:'Команда',sub:[['team','Сотрудники','TM'],['roles','Роли и права','ROL']]},
+ {k:'sys',n:'Система',sub:[['multi','Мультибизнес','MLT'],['launch','Запуск и стоимость','LNC']]}
+];
+const SECOF={},SUBN={},CODE={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1];CODE[x[0]]=x[2]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+const ROLES={
+ 'Собственник':{av:'АЛ',n:'Александр',note:'Все бизнесы, деньги, воронки, склады, команда',s:ALL.slice()},
+ 'Руководитель продаж':{av:'РС',n:'Руслан',note:'Воронка, сделки, КП, задачи команды, склад для продаж',s:['dash','funnel','deal','clients','inbox','kp','stock','product','ship','service','tasks','task','feed','team']},
+ 'Менеджер':{av:'ДН',n:'Дана · менеджер',note:'Свои сделки, звонки, WhatsApp, КП, резерв техники, задачи',s:['funnel','deal','clients','inbox','kp','stock','product','tasks','task','feed']},
+ 'Кладовщик':{av:'ЕР',n:'Ерлан · склад',note:'Приход, отгрузки, перемещения, инвентаризация, Excel',s:['stock','product','receive','ship','moves','inv','whrep','tasks','task','feed']},
+ 'Сервисный инженер':{av:'ТМ',n:'Тимур · сервис',note:'Пусконаладка, ТО, ремонт, запчасти со склада',s:['service','stock','product','tasks','task','feed']},
+ 'Бухгалтер':{av:'СВ',n:'Светлана',note:'Оплаты, отгрузки, остатки в деньгах, Excel',s:['dash','ship','stock','whrep','clients']}
+};
+let role='Собственник',cur='dash';
+
+/* ===== Бизнесы (мультибизнес) ===== */
+const BIZ=[
+ {id:'B1',n:'Глянец · Техника',d:'продажа уборочной техники',c:'#0e7c86',rev:48600000,deals:23,stock:186400000,tasks:41},
+ {id:'B2',n:'Глянец · Сервис',d:'ремонт и ТО техники',c:'#e0a823',rev:6200000,deals:14,stock:12800000,tasks:27},
+ {id:'B3',n:'Глянец · Химия',d:'моющие средства оптом',c:'#7a5ad0',rev:9800000,deals:31,stock:21300000,tasks:12}
+];
+let biz='B1';
+
+/* ===== Команда ===== */
+let STAFF=[
+ {id:'AL',n:'Александр Ким',pos:'Собственник',dep:'Руководство',ph:'+7 701 100 20 30',st:'on',tasks:3},
+ {id:'RS',n:'Руслан Абенов',pos:'Руководитель продаж',dep:'Продажи',ph:'+7 701 200 31 40',st:'on',tasks:6},
+ {id:'DN',n:'Дана Сейтова',pos:'Менеджер по продажам',dep:'Продажи',ph:'+7 707 310 22 18',st:'on',tasks:8},
+ {id:'MR',n:'Марат Исаев',pos:'Менеджер по продажам',dep:'Продажи',ph:'+7 705 411 30 72',st:'on',tasks:7},
+ {id:'AI',n:'Айгерим Нуркенова',pos:'Менеджер по продажам · Астана',dep:'Продажи',ph:'+7 777 520 41 05',st:'on',tasks:5},
+ {id:'KM',n:'Камила Ахметова',pos:'Менеджер по тендерам',dep:'Продажи',ph:'+7 702 630 12 90',st:'on',tasks:4},
+ {id:'ER',n:'Ерлан Жумабаев',pos:'Кладовщик',dep:'Склад',ph:'+7 701 744 55 10',st:'on',tasks:5},
+ {id:'BS',n:'Бекзат Оспанов',pos:'Кладовщик · Астана',dep:'Склад',ph:'+7 708 812 19 27',st:'on',tasks:2},
+ {id:'TM',n:'Тимур Ли',pos:'Сервисный инженер',dep:'Сервис',ph:'+7 701 903 33 41',st:'on',tasks:6},
+ {id:'NS',n:'Нурлан Сарсенов',pos:'Сервисный инженер',dep:'Сервис',ph:'+7 776 104 28 63',st:'on',tasks:4},
+ {id:'SV',n:'Светлана Пак',pos:'Бухгалтер',dep:'Финансы',ph:'+7 701 215 47 80',st:'on',tasks:3},
+ {id:'GL',n:'Гульнара Тулеуова',pos:'Офис-менеджер',dep:'Офис',ph:'+7 747 326 64 19',st:'on',tasks:2},
+ {id:'DM',n:'Данияр Мусин',pos:'Водитель-экспедитор',dep:'Склад',ph:'+7 707 437 81 52',st:'on',tasks:3},
+ {id:'AS',n:'Асхат Байжанов',pos:'Маркетолог',dep:'Маркетинг',ph:'+7 705 548 92 36',st:'on',tasks:2},
+ {id:'OL',n:'Ольга Ким',pos:'Менеджер по сервису',dep:'Сервис',ph:'+7 702 659 13 44',st:'vac',tasks:1}
+];
+const SF=id=>STAFF.find(s=>s.id===id)||{n:'—',id:'—'};
+const ini=id=>{const s=STAFF.find(x=>x.id===id);return s?s.n.split(' ').map(w=>w[0]).join('').slice(0,2):id};
+const fn=id=>SF(id).n.split(' ')[0];
+
+/* ===== Товары ===== kind: m — техника (учёт по серийным номерам), p — запчасти и расходники, c — химия */
+let PRODUCTS=[
+ {id:'SC-55',n:'Поломоечная машина AquaLine SC-55',kind:'m',cat:'Поломоечные с сиденьем',price:8950000,cost:6120000,min:2,cell:'A-01',spec:'ширина 55 см · бак 70 л · АКБ 240 А·ч · 2 400 м²/ч'},
+ {id:'SC-43',n:'Поломоечная машина AquaLine SC-43 с ручным управлением',kind:'m',cat:'Поломоечные ручные',price:3290000,cost:2180000,min:3,cell:'A-02',spec:'ширина 43 см · бак 40 л · АКБ 105 А·ч · 1 500 м²/ч'},
+ {id:'RX-75',n:'Поломоечная машина Nordmax RX-75 для ТРЦ',kind:'m',cat:'Поломоечные с сиденьем',price:14600000,cost:10200000,min:1,cell:'A-03',spec:'ширина 75 см · бак 120 л · 5 000 м²/ч · для ТРЦ и аэропортов'},
+ {id:'SW-90',n:'Подметальная машина SweepPro S-90',kind:'m',cat:'Подметальные',price:5400000,cost:3700000,min:1,cell:'A-04',spec:'ширина 90 см · бункер 60 л · для парковок'},
+ {id:'MINI-30',n:'Мини-поломойка Compact 30',kind:'m',cat:'Компактные',price:1190000,cost:760000,min:4,cell:'A-05',spec:'ширина 30 см · для кафе и бутиков'},
+ {id:'BR-55',n:'Щётка дисковая 55 см',kind:'p',cat:'Щётки и пады',price:68000,cost:39000,min:10,cell:'B-11',spec:'для SC-55'},
+ {id:'PD-43',n:'Пад полировальный 43 см, красный',kind:'p',cat:'Щётки и пады',price:9500,cost:4200,min:40,cell:'B-12',spec:'упаковка 5 шт'},
+ {id:'SQ-75',n:'Резина сквиджа 75 см',kind:'p',cat:'Запчасти',price:42000,cost:23000,min:8,cell:'B-14',spec:'для RX-75'},
+ {id:'AKB-240',n:'Аккумулятор тяговый 240 А·ч',kind:'p',cat:'Аккумуляторы',price:620000,cost:410000,min:4,cell:'C-01',spec:'гелевый, 12 В'},
+ {id:'CH-DET',n:'Средство для поломоечных машин, 20 л',kind:'c',cat:'Химия',price:38000,cost:19500,min:60,cell:'D-02',spec:'низкопенное, pH 9'}
+];
+const PR=id=>PRODUCTS.find(p=>p.id===id)||PRODUCTS[0];
+let curP='SC-55';
+const WH=[{id:'W1',n:'Склад Алматы',addr:'ул. Бокейханова, 510'},{id:'W2',n:'Склад Астана',addr:'пр. Тәуелсіздік, 33'},{id:'W3',n:'Демо-зал',addr:'Алматы, шоурум'},{id:'W4',n:'Сервис',addr:'Алматы, мастерская'}];
+const WN=id=>(WH.find(w=>w.id===id)||WH[0]).n;
+let whF='all';
+
+/* ===== Серийные номера техники ===== st: free — свободна, res — в резерве под сделку, demo — демо-машина, svc — в ремонте, sold — продана */
+let SERIALS=[
+ {sn:'SC55-24-0412',p:'SC-55',wh:'W1',st:'free',in:'12.09'},{sn:'SC55-24-0413',p:'SC-55',wh:'W1',st:'res',deal:'D-118',in:'12.09'},{sn:'SC55-24-0419',p:'SC-55',wh:'W2',st:'free',in:'12.09'},{sn:'SC55-23-0288',p:'SC-55',wh:'W3',st:'demo',in:'15.03'},
+ {sn:'SC43-24-1104',p:'SC-43',wh:'W1',st:'free',in:'02.10'},{sn:'SC43-24-1105',p:'SC-43',wh:'W1',st:'free',in:'02.10'},{sn:'SC43-24-1106',p:'SC-43',wh:'W2',st:'res',deal:'D-121',in:'02.10'},
+ {sn:'RX75-24-0031',p:'RX-75',wh:'W1',st:'res',deal:'D-115',in:'20.08'},{sn:'RX75-23-0017',p:'RX-75',wh:'W3',st:'demo',in:'10.11.25'},
+ {sn:'SW90-24-0205',p:'SW-90',wh:'W1',st:'free',in:'18.07'},{sn:'SW90-23-0144',p:'SW-90',wh:'W4',st:'svc',in:'01.06.25'},
+ {sn:'MC30-24-3301',p:'MINI-30',wh:'W1',st:'free',in:'05.10'},{sn:'MC30-24-3302',p:'MINI-30',wh:'W1',st:'free',in:'05.10'},{sn:'MC30-24-3303',p:'MINI-30',wh:'W2',st:'free',in:'05.10'}
+];
+const SST={free:['свободна','g'],res:['резерв','w'],demo:['демо-зал','i'],svc:['в ремонте','r'],sold:['продана','']};
+let curSN='SC55-24-0413';
+/* количество для штучных товаров по складам */
+let QTY={'BR-55':{W1:14,W2:6,W4:3},'PD-43':{W1:120,W2:35,W4:10},'SQ-75':{W1:5,W2:1,W4:2},'AKB-240':{W1:7,W2:2,W4:1},'CH-DET':{W1:210,W2:64}};
+const qty=(p,w)=>{const P=PR(p);if(P.kind==='m')return SERIALS.filter(s=>s.p===p&&s.st!=='sold'&&(!w||w==='all'||s.wh===w)).length;const q=QTY[p]||{};return w&&w!=='all'?(q[w]||0):Object.values(q).reduce((a,x)=>a+x,0)};
+const freeQ=p=>PR(p).kind==='m'?SERIALS.filter(s=>s.p===p&&s.st==='free').length:qty(p);
+
+/* ===== Клиенты и сделки ===== */
+let CLIENTS=[
+ {id:'C1',n:'ТРЦ «Mega Alma-Ata»',type:'ТРЦ',city:'Алматы',area:'150 000 м²',lpr:'Ербол Сапаров, директор по эксплуатации',ph:'+7 727 330 10 10',owned:['RX75-22-0004','SC55-23-0201']},
+ {id:'C2',n:'Dostyk Plaza',type:'ТРЦ',city:'Алматы',area:'90 000 м²',lpr:'Инна Ли, главный инженер',ph:'+7 727 330 20 20',owned:[]},
+ {id:'C3',n:'Международный аэропорт Астана',type:'Аэропорт',city:'Астана',area:'60 000 м²',lpr:'Тендерный отдел',ph:'+7 7172 70 00 00',owned:[]},
+ {id:'C4',n:'ТОО «CleanPro»',type:'Клининговая компания',city:'Алматы',area:'—',lpr:'Самат Ермеков, директор',ph:'+7 701 555 20 31',owned:['SC43-23-0880','SC43-23-0881','MC30-23-1102']},
+ {id:'C5',n:'Гипермаркет «Magnum» Аль-Фараби',type:'Ритейл',city:'Алматы',area:'12 000 м²',lpr:'Руслан Каримов, АХО',ph:'+7 727 300 40 40',owned:['SC55-22-0112']},
+ {id:'C6',n:'Бизнес-центр «Нурлы Тау»',type:'Бизнес-центр',city:'Алматы',area:'45 000 м²',lpr:'УК «Нурлы»',ph:'+7 727 311 50 50',owned:[]},
+ {id:'C7',n:'Школа-лицей № 165',type:'Госучреждение',city:'Алматы',area:'8 000 м²',lpr:'Завхоз',ph:'+7 727 260 11 22',owned:[]}
+];
+const CL=id=>CLIENTS.find(c=>c.id===id)||CLIENTS[0];
+const STG=[['lead','Лид'],['qual','Квалификация'],['demo','Демо-показ'],['kp','КП отправлено'],['agree','Согласование / тендер'],['bill','Счёт'],['paid','Оплата'],['ship','Отгрузка и пусконаладка']];
+const STN=k=>(STG.find(s=>s[0]===k)||['','Закрыта'])[1];
+let DEALS=[
+ {id:'D-115',cl:'C2',biz:'B1',t:'2 машины RX-75 для Dostyk Plaza',sum:29200000,stg:'agree',mgr:'RS',src:'Повторный клиент',items:[['RX-75',2]],next:'Согласование у собственника ТРЦ до 08.11',days:3,prob:70},
+ {id:'D-118',cl:'C1',biz:'B1',t:'Замена парка: SC-55 × 3',sum:26850000,stg:'kp',mgr:'DN',src:'Звонок',items:[['SC-55',3]],next:'Перезвонить по КП 05.11',days:1,prob:50},
+ {id:'D-121',cl:'C4',biz:'B1',t:'CleanPro: SC-43 × 4 + пады',sum:13540000,stg:'bill',mgr:'MR',src:'WhatsApp',items:[['SC-43',4],['PD-43',10]],next:'Ждём оплату по счёту № 412',days:2,prob:90},
+ {id:'D-124',cl:'C3',biz:'B1',t:'Тендер: 6 поломоечных машин',sum:71400000,stg:'agree',mgr:'KM',src:'Госзакупки',items:[['SC-55',4],['RX-75',2]],next:'Подача заявки до 12.11',days:8,prob:35},
+ {id:'D-126',cl:'C5',biz:'B1',t:'Magnum: аккумуляторы и щётки',sum:1648000,stg:'paid',mgr:'DN',src:'Сервис',items:[['AKB-240',2],['BR-55',6]],next:'Отгрузка 05.11',days:0,prob:100},
+ {id:'D-127',cl:'C6',biz:'B1',t:'Нурлы Тау: демо RX-75',sum:14600000,stg:'demo',mgr:'MR',src:'Сайт',items:[['RX-75',1]],next:'Демо-показ 06.11 в 10:00',days:2,prob:40},
+ {id:'D-129',cl:'C7',biz:'B1',t:'Школа: мини-поломойки × 2',sum:2380000,stg:'qual',mgr:'AI',src:'Instagram',items:[['MINI-30',2]],next:'Уточнить бюджет',days:4,prob:25},
+ {id:'D-130',cl:'C2',biz:'B1',t:'Dostyk: химия на год',sum:2280000,stg:'lead',mgr:'DN',src:'WhatsApp',items:[['CH-DET',60]],next:'Связаться сегодня',days:0,prob:15},
+ {id:'D-131',cl:'C1',biz:'B2',t:'Mega: ТО парка, 6 машин',sum:1450000,stg:'bill',mgr:'OL',src:'Сервис',items:[],next:'Счёт подписан',days:1,prob:90},
+ {id:'D-132',cl:'C4',biz:'B3',t:'CleanPro: химия ежемесячно',sum:860000,stg:'paid',mgr:'MR',src:'Повторный',items:[['CH-DET',20]],next:'Автозаказ 01.12',days:0,prob:100}
+];
+const DL=id=>DEALS.find(d=>d.id===id)||DEALS[0];
+let curD='D-118';
+
+/* ===== Сообщения и звонки ===== */
+let INBOX=[
+ {id:'m1',ch:'WhatsApp',who:'Самат Ермеков · CleanPro',deal:'D-121',t:'10:12',un:1,msgs:[['in','Счёт получили, оплатим сегодня-завтра. Когда сможете привезти?','10:12']]},
+ {id:'m2',ch:'Звонок',who:'Ербол Сапаров · Mega',deal:'D-118',t:'09:48',dur:'6:41',dir:'входящий',rec:true,sum:'Спросил про лизинг и сроки поставки SC-55; просит сравнение с текущими машинами.'},
+ {id:'m3',ch:'WhatsApp',who:'Инна Ли · Dostyk Plaza',deal:'D-130',t:'09:31',un:2,msgs:[['in','Здравствуйте, нужна химия для машин на год, какие объёмы посоветуете?','09:30'],['in','У нас 4 машины, 2 смены','09:31']]},
+ {id:'m4',ch:'Звонок',who:'+7 701 909 11 55 · новый номер',deal:null,t:'09:05',dur:'—',dir:'пропущенный',rec:false,sum:'Пропущенный — система создала задачу «перезвонить» дежурному менеджеру.'},
+ {id:'m5',ch:'Звонок',who:'Тендерный отдел · Аэропорт',deal:'D-124',t:'вчера',dur:'12:03',dir:'исходящий',rec:true,sum:'Уточнили техническое задание тендера: ширина уборки от 55 см, гарантия 2 года.'}
+];
+let curM='m1';
+
+/* ===== Задачи и лента ===== st: new — новая, work — в работе, check — на проверке, done — готово */
+let TASKS=[
+ {id:'T-301',t:'Перезвонить Ерболу (Mega) по КП на SC-55',who:'DN',by:'RS',due:'05.11',st:'new',pr:'high',deal:'D-118',chk:[['Сравнение с текущими машинами',true],['Расчёт лизинга на 24 мес',false],['Отправить в WhatsApp',false]],com:[['RS','09:50','Ербол спрашивал про лизинг — подготовь 2 варианта.']],watch:['RS']},
+ {id:'T-302',t:'Демо-показ RX-75 в «Нурлы Тау»',who:'MR',by:'RS',due:'06.11',st:'work',pr:'high',deal:'D-127',chk:[['Забронировать демо-машину RX75-23-0017',true],['Водитель и газель на 08:30',true],['Химия и пады с собой',false],['Акт демо-показа подписать',false]],com:[['ER','вчера','Демо-машина заряжена, стоит у ворот 2.']],watch:['RS','ER']},
+ {id:'T-303',t:'Отгрузить заказ Magnum: АКБ × 2, щётки × 6',who:'ER',by:'DN',due:'05.11',st:'work',pr:'mid',deal:'D-126',chk:[['Собрать по ячейкам C-01, B-11',true],['Накладная и счёт-фактура',false],['Передать водителю Данияру',false]],com:[],watch:['DN','SV']},
+ {id:'T-304',t:'Подготовить заявку на тендер аэропорта',who:'KM',by:'AL',due:'11.11',st:'work',pr:'high',deal:'D-124',chk:[['Техническая спецификация',true],['Сертификаты соответствия',true],['Банковская гарантия',false],['Подписать ЭЦП',false]],com:[['AL','03.11','Цену согласовать со мной до подачи.']],watch:['AL','RS']},
+ {id:'T-305',t:'ТО машины SW90-23-0144 — замена щётки',who:'TM',by:'OL',due:'04.11',st:'check',pr:'mid',deal:null,chk:[['Диагностика',true],['Заменить щётку BR-55',true],['Тест-драйв',true]],com:[['TM','10:05','Готово, проверьте.']],watch:['OL']},
+ {id:'T-306',t:'Перезвонить на пропущенный +7 701 909 11 55',who:'AI',by:'Система',due:'сегодня',st:'new',pr:'high',deal:null,chk:[],com:[['Система','09:05','Пропущенный звонок на общий номер. Задача создана автоматически.']],watch:[]},
+ {id:'T-307',t:'Пусконаладка SC-43 у CleanPro после оплаты',who:'NS',by:'MR',due:'08.11',st:'new',pr:'mid',deal:'D-121',chk:[['Доставка',false],['Сборка и запуск',false],['Обучение операторов',false],['Акт ввода в эксплуатацию',false]],com:[],watch:['MR']},
+ {id:'T-308',t:'Инвентаризация ячеек B (запчасти)',who:'ER',by:'AL',due:'07.11',st:'new',pr:'low',deal:null,chk:[],com:[],watch:['AL']},
+ {id:'T-309',t:'Выложить кейс Dostyk Plaza в Instagram',who:'AS',by:'RS',due:'10.11',st:'done',pr:'low',deal:null,chk:[['Фото',true],['Текст',true]],com:[],watch:[]}
+];
+const TST=[['new','Новые'],['work','В работе'],['check','На проверке'],['done','Готово']];
+const PRN={high:['срочно','r'],mid:['обычная','w'],low:['низкая','']};
+let curT='T-302',tView='board',tWho='all';
+let FEED=[
+ ['10:12','MR','написал в сделке D-121','«Счёт получили, оплатим сегодня-завтра» — клиент в WhatsApp','wa'],
+ ['10:05','TM','отправил задачу на проверку','T-305 · ТО SW90-23-0144','task'],
+ ['09:52','ER','принял приход','ПР-0087 · 3 × MINI-30, 120 падов · ячейки A-05, B-12','wh'],
+ ['09:48','DN','поговорила 6:41 с Mega','Запись разговора прикреплена к сделке D-118','call'],
+ ['09:20','RS','перевёл сделку на «Согласование»','D-115 · Dostyk Plaza · 29,2 млн','deal'],
+ ['09:05','Система','создала задачу «перезвонить»','Пропущенный звонок, назначено Айгерим','task'],
+ ['вчера','AL','утвердил скидку 4%','D-115 · согласование цены','deal'],
+ ['вчера','BS','закончил перемещение','ПМ-0031 · SC55-24-0419 Алматы → Астана','wh']
+];
+
+/* ===== Пульт ===== */
+const SC={};
+const bizDeals=()=>DEALS.filter(d=>d.biz===biz);
+SC.dash=()=>{const B=BIZ.find(b=>b.id===biz);const D=bizDeals(),open=D.filter(d=>d.stg!=='paid'),won=D.filter(d=>d.stg==='paid');
+ const pipe=open.reduce((a,d)=>a+d.sum,0),wpipe=open.reduce((a,d)=>a+d.sum*d.prob/100,0);
+ const low=PRODUCTS.filter(p=>freeQ(p.id)<p.min);const stockV=PRODUCTS.reduce((a,p)=>a+qty(p.id)*p.cost,0);
+ const myT=TASKS.filter(t=>t.st!=='done');const over=myT.filter(t=>t.due==='сегодня'||t.due==='04.11');
+ return `<div class="hd"><div><h2>Доброе утро, ${esc(ROLES[role].n.split(' ')[0])}</h2><p>${esc(B.n)} · ${TODAY}, ${NOW}. Что произошло за ночь и что требует решения сегодня.</p></div><div class="btns"><button class="bt" onclick="xlsDash()">Выгрузить в Excel</button><button class="bt p" onclick="newDeal()">+ Сделка</button></div></div>
+ <div class="ledger">
+  <div><small>Воронка, открыто</small><b>${mln(pipe)} ₸</b><span>${open.length} ${plural(open.length,['сделка','сделки','сделок'])} · с учётом вероятности ${mln(wpipe)}</span></div>
+  <div><small>Продажи ноября</small><b class="ok">${mln(B.rev)} ₸</b><span>план 60 млн · ${pct(B.rev,60000000)}%</span>${bar(pct(B.rev,60000000),'g')}</div>
+  <div><small>Склад в закупочных</small><b>${mln(stockV)} ₸</b><span>${SERIALS.filter(s=>s.st==='free').length} машин свободно · ${SERIALS.filter(s=>s.st==='res').length} в резерве</span></div>
+  <div><small>Ниже минимума</small><b class="${low.length?'bad':''}">${low.length} SKU</b><span>${low.map(p=>p.id).join(', ')||'всё в норме'}</span></div>
+  <div><small>Задачи на сегодня</small><b>${over.length}</b><span>${myT.length} открыто · ${TASKS.filter(t=>t.st==='check').length} ждут проверки</span></div>
+ </div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Воронка по этапам</h3><p>Нажмите на этап — откроется доска с фильтром.</p>
+   <div class="stbar">${STG.map(([k,n])=>{const x=D.filter(d=>d.stg===k);const s=x.reduce((a,d)=>a+d.sum,0);return `<a onclick="go('funnel')"><em>${n}</em><b>${x.length}</b><i style="--w:${Math.min(100,pct(s,pipe||1)*1.6+4)}%"></i><span>${s?mln(s):'—'}</span></a>`}).join('')}</div></div>
+  <div class="pan"><h3>Требует решения</h3><p>Система сама собирает то, что нельзя пропустить.</p>
+   <div class="alist">
+    <a onclick="openDeal('D-121')"><i class="dt w"></i><b>CleanPro не оплатил счёт № 412</b><span>2 дня · резерв SC-43 × 4 сгорит 07.11</span></a>
+    <a onclick="go('stock')"><i class="dt r"></i><b>RX-75: свободных нет, резерв на 2 машины</b><span>в тендере ещё 2 · закажите у поставщика сейчас — поставка 45 дней</span></a>
+    <a onclick="openTask('T-306')"><i class="dt r"></i><b>Пропущенный звонок 09:05 — ещё не перезвонили</b><span>задача у Айгерим</span></a>
+    <a onclick="go('service')"><i class="dt i"></i><b>3 машины клиентов подходят к ТО в ноябре</b><span>Mega, Magnum, CleanPro — это повторные продажи расходников</span></a>
+    <a onclick="openTask('T-305')"><i class="dt g"></i><b>Тимур закрыл ТО SW-90 — проверьте</b><span>задача на проверке</span></a>
+   </div></div>
+ </div><div>
+  <div class="pan"><h3>Менеджеры за ноябрь</h3><p>Продажи, звонки, ответ в WhatsApp.</p>
+   <table class="t sm"><thead><tr><th>Менеджер</th><th class="r">Продажи</th><th class="r">Звонки</th><th class="r">Ответ</th></tr></thead><tbody>
+   ${[['RS',18.2,41,'4 мин'],['DN',12.9,96,'3 мин'],['MR',9.8,77,'6 мин'],['AI',4.4,58,'11 мин'],['KM',3.3,22,'—']].map(r=>`<tr onclick="go('team')"><td>${esc(SF(r[0]).n)}</td><td class="r">${r[1].toString().replace('.',',')} млн</td><td class="r">${r[2]}</td><td class="r ${r[3]==='11 мин'?'bad':''}">${r[3]}</td></tr>`).join('')}</tbody></table></div>
+  <div class="pan"><h3>Лента</h3><p>Последнее по компании.</p>${FEED.slice(0,5).map(feedRow).join('')}<a class="more" onclick="go('feed')">Вся лента →</a></div>
+ </div></div>
+ ${said('«Нам нужна CRM: воронка, задачи, склады, инвентаризация, WhatsApp и IP-телефония — в одном месте.»','Пульт собирает всё это на одном экране: деньги в воронке, склад в тенге, задачи и что горит.')}`};
+const FIC={wa:'WA',task:'ЗД',wh:'СК',call:'ТЛ',deal:'СД'};
+const feedRow=f=>`<div class="frow"><span class="fic ${f[4]}">${FIC[f[4]]||'•'}</span><div><b>${esc(f[1]==='Система'?'Система':fn(f[1]))}</b> ${esc(f[2])}<small>${esc(f[3])}</small></div><time>${f[0]}</time></div>`;
+
+/* ===== Воронка ===== */
+let fMgr='all';
+SC.funnel=()=>{const D=bizDeals().filter(d=>fMgr==='all'||d.mgr===fMgr);
+ return `<div class="hd"><div><h2>Воронка продаж</h2><p>Перетащите карточку на другой этап или нажмите, чтобы открыть сделку. Каждый этап — свои обязательные действия: без КП не перейти в «Согласование», без оплаты — в «Отгрузку».</p></div><div class="btns"><select class="sel" onchange="fMgr=this.value;render()"><option value="all">Все менеджеры</option>${['RS','DN','MR','AI','KM'].map(m=>`<option value="${m}" ${fMgr===m?'selected':''}>${esc(SF(m).n)}</option>`).join('')}</select><button class="bt" onclick="xlsDeals()">Excel</button><button class="bt p" onclick="newDeal()">+ Сделка</button></div></div>
+ <div class="kanban">${STG.map(([k,n])=>{const x=D.filter(d=>d.stg===k);return `<div class="kcol" ondragover="event.preventDefault()" ondrop="dropDeal(event,'${k}')"><div class="kh"><b>${n}</b><span>${x.length} · ${x.length?mln(x.reduce((a,d)=>a+d.sum,0)):'0'}</span></div>
+ ${x.map(d=>`<div class="kc" draggable="true" ondragstart="event.dataTransfer.setData('t','${d.id}')" onclick="openDeal('${d.id}')"><code>${d.id}</code><b>${esc(CL(d.cl).n)}</b><span>${esc(d.t)}</span><div class="kf"><em>${tg(d.sum)}</em><i class="av">${ini(d.mgr)}</i></div><div class="kn ${d.days>3?'late':''}">${esc(d.next)}</div></div>`).join('')||'<div class="kempty">пусто</div>'}</div>`}).join('')}</div>`};
+function dropDeal(e,k){const id=e.dataTransfer.getData('t');const d=DL(id);if(!d)return;const iFrom=STG.findIndex(s=>s[0]===d.stg),iTo=STG.findIndex(s=>s[0]===k);
+ if(iTo>=STG.findIndex(s=>s[0]==='ship')&&d.stg!=='paid'){toast('Нельзя отгрузить без оплаты — сначала этап «Оплата». Так система бережёт склад от отгрузок в долг.');return}
+ d.stg=k;FEED.unshift([NOW,'RS','перевёл сделку на «'+STN(k)+'»',d.id+' · '+CL(d.cl).n,'deal']);render();toast(`${d.id} → <b>${STN(k)}</b>. Клиенту ушло сообщение в WhatsApp, ответственному — задача по этапу.`)}
+function newDeal(){openM('Новая сделка','Из звонка, WhatsApp или вручную',`<div class="form">
+ <label>Клиент<select id="ndc">${CLIENTS.map(c=>`<option value="${c.id}">${esc(c.n)}</option>`).join('')}</select></label>
+ <label>Что хочет<input id="ndt" value="Поломоечная машина для паркинга"></label>
+ <label>Сумма, ₸<input id="nds" value="5400000"></label>
+ <label>Ответственный<select id="ndm">${['DN','MR','AI','KM','RS'].map(m=>`<option value="${m}">${esc(SF(m).n)}</option>`).join('')}</select></label>
+ <label>Источник<select><option>Звонок</option><option>WhatsApp</option><option>Сайт</option><option>Instagram</option><option>Госзакупки</option></select></label></div>
+ <div class="btns l"><button class="bt p" onclick="saveDeal()">Создать</button></div>`)}
+function saveDeal(){const id='D-'+(133+DEALS.length-10);DEALS.unshift({id,cl:document.getElementById('ndc').value,biz,t:document.getElementById('ndt').value,sum:+document.getElementById('nds').value||0,stg:'lead',mgr:document.getElementById('ndm').value,src:'Вручную',items:[],next:'Квалифицировать',days:0,prob:10});closeM();curD=id;go('deal');toast(`Сделка ${id} создана. Ответственному ушла задача «связаться в течение 15 минут».`)}
+function openDeal(id){curD=id;go('deal')}
+
+/* ===== Карточка сделки ===== */
+SC.deal=()=>{const d=DL(curD),c=CL(d.cl);const si=STG.findIndex(s=>s[0]===d.stg);
+ const msgs=INBOX.filter(m=>m.deal===d.id);const tk=TASKS.filter(t=>t.deal===d.id);const res=SERIALS.filter(s=>s.deal===d.id);
+ return crumbs(['Воронка',"go('funnel')"],[d.id])+`<div class="hd"><div><h2>${esc(d.t)}</h2><p><a class="lnk" onclick="openClient('${c.id}')">${esc(c.n)}</a> · ${esc(c.type)} · ответственный ${esc(SF(d.mgr).n)} · источник ${esc(d.src)}</p></div><div class="btns"><button class="bt" onclick="go('kp')">Сформировать КП</button><button class="bt" onclick="mkBill()">Выставить счёт</button><button class="bt p" onclick="shipDeal()">Отгрузить</button></div></div>
+ <div class="chainS">${STG.map(([k,n],i)=>`<a class="${i<si?'ok':i===si?'cur':''}" onclick="setStage('${k}')">${n}</a>`).join('')}</div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Товары в сделке</h3><p>Наличие — живое со склада. Техника резервируется по серийному номеру, чтобы другой менеджер не продал ту же машину.</p>
+   <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Свободно</th><th class="r">Цена</th><th class="r">Сумма</th><th></th></tr></thead><tbody>
+   ${d.items.map(([p,q])=>{const P=PR(p),f=freeQ(p);const r=res.filter(s=>s.p===p).length;return `<tr onclick="openProd('${p}')"><td><b>${esc(P.n)}</b><span class="sub">${P.id} · ${esc(P.spec)}</span></td><td class="r">${q}</td><td class="r ${f<q-r?'bad':'ok'}">${f}${r?` <span class="tag w">+${r} ваш резерв</span>`:''}</td><td class="r">${tg(P.price)}</td><td class="r">${tg(P.price*q)}</td><td>${P.kind==='m'&&r<q?`<button class="bt sm" onclick="event.stopPropagation();reserve('${d.id}','${p}')">Резерв</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="6" class="mini">Услуга без товаров со склада</td></tr>'}
+   <tr class="total"><td colspan="4">Итого по сделке</td><td class="r">${tg(d.sum)}</td><td></td></tr></tbody></table></div>
+   ${res.length?`<div class="sns">${res.map(s=>`<a onclick="openSN('${s.sn}')"><code>${s.sn}</code> ${WN(s.wh)} · резерв до 07.11</a>`).join('')}</div>`:''}</div>
+  <div class="pan"><h3>История общения</h3><p>WhatsApp и звонки с записью — всё в одной ленте сделки.</p>
+   <div class="tl2">${msgs.map(m=>m.ch==='Звонок'?`<div class="ti call"><span>${m.t}</span><div><b>Звонок · ${m.dir} · ${m.dur}</b>${m.rec?`<button class="play" onclick="playRec('${m.id}')">▶ запись</button>`:''}<p>${esc(m.sum)}</p></div></div>`:m.msgs.map(x=>`<div class="ti wa"><span>${x[2]}</span><div><b>WhatsApp · ${esc(m.who.split(' · ')[0])}</b><p>${esc(x[1])}</p></div></div>`).join('')).join('')}
+   <div class="ti sys"><span>03.11</span><div><b>Система</b><p>Сделка создана, источник — ${esc(d.src.toLowerCase())}. Задача менеджеру — связаться за 15 минут.</p></div></div></div>
+   <div class="wsend"><input id="wtx" placeholder="Сообщение клиенту в WhatsApp…" value="${esc(c.lpr.split(',')[0])}, добрый день! Отправляю КП и спецификацию."><button class="bt g" onclick="sendWA('${d.id}')">Отправить в WhatsApp</button><button class="bt" onclick="callC('${c.ph}')">Позвонить</button></div></div>
+ </div><div>
+  <div class="pan"><h3>Сделка</h3>
+   <div class="kv"><span>Сумма</span><b>${tg(d.sum)}</b></div><div class="kv"><span>Вероятность</span><b>${d.prob}%</b></div><div class="kv"><span>Маржа</span><b>${tg(d.items.reduce((a,[p,q])=>a+(PR(p).price-PR(p).cost)*q,0))}</b></div><div class="kv"><span>Следующий шаг</span><b class="wrap">${esc(d.next)}</b></div><div class="kv"><span>Контакт</span><b class="wrap">${esc(c.lpr)}<br>${c.ph}</b></div></div>
+  <div class="pan"><h3>Задачи по сделке</h3>${tk.map(t=>`<a class="trow" onclick="openTask('${t.id}')"><i class="dt ${t.st==='done'?'g':PRN[t.pr][1]}"></i><b>${esc(t.t)}</b><span>${fn(t.who)} · до ${t.due}</span></a>`).join('')||'<p class="mini">Задач нет.</p>'}<button class="bt sm" onclick="newTask('${d.id}')">+ Задача</button></div>
+  <div class="pan"><h3>Документы</h3>${['КП № 118-2 · PDF','Спецификация · PDF',d.stg==='bill'||d.stg==='paid'?'Счёт № 412 · PDF':null].filter(Boolean).map(x=>`<div class="doc2"><code>PDF</code>${x}</div>`).join('')}</div>
+ </div></div>`};
+function setStage(k){const d=DL(curD);if(k==='ship'&&d.stg!=='paid'){toast('Отгрузка открывается только после оплаты.');return}d.stg=k;render();toast(`Этап: <b>${STN(k)}</b>. Клиенту — сообщение в WhatsApp, ответственному — задача.`)}
+function reserve(id,p){const s=SERIALS.find(x=>x.p===p&&x.st==='free');if(!s){toast('Свободных машин нет — система предложит заказ поставщику.');return}s.st='res';s.deal=id;render();toast(`Зарезервирована <b>${s.sn}</b> (${WN(s.wh)}) до 07.11. Другие менеджеры видят её как занятую.`)}
+function mkBill(){const d=DL(curD);d.stg='bill';render();toast(`Счёт № 413 на ${tg(d.sum)} сформирован по шаблону и ушёл клиенту в WhatsApp. Бухгалтер видит его в списке «ждём оплату».`)}
+function shipDeal(){const d=DL(curD);if(d.stg!=='paid'&&d.stg!=='ship'){toast('Сначала оплата. Кнопка станет активной, когда бухгалтер отметит поступление или придёт выписка банка.');return}go('ship')}
+function sendWA(id){const v=document.getElementById('wtx').value;const m=INBOX.find(x=>x.deal===id&&x.ch==='WhatsApp');if(m)m.msgs.push(['out',v,NOW]);else INBOX.unshift({id:'m'+Date.now(),ch:'WhatsApp',who:CL(DL(id).cl).lpr,deal:id,t:NOW,un:0,msgs:[['out',v,NOW]]});render();toast('Сообщение ушло с общего WhatsApp-номера компании и сохранилось в сделке.')}
+function callC(ph){toast(`Звоним ${ph} через IP-телефонию… Разговор запишется и прикрепится к сделке.`)}
+function playRec(id){const m=INBOX.find(x=>x.id===id);openM('Запись разговора',esc(m.who)+' · '+m.dur,`<div class="player"><button class="bt p">▶</button><div class="wave">${Array.from({length:60},(_,i)=>`<i style="height:${6+Math.abs(Math.sin(i*1.7))*26}px"></i>`).join('')}</div><span>0:00 / ${m.dur}</span></div><div class="pan"><h3>Кратко о разговоре</h3><p>${esc(m.sum)}</p></div><p class="mini">Записи хранятся в облаке АТС, в CRM — ссылка и плеер. Руководитель слушает любой звонок из карточки сделки.</p>`)}
+
+/* ===== Клиенты ===== */
+let curC='C1';
+SC.clients=()=>`<div class="hd"><div><h2>Клиенты и объекты</h2><p>ТРЦ, аэропорты, клининговые компании. По каждому — какие машины у него стоят, когда ТО и что докупить.</p></div><div class="btns"><button class="bt" onclick="xlsClients()">Excel</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Клиент</th><th>Тип</th><th>Город</th><th>Площадь</th><th class="r">Машин у клиента</th><th class="r">Сделки</th><th>ЛПР</th></tr></thead><tbody>
+ ${CLIENTS.map(c=>`<tr onclick="openClient('${c.id}')"><td><b>${esc(c.n)}</b></td><td>${esc(c.type)}</td><td>${c.city}</td><td>${c.area}</td><td class="r">${c.owned.length}</td><td class="r">${DEALS.filter(d=>d.cl===c.id).length}</td><td class="mini">${esc(c.lpr)}</td></tr>`).join('')}</tbody></table></div>`;
+function openClient(id){const c=CL(id);openM(esc(c.n),esc(c.type)+' · '+c.city+' · '+c.area,`<div class="kv"><span>ЛПР</span><b>${esc(c.lpr)}</b></div><div class="kv"><span>Телефон</span><b>${c.ph}</b></div>
+ <div class="pan" style="margin-top:12px"><h3>Техника у клиента</h3>${c.owned.map(s=>`<div class="kv"><span><code>${s}</code></span><b>ТО через ${(s.length%5)+1} нед.</b></div>`).join('')||'<p class="mini">Пока не покупал технику.</p>'}</div>
+ <div class="pan"><h3>Сделки</h3>${DEALS.filter(d=>d.cl===id).map(d=>`<a class="trow" onclick="closeM();openDeal('${d.id}')"><i class="dt i"></i><b>${esc(d.t)}</b><span>${STN(d.stg)} · ${tg(d.sum)}</span></a>`).join('')}</div>`)}
+
+/* ===== WhatsApp и звонки ===== */
+SC.inbox=()=>{const m=INBOX.find(x=>x.id===curM)||INBOX[0];
+ return `<div class="hd"><div><h2>WhatsApp и звонки</h2><p>Один общий номер WhatsApp на всю команду и IP-телефония. Входящий с нового номера — сразу лид в воронке; пропущенный — задача «перезвонить».</p></div><div class="btns"><span class="live"><i></i>WhatsApp подключён</span><span class="live"><i></i>АТС · 4 линии</span></div></div>
+ <div class="inbox"><div class="ilist">${INBOX.map(x=>`<a class="${x.id===m.id?'on':''}" onclick="curM='${x.id}';render()"><span class="ch ${x.ch==='WhatsApp'?'wa':'tel'}">${x.ch==='WhatsApp'?'WA':'ТЛ'}</span><div><b>${esc(x.who)}</b><small>${x.ch==='WhatsApp'?esc(x.msgs[x.msgs.length-1][1]):esc(x.dir+' · '+x.dur)}</small></div><time>${x.t}${x.un?`<em>${x.un}</em>`:''}</time></a>`).join('')}</div>
+ <div class="ichat"><div class="ich"><div><b>${esc(m.who)}</b><small>${m.deal?`сделка <a class="lnk" onclick="openDeal('${m.deal}')">${m.deal}</a>`:'без сделки'}</small></div>${m.deal?'':`<button class="bt sm p" onclick="leadFrom('${m.id}')">Создать сделку</button>`}</div>
+  ${m.ch==='WhatsApp'?`<div class="bubbles">${m.msgs.map(x=>`<div class="bb ${x[0]}"><p>${esc(x[1])}</p><time>${x[2]}</time></div>`).join('')}</div>
+  <div class="tpls">${['Счёт во вложении','Пришлите реквизиты','Когда удобно демо-показ?','Машина в наличии, резерв на 3 дня'].map(t=>`<a onclick="document.getElementById('itx').value='${t}'">${t}</a>`).join('')}</div>
+  <div class="wsend"><input id="itx" placeholder="Ответ…"><button class="bt g" onclick="replyWA('${m.id}')">Отправить</button></div>`
+  :`<div class="callc"><b>${m.dir==='пропущенный'?'Пропущенный звонок':'Звонок · '+m.dir+' · '+m.dur}</b><p>${esc(m.sum)}</p>${m.rec?`<button class="bt" onclick="playRec('${m.id}')">▶ Прослушать запись</button>`:`<button class="bt p" onclick="callC('+7 701 909 11 55')">Перезвонить</button>`}</div>`}
+ </div></div>`};
+function replyWA(id){const m=INBOX.find(x=>x.id===id);const v=document.getElementById('itx').value;if(!v)return;m.msgs.push(['out',v,NOW]);m.un=0;render()}
+function leadFrom(id){const m=INBOX.find(x=>x.id===id);const nid='D-140';DEALS.unshift({id:nid,cl:'C6',biz,t:'Новый лид со звонка',sum:0,stg:'lead',mgr:'AI',src:'Звонок',items:[],next:'Квалифицировать',days:0,prob:10});m.deal=nid;render();toast(`Создана сделка ${nid}, звонок и запись привязаны к ней.`)}
+
+/* ===== КП ===== */
+SC.kp=()=>{const d=DL(curD),c=CL(d.cl);
+ return crumbs(['Воронка',"go('funnel')"],[d.id,"openDeal('"+d.id+"')"],['КП'])+`<div class="hd"><div><h2>Коммерческое предложение</h2><p>Собирается из карточки сделки: фото и характеристики машин, цена со склада, условия. Отправка в WhatsApp одной кнопкой, клиент открывает PDF — вы видите, что открыл.</p></div><div class="btns"><button class="bt" onclick="toast('PDF скачан.')">PDF</button><button class="bt g" onclick="toast('КП ушло в WhatsApp ${esc(c.lpr.split(',')[0])}. Когда клиент откроет — придёт уведомление.')">Отправить в WhatsApp</button></div></div>
+ <div class="kpdoc"><div class="kph"><b>ГЛЯНЕЦ</b><span>Профессиональная уборочная техника · Алматы · Астана</span></div>
+  <h3>Коммерческое предложение № 118-2 для ${esc(c.n)}</h3><p class="mini">от ${TODAY} · действительно 14 дней · площадь объекта ${c.area}</p>
+  ${d.items.map(([p,q])=>{const P=PR(p);return `<div class="kpi"><div class="kpimg">${machineSVG(P.kind)}</div><div><b>${esc(P.n)}</b><p>${esc(P.spec)}</p><span>${q} шт × ${tg(P.price)} = <b>${tg(P.price*q)}</b></span></div></div>`}).join('')}
+  <div class="kv"><span>Итого с НДС</span><b>${tg(d.sum)}</b></div><div class="kv"><span>Доставка и пусконаладка</span><b>бесплатно</b></div><div class="kv"><span>Гарантия</span><b>24 месяца</b></div><div class="kv"><span>Обучение операторов</span><b>на объекте</b></div></div>`};
+const machineSVG=k=>k==='m'?`<svg viewBox="0 0 80 60"><rect x="10" y="14" width="46" height="28" rx="6" fill="var(--brand)"/><rect x="40" y="6" width="14" height="10" rx="2" fill="var(--rail)"/><circle cx="20" cy="46" r="7" fill="var(--rail)"/><circle cx="50" cy="46" r="7" fill="var(--rail)"/><rect x="56" y="38" width="16" height="6" rx="2" fill="var(--acc)"/></svg>`:`<svg viewBox="0 0 80 60"><circle cx="40" cy="30" r="20" fill="none" stroke="var(--brand)" stroke-width="6"/><circle cx="40" cy="30" r="6" fill="var(--acc)"/></svg>`;
+
+/* ===== Склад: остатки ===== */
+let stCat='all',stQ='';
+const KIND={m:'Техника',p:'Запчасти и расходники',c:'Химия'};
+SC.stock=()=>{const P=PRODUCTS.filter(p=>(stCat==='all'||p.kind===stCat)&&(!stQ||(p.n+p.id).toLowerCase().includes(stQ)));
+ const val=PRODUCTS.reduce((a,p)=>a+qty(p.id,whF)*p.cost,0);
+ return `<div class="hd"><div><h2>Остатки</h2><p>Четыре склада, ячейки, серийные номера. Техника учитывается поштучно по серийнику — видно, какая машина свободна, какая в резерве под сделку, какая стоит в демо-зале или в ремонте.</p></div><div class="btns"><button class="bt" onclick="go('receive')">Приход</button><button class="bt" onclick="go('moves')">Перемещение</button><button class="bt" onclick="go('inv')">Инвентаризация</button><button class="bt p" onclick="xlsStock()">Excel</button></div></div>
+ <div class="whtabs"><a class="${whF==='all'?'on':''}" onclick="whF='all';render()"><b>Все склады</b><span>${tg(PRODUCTS.reduce((a,p)=>a+qty(p.id)*p.cost,0))}</span></a>${WH.map(w=>`<a class="${whF===w.id?'on':''}" onclick="whF='${w.id}';render()"><b>${w.n}</b><span>${tg(PRODUCTS.reduce((a,p)=>a+qty(p.id,w.id)*p.cost,0))}</span></a>`).join('')}</div>
+ <div class="fbar"><div class="seg">${[['all','Всё'],['m','Техника'],['p','Запчасти'],['c','Химия']].map(([k,n])=>`<a class="${stCat===k?'on':''}" onclick="stCat='${k}';render()">${n}</a>`).join('')}</div><input class="sel" placeholder="Поиск: артикул, название" value="${esc(stQ)}" onchange="stQ=this.value.toLowerCase();render()"><span class="mini">${P.length} позиций · ${tg(val)} в закупочных ценах</span></div>
+ <div class="tw"><table class="t"><thead><tr><th>Артикул</th><th>Товар</th><th>Ячейка</th><th class="r">Остаток</th><th class="r">Свободно</th><th class="r">Резерв</th><th class="r">Мин.</th><th class="r">Сумма</th><th></th></tr></thead><tbody>
+ ${P.map(p=>{const q=qty(p.id,whF),f=freeQ(p.id),r=p.kind==='m'?SERIALS.filter(s=>s.p===p.id&&s.st==='res').length:0;const low=f<p.min;return `<tr onclick="openProd('${p.id}')"><td class="mono">${p.id}</td><td><b>${esc(p.n)}</b><span class="sub">${esc(p.cat)}${p.kind==='m'?' · учёт по серийным номерам':''}</span></td><td class="mono">${p.cell}</td><td class="r"><b>${q}</b></td><td class="r ${low?'bad':''}">${f}</td><td class="r">${r||'—'}</td><td class="r mini">${p.min}</td><td class="r">${tg(q*p.cost)}</td><td>${low?tag('заказать','r'):tag('норма','g')}</td></tr>`}).join('')}</tbody></table></div>
+ ${said('«Склад максимально крутой: сколько, где, что в резерве, что заказать.»','Остаток живой: приход, отгрузка, перемещение и инвентаризация меняют его сразу. Ниже минимума — красным, с кнопкой заказа.')}`};
+
+/* ===== Карточка товара → серийный номер ===== */
+function openProd(id){curP=id;go('product')}
+SC.product=()=>{const p=PR(curP);const sn=SERIALS.filter(s=>s.p===p.id);
+ const hist=[['04.11 09:52','Приход','ПР-0087','+3','Ерлан'],['03.11 16:10','Резерв','D-118','−1 своб.','Дана'],['01.11 11:00','Отгрузка','ОТ-0412 · Magnum','−1','Ерлан'],['28.10 14:30','Перемещение','ПМ-0031 Алматы → Астана','±1','Бекзат'],['15.10 10:00','Инвентаризация','ИНВ-0009','0 расх.','Ерлан']];
+ return crumbs(['Остатки',"go('stock')"],[p.id])+`<div class="hd"><div><h2>${esc(p.n)}</h2><p>${esc(p.cat)} · ${esc(p.spec)} · ячейка ${p.cell}</p></div><div class="btns"><button class="bt" onclick="printLabel('${p.id}')">Печать этикеток</button><button class="bt" onclick="orderSup('${p.id}')">Заказать поставщику</button></div></div>
+ <div class="pcard"><div class="pimg">${machineSVG(p.kind)}</div><div class="pnums">
+  <div><small>Цена продажи</small><b>${tg(p.price)}</b></div><div><small>Закупка</small><b>${tg(p.cost)}</b></div><div><small>Наценка</small><b>${pct(p.price-p.cost,p.cost)}%</b></div>
+  ${WH.map(w=>`<div><small>${w.n}</small><b>${qty(p.id,w.id)}</b></div>`).join('')}<div><small>Мин. остаток</small><b>${p.min}</b></div></div></div>
+ <div class="g21"><div>
+ ${p.kind==='m'?`<div class="pan"><h3>Серийные номера</h3><p>Нажмите на номер — откроется вся жизнь машины: приход, демо, резерв, продажа, ТО.</p>
+  <div class="tw"><table class="t"><thead><tr><th>Серийный №</th><th>Склад</th><th>Статус</th><th>Сделка</th><th>Пришла</th></tr></thead><tbody>
+  ${sn.map(s=>`<tr onclick="openSN('${s.sn}')"><td class="mono">${s.sn}</td><td>${WN(s.wh)}</td><td>${tag(SST[s.st][0],SST[s.st][1])}</td><td>${s.deal?`<a class="lnk" onclick="event.stopPropagation();openDeal('${s.deal}')">${s.deal}</a>`:'—'}</td><td class="mono">${s.in}</td></tr>`).join('')||'<tr><td colspan="5" class="mini">Нет на складе</td></tr>'}</tbody></table></div></div>`:
+ `<div class="pan"><h3>Совместимость</h3><p>Подходит к машинам: ${esc(p.spec)}. Менеджер видит это при продаже техники и сразу предлагает комплект расходников.</p></div>`}
+ </div><div><div class="pan"><h3>Движение</h3><p>Каждое изменение остатка — с документом и человеком.</p>${hist.map(h=>`<div class="mv"><time>${h[0]}</time><b>${h[1]}</b><span>${h[2]}</span><em>${h[3]}</em><small>${h[4]}</small></div>`).join('')}</div></div></div>`};
+function openSN(sn){const s=SERIALS.find(x=>x.sn===sn)||{sn,p:'SC-55',wh:'W1',st:'sold',in:'—'};const p=PR(s.p);
+ openM('<code>'+esc(sn)+'</code>',esc(p.n)+' · '+WN(s.wh)+' · '+SST[s.st][0],`<div class="snlife">
+ ${[['Приход от поставщика','ПР-0071 · '+s.in+' · Ерлан','g'],['Предпродажная проверка','Тимур · 20 мин · ок','g'],s.st==='demo'?['Демо-зал','показана 14 клиентам · моточасы 86','i']:null,s.st==='res'?['Резерв под сделку '+s.deal,esc(CL(DL(s.deal).cl).n)+' · до 07.11','w']:null,s.st==='svc'?['В ремонте','замена щётки · задача T-305','r']:null,['Дальше','отгрузка → пусконаладка → ТО каждые 250 моточасов','']].filter(Boolean).map(x=>`<div class="sl ${x[2]}"><i></i><div><b>${x[0]}</b><span>${x[1]}</span></div></div>`).join('')}</div>
+ <div class="qr">${qrSVG(sn)}<div><b>Этикетка с QR</b><p class="mini">Кладовщик сканирует телефоном при приходе, отгрузке и инвентаризации — без ручного ввода серийника.</p></div></div>`)}
+const qrSVG=t=>{let h=0;for(const c of t)h=(h*31+c.charCodeAt(0))>>>0;let r='';for(let y=0;y<9;y++)for(let x=0;x<9;x++){h=(h*1103515245+12345)>>>0;const fx=(x<3&&y<3)||(x>5&&y<3)||(x<3&&y>5);if(fx?!(x%3===1&&y%3===1):h%2)r+=`<rect x="${x*10}" y="${y*10}" width="10" height="10"/>`}return `<svg viewBox="0 0 90 90" class="qrs">${r}</svg>`};
+function printLabel(id){toast(`На печать ушло ${qty(id)} этикеток ${id} с QR-кодом и ячейкой.`)}
+function orderSup(id){const p=PR(id);toast(`Заявка поставщику: ${esc(p.n)} × ${Math.max(p.min*2-freeQ(id),1)}. Ожидаемый приход — через 45 дней, менеджеры видят «в пути».`)}
+
+/* ===== Приход ===== */
+let RCV={st:'draft',sup:'AquaLine Europe GmbH',doc:'ПР-0088',wh:'W1',lines:[{p:'SC-55',q:2,sn:[]},{p:'SC-43',q:3,sn:[]},{p:'PD-43',q:50,sn:[]},{p:'CH-DET',q:40,sn:[]}]};
+SC.receive=()=>{const all=RCV.lines.every(l=>PR(l.p).kind!=='m'||l.sn.length>=l.q);
+ return crumbs(['Склад',"go('stock')"],['Приход '+RCV.doc])+`<div class="hd"><div><h2>Приход ${RCV.doc} · ${esc(RCV.sup)}</h2><p>Три шага: 1 — сверить поставку с заказом, 2 — отсканировать серийные номера техники, 3 — провести. После проведения остаток, ячейки и себестоимость обновятся сами.</p></div><div class="btns">${RCV.st==='done'?tag('проведён','g'):`<button class="bt" onclick="scanAll()">Сканировать всё (демо)</button><button class="bt p" ${all?'':'disabled'} onclick="postRcv()">Провести приход</button>`}</div></div>
+ <div class="steps3"><div class="ok"><b>1</b>Сверено с заказом ЗП-0044</div><div class="${all?'ok':'cur'}"><b>2</b>Серийные номера ${RCV.lines.filter(l=>PR(l.p).kind==='m').reduce((a,l)=>a+l.sn.length,0)}/${RCV.lines.filter(l=>PR(l.p).kind==='m').reduce((a,l)=>a+l.q,0)}</div><div class="${RCV.st==='done'?'ok':''}"><b>3</b>Проведение</div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Кол-во</th><th>Ячейка</th><th>Серийные номера</th><th class="r">Закупка</th></tr></thead><tbody>
+ ${RCV.lines.map((l,i)=>{const P=PR(l.p);return `<tr><td><b>${esc(P.n)}</b><span class="sub">${P.id}</span></td><td class="r">${l.q}</td><td class="mono">${P.cell}</td><td>${P.kind==='m'?(l.sn.map(s=>`<code class="snc">${s}</code>`).join(' ')+(l.sn.length<l.q&&RCV.st!=='done'?` <button class="bt sm" onclick="scanOne(${i})">Сканировать</button>`:'')):'<span class="mini">поштучно не нужно</span>'}</td><td class="r">${tg(P.cost*l.q)}</td></tr>`}).join('')}
+ <tr class="total"><td colspan="4">Итого приход</td><td class="r">${tg(RCV.lines.reduce((a,l)=>a+PR(l.p).cost*l.q,0))}</td></tr></tbody></table></div>`};
+function scanOne(i){const l=RCV.lines[i];const P=PR(l.p);l.sn.push(P.id.replace('-','').slice(0,4)+'-24-'+(1200+Math.floor(Math.random()*800)));render()}
+function scanAll(){RCV.lines.forEach((l,i)=>{while(PR(l.p).kind==='m'&&l.sn.length<l.q)scanOne(i)});render()}
+function postRcv(){RCV.lines.forEach(l=>{const P=PR(l.p);if(P.kind==='m')l.sn.forEach(s=>SERIALS.push({sn:s,p:l.p,wh:RCV.wh,st:'free',in:TODAY.slice(0,5)}));else{QTY[l.p]=QTY[l.p]||{};QTY[l.p][RCV.wh]=(QTY[l.p][RCV.wh]||0)+l.q}});RCV.st='done';FEED.unshift([NOW,'ER','провёл приход',RCV.doc+' · '+RCV.sup,'wh']);render();toast('Приход проведён. Остатки обновились, менеджеры видят машины свободными, этикетки ушли на печать.')}
+
+/* ===== Резерв и отгрузки ===== */
+let SHIPS=[{id:'ОТ-0413',deal:'D-126',st:'pick',drv:'DM',date:'05.11'},{id:'ОТ-0414',deal:'D-121',st:'wait',drv:'DM',date:'07.11'},{id:'ОТ-0412',deal:'D-132',st:'done',drv:'DM',date:'01.11'}];
+const SHS={wait:['ждёт оплату','w'],pick:['сборка','i'],road:['в пути','a'],done:['доставлено','g']};
+SC.ship=()=>`<div class="hd"><div><h2>Резерв и отгрузки</h2><p>Отгрузка создаётся из оплаченной сделки: лист сборки по ячейкам, накладная, водитель, фото подписи клиента. После доставки сервис получает задачу на пусконаладку.</p></div><div class="btns"><button class="bt" onclick="xlsShips()">Excel</button></div></div>
+ <div class="g2"><div class="pan"><h3>Отгрузки</h3><div class="tw"><table class="t"><thead><tr><th>Документ</th><th>Клиент</th><th>Дата</th><th>Статус</th><th></th></tr></thead><tbody>
+ ${SHIPS.map(s=>{const d=DL(s.deal);return `<tr onclick="openShip('${s.id}')"><td class="mono">${s.id}</td><td>${esc(CL(d.cl).n)}<span class="sub">${esc(d.t)}</span></td><td class="mono">${s.date}</td><td>${tag(SHS[s.st][0],SHS[s.st][1])}</td><td>${s.st==='pick'?`<button class="bt sm p" onclick="event.stopPropagation();shipGo('${s.id}')">Отгрузить</button>`:''}</td></tr>`}).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Резервы техники</h3><p>Резерв держится 3 дня, потом снимается сам — с уведомлением менеджеру.</p>${SERIALS.filter(s=>s.st==='res').map(s=>`<a class="trow" onclick="openSN('${s.sn}')"><i class="dt w"></i><b><code>${s.sn}</code> ${esc(PR(s.p).n.split(' ').slice(-1)[0])}</b><span>${s.deal} · ${esc(CL(DL(s.deal).cl).n)} · до 07.11</span></a>`).join('')}</div></div>`;
+function openShip(id){const s=SHIPS.find(x=>x.id===id),d=DL(s.deal);openM('Отгрузка '+id,esc(CL(d.cl).n)+' · водитель '+esc(SF(s.drv).n),`<div class="pan"><h3>Лист сборки</h3>${d.items.map(([p,q])=>`<div class="kv"><span><code>${PR(p).cell}</code> ${esc(PR(p).n)}</span><b>${q} шт</b></div>`).join('')}</div>
+ <div class="chk">${['Собрано по ячейкам','Серийные номера отсканированы','Накладная распечатана','Подпись клиента и фото'].map((x,i)=>`<div class="ci"><span class="bx ${i<(s.st==='done'?4:s.st==='pick'?1:0)?'on':''}" onclick="this.classList.toggle('on')">✓</span><span class="nm">${x}</span></div>`).join('')}</div>`)}
+function shipGo(id){const s=SHIPS.find(x=>x.id===id);s.st='road';FEED.unshift([NOW,'DM','выехал с отгрузкой',id,'wh']);render();toast(`${id} в пути. Клиенту ушло сообщение в WhatsApp, остаток списан, Нурлану — задача на пусконаладку.`)}
+
+/* ===== Перемещения ===== */
+let MOVES=[{id:'ПМ-0032',from:'W1',to:'W3',p:'SC-43',sn:'SC43-24-1105',st:'new',who:'ER'},{id:'ПМ-0031',from:'W1',to:'W2',p:'SC-55',sn:'SC55-24-0419',st:'done',who:'BS'},{id:'ПМ-0030',from:'W1',to:'W4',p:'PD-43',q:10,st:'done',who:'ER'}];
+SC.moves=()=>`<div class="hd"><div><h2>Перемещения</h2><p>Между складами, в демо-зал, в сервис. Отправил один кладовщик — принял другой; пока в пути, товар виден как «в пути» и не продаётся дважды.</p></div><div class="btns"><button class="bt p" onclick="newMove()">+ Перемещение</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Документ</th><th>Откуда → куда</th><th>Что</th><th>Кто</th><th>Статус</th><th></th></tr></thead><tbody>
+ ${MOVES.map(m=>`<tr><td class="mono">${m.id}</td><td>${WN(m.from)} → <b>${WN(m.to)}</b></td><td>${esc(PR(m.p).n)}<span class="sub">${m.sn||m.q+' шт'}</span></td><td>${fn(m.who)}</td><td>${tag(m.st==='done'?'принято':m.st==='road'?'в пути':'создано',m.st==='done'?'g':'w')}</td><td>${m.st==='new'?`<button class="bt sm" onclick="mvStep('${m.id}','road')">Отправить</button>`:m.st==='road'?`<button class="bt sm p" onclick="mvStep('${m.id}','done')">Принять</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+function mvStep(id,st){const m=MOVES.find(x=>x.id===id);m.st=st;if(st==='done'&&m.sn){const s=SERIALS.find(x=>x.sn===m.sn);if(s){s.wh=m.to;if(m.to==='W3')s.st='demo'}}render();toast(st==='road'?'Отправлено. Принимающий склад получил задачу.':'Принято. Машина числится на новом складе.')}
+function newMove(){openM('Новое перемещение','',`<div class="form"><label>Откуда<select>${WH.map(w=>`<option>${w.n}</option>`).join('')}</select></label><label>Куда<select>${WH.map((w,i)=>`<option ${i===1?'selected':''}>${w.n}</option>`).join('')}</select></label><label>Товар или серийный №<input value="MC30-24-3302"></label></div><div class="btns l"><button class="bt p" onclick="MOVES.unshift({id:'ПМ-0033',from:'W1',to:'W2',p:'MINI-30',sn:'MC30-24-3302',st:'new',who:'ER'});closeM();render()">Создать</button></div>`)}
+
+/* ===== Инвентаризация ===== st: plan → count → diff → posted */
+let INV={id:'ИНВ-0010',wh:'W1',zone:'Все ячейки',st:'plan',who:['ER','DM'],rows:[]};
+const INVHIST=[['ИНВ-0009','15.10','Склад Алматы','ячейки B',0,0],['ИНВ-0008','01.10','Склад Астана','полная',-2,-19000],['ИНВ-0007','15.09','Склад Алматы','полная',-1,-68000]];
+function invBuild(){INV.rows=PRODUCTS.map(p=>{const b=qty(p.id,INV.wh);return {p:p.id,book:b,fact:null}})}
+SC.inv=()=>{const st=INV.st;const S=['plan','count','diff','posted'];const si=S.indexOf(st);
+ const head=`<div class="hd"><div><h2>Инвентаризация ${INV.id}</h2><p>Как это работает: <b>1</b> — запланировать (склад, зона, кто считает), склад «замораживается» на время пересчёта; <b>2</b> — кладовщики сканируют телефоном ячейки и серийники; <b>3</b> — система сама показывает расхождения; <b>4</b> — руководитель утверждает и проводит акт, остатки «садятся» на факт; <b>5</b> — выгрузка акта в Excel.</p></div><div class="btns"><button class="bt" onclick="xlsInv()">Акт в Excel</button></div></div>
+ <div class="steps3 s4">${[['Планирование','склад, зона, люди'],['Подсчёт','сканирование'],['Расхождения','сверка с учётом'],['Проведено','остатки = факт']].map((x,i)=>`<div class="${i<si?'ok':i===si?'cur':''}"><b>${i+1}</b>${x[0]}<small>${x[1]}</small></div>`).join('')}</div>`;
+ if(st==='plan')return head+`<div class="g21"><div class="pan"><h3>Новая инвентаризация</h3><p>Выберите что и кем считаем.</p><div class="form">
+  <label>Склад<select onchange="INV.wh=this.value">${WH.map(w=>`<option value="${w.id}" ${INV.wh===w.id?'selected':''}>${w.n}</option>`).join('')}</select></label>
+  <label>Зона<select onchange="INV.zone=this.value"><option>Все ячейки</option><option>Ячейки A — техника</option><option>Ячейки B — запчасти</option><option>Ячейки D — химия</option></select></label>
+  <label>Тип<select><option>Полная</option><option>Выборочная (циклическая)</option><option>Только серийные номера</option></select></label>
+  <label>Считают<select multiple size="3">${STAFF.filter(s=>s.dep==='Склад').map(s=>`<option selected>${esc(s.n)}</option>`).join('')}</select></label>
+  <label class="cbx"><input type="checkbox" checked> Заморозить движения по складу на время подсчёта</label>
+  <label class="cbx"><input type="checkbox" checked> Слепой подсчёт — кладовщик не видит учётный остаток</label></div>
+  <div class="btns l"><button class="bt p" onclick="invStart()">Начать инвентаризацию</button></div></div>
+  <div class="pan"><h3>Прошлые инвентаризации</h3><div class="tw"><table class="t sm"><thead><tr><th>№</th><th>Дата</th><th>Склад</th><th class="r">Расх.</th><th class="r">Сумма</th></tr></thead><tbody>${INVHIST.map(h=>`<tr onclick="toast('Акт ${h[0]} открыт: ${h[2]}, ${h[3]}.')"><td class="mono">${h[0]}</td><td class="mono">${h[1]}</td><td>${h[2]}<span class="sub">${h[3]}</span></td><td class="r ${h[4]?'bad':''}">${h[4]}</td><td class="r">${tg(h[5])}</td></tr>`).join('')}</tbody></table></div><p class="mini" style="margin-top:9px">Совет системы: ячейки B (мелкие запчасти) считать раз в 2 недели, технику — раз в месяц, по серийникам.</p></div></div>`;
+ if(st==='count'){const done=INV.rows.filter(r=>r.fact!==null).length;
+  return head+`<div class="g21"><div class="pan"><h3>Подсчёт · ${WN(INV.wh)} · ${INV.zone}</h3><p>Слепой подсчёт: учётного остатка не видно. Введите факт или «сканируйте» ячейку. Посчитано ${done} из ${INV.rows.length}.</p>${bar(pct(done,INV.rows.length),'g')}
+  <div class="tw" style="margin-top:10px"><table class="t"><thead><tr><th>Ячейка</th><th>Товар</th><th class="r">Факт</th><th></th></tr></thead><tbody>
+  ${INV.rows.map((r,i)=>{const P=PR(r.p);return `<tr><td class="mono">${P.cell}</td><td><b>${esc(P.n)}</b><span class="sub">${P.id}</span></td><td class="r"><input class="qin" type="number" value="${r.fact===null?'':r.fact}" onchange="INV.rows[${i}].fact=+this.value;render()"></td><td><button class="bt sm" onclick="invScan(${i})">Скан</button></td></tr>`}).join('')}</tbody></table></div>
+  <div class="btns l"><button class="bt" onclick="invScanAll()">Досчитать всё (демо)</button><button class="bt p" ${done<INV.rows.length?'disabled':''} onclick="INV.st='diff';render()">Завершить подсчёт</button></div></div>
+  <div class="pan phone2"><h3>Так выглядит у кладовщика</h3><div class="ph2"><div class="ph2s"><b>${INV.id}</b><small>${WN(INV.wh)}</small><div class="scanbox"><i></i><span>Наведите на QR ячейки</span></div><div class="kv"><span>Ячейка</span><b>A-02</b></div><div class="kv"><span>SC43-24-1104</span><b>✓</b></div><div class="kv"><span>SC43-24-1105</span><b>✓</b></div><button class="bt p full">Ячейка готова</button></div></div></div></div>`}
+ if(st==='diff'){const D=INV.rows.map(r=>({...r,d:r.fact-r.book})).filter(r=>r.d!==0);const sum=D.reduce((a,r)=>a+r.d*PR(r.p).cost,0);
+  return head+`<div class="pan"><h3>Расхождения: ${D.length} ${plural(D.length,['позиция','позиции','позиций'])} · ${tg(sum)}</h3><p>Система сравнила факт с учётом. По каждой строке — причина, затем руководитель утверждает акт. Недостача по технике с серийником сразу видна поштучно.</p>
+  <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Учёт</th><th class="r">Факт</th><th class="r">Разница</th><th class="r">Сумма</th><th>Причина</th></tr></thead><tbody>
+  ${D.map(r=>{const P=PR(r.p);return `<tr><td><b>${esc(P.n)}</b><span class="sub">${P.cell}</span></td><td class="r">${r.book}</td><td class="r">${r.fact}</td><td class="r ${r.d<0?'bad':'ok'}">${r.d>0?'+':''}${r.d}</td><td class="r">${tg(r.d*P.cost)}</td><td><select class="sel sm"><option>Пересорт</option><option>Списание — брак</option><option>Не проведён расход</option><option>Недостача — на кладовщика</option></select></td></tr>`}).join('')||'<tr><td colspan="6">Расхождений нет</td></tr>'}</tbody></table></div>
+  <div class="btns l"><button class="bt" onclick="INV.st='count';render()">Пересчитать</button><button class="bt p" onclick="invPost()">Утвердить и провести акт</button></div></div>`}
+ return head+`<div class="pan done"><h3>Акт ${INV.id} проведён · остатки «сели» на факт</h3><p>${TODAY}, ${NOW}. Утвердил ${esc(ROLES[role].n)}. Склад разморожен. Движения по остаткам записаны с документом ${INV.id} — в карточке каждого товара видно, откуда изменение.</p>
+  <div class="btns l"><button class="bt p" onclick="xlsInv()">Скачать акт в Excel</button><button class="bt" onclick="toast('Акт ИНВ-0010 отправлен на печать, форма ИНВ-3.')">Печать акта</button><button class="bt" onclick="INV={id:'ИНВ-0011',wh:'W1',zone:'Все ячейки',st:'plan',who:[],rows:[]};render()">Новая инвентаризация</button></div></div>`};
+function invStart(){invBuild();INV.st='count';FEED.unshift([NOW,'ER','начал инвентаризацию',INV.id+' · '+WN(INV.wh),'wh']);render();toast('Склад заморожен. Кладовщикам ушла задача с листом подсчёта в телефон.')}
+function invScan(i){const r=INV.rows[i];r.fact=r.book;render()}
+function invScanAll(){INV.rows.forEach((r,i)=>{if(r.fact===null)r.fact=r.book+(r.p==='PD-43'?-3:r.p==='CH-DET'?2:r.p==='SQ-75'?-1:0)});render()}
+function invPost(){INV.rows.forEach(r=>{const P=PR(r.p);if(P.kind!=='m'&&r.fact!==null){QTY[r.p]=QTY[r.p]||{};QTY[r.p][INV.wh]=r.fact}});INV.st='posted';FEED.unshift([NOW,'AL','провёл акт инвентаризации',INV.id,'wh']);render()}
+
+/* ===== Excel ===== */
+function xls(name,head,rows,title){const h=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>${title?`<h3>${esc(title)}</h3>`:''}<table border="1"><tr>${head.map(x=>`<th style="background:#0e7c86;color:#fff">${esc(x)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td${typeof c==='number'?' style="mso-number-format:\'#,##0\'"':''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+ try{const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name+'.xls';document.body.appendChild(a);a.click();a.remove()}catch(e){}
+ toast(`Файл <b>${esc(name)}.xls</b> скачан — откройте в Excel.`)}
+const xlsStock=()=>xls('Остатки_'+TODAY,['Артикул','Товар','Категория','Ячейка',...WH.map(w=>w.n),'Всего','Свободно','Закупка','Сумма'],PRODUCTS.map(p=>[p.id,p.n,p.cat,p.cell,...WH.map(w=>qty(p.id,w.id)),qty(p.id),freeQ(p.id),p.cost,qty(p.id)*p.cost]),'Остатки на '+TODAY);
+const xlsDeals=()=>xls('Воронка_'+TODAY,['Сделка','Клиент','Что','Этап','Сумма','Вероятность','Менеджер','Следующий шаг'],bizDeals().map(d=>[d.id,CL(d.cl).n,d.t,STN(d.stg),d.sum,d.prob+'%',SF(d.mgr).n,d.next]));
+const xlsClients=()=>xls('Клиенты',['Клиент','Тип','Город','Площадь','ЛПР','Телефон','Машин'],CLIENTS.map(c=>[c.n,c.type,c.city,c.area,c.lpr,c.ph,c.owned.length]));
+const xlsInv=()=>{if(!INV.rows.length)invBuild();xls('Акт_'+INV.id,['Ячейка','Артикул','Товар','Учёт','Факт','Разница','Сумма расхождения'],INV.rows.map(r=>{const P=PR(r.p),f=r.fact===null?r.book:r.fact;return [P.cell,P.id,P.n,r.book,f,f-r.book,(f-r.book)*P.cost]}),'Акт инвентаризации '+INV.id+' · '+WN(INV.wh))};
+const xlsShips=()=>xls('Отгрузки',['Документ','Клиент','Дата','Статус'],SHIPS.map(s=>[s.id,CL(DL(s.deal).cl).n,s.date,SHS[s.st][0]]));
+const xlsDash=()=>xls('Пульт_'+TODAY,['Показатель','Значение'],[['Продажи ноября',BIZ[0].rev],['Открыто в воронке',bizDeals().filter(d=>d.stg!=='paid').reduce((a,d)=>a+d.sum,0)],['Склад в закупочных',PRODUCTS.reduce((a,p)=>a+qty(p.id)*p.cost,0)],['Открытых задач',TASKS.filter(t=>t.st!=='done').length]]);
+const REPS=[
+ ['Остатки по складам','все склады, ячейки, свободно/резерв, сумма',()=>xlsStock()],
+ ['Движение товара за период','приход, расход, перемещения по каждому SKU',()=>xls('Движение_ноябрь',['Дата','Документ','Товар','Склад','Приход','Расход'],[['04.11','ПР-0087','MINI-30','Склад Алматы',3,0],['01.11','ОТ-0412','CH-DET','Склад Алматы',0,20],['28.10','ПМ-0031','SC-55','Склад Астана',1,0]])],
+ ['Серийные номера','где каждая машина и в каком статусе',()=>xls('Серийные_номера',['Серийный №','Модель','Склад','Статус','Сделка','Пришла'],SERIALS.map(s=>[s.sn,PR(s.p).n,WN(s.wh),SST[s.st][0],s.deal||'',s.in]))],
+ ['Ниже минимума — к заказу','что и сколько заказать поставщику',()=>xls('К_заказу',['Артикул','Товар','Свободно','Минимум','Заказать'],PRODUCTS.filter(p=>freeQ(p.id)<p.min).map(p=>[p.id,p.n,freeQ(p.id),p.min,p.min*2-freeQ(p.id)]))],
+ ['Оборачиваемость и неликвид','сколько дней товар лежит',()=>xls('Оборачиваемость',['Товар','Средний срок, дней','Неликвид >180'],PRODUCTS.map((p,i)=>[p.n,30+i*17,i===3?'да':'нет']))],
+ ['Акт инвентаризации','последний акт с расхождениями',()=>xlsInv()],
+ ['Воронка продаж','все сделки с этапами и суммами',()=>xlsDeals()],
+ ['Продажи по менеджерам','выручка, маржа, звонки',()=>xls('Менеджеры',['Менеджер','Продажи','Маржа','Звонки'],[['Руслан Абенов',18200000,5400000,41],['Дана Сейтова',12900000,3900000,96],['Марат Исаев',9800000,2700000,77]])]
+];
+SC.whrep=()=>`<div class="hd"><div><h2>Отчёты и Excel</h2><p>Любой отчёт — в Excel одной кнопкой. Попробуйте: файлы реально скачиваются. Регулярные отчёты система присылает сама — в почту или WhatsApp по расписанию.</p></div></div>
+ <div class="reps">${REPS.map((r,i)=>`<div class="rep"><code>XLS</code><div><b>${r[0]}</b><span>${r[1]}</span></div><button class="bt" onclick="REPS[${i}][2]()">Скачать</button></div>`).join('')}</div>
+ <div class="pan" style="margin-top:12px"><h3>По расписанию</h3>${[['Остатки и «к заказу»','каждый понедельник 09:00','Александр, Ерлан'],['Воронка и продажи менеджеров','ежедневно 19:00','Руслан'],['Движение товара за месяц','1-го числа','Светлана']].map(x=>`<div class="kv"><span><b>${x[0]}</b> · ${x[1]}</span><b>${x[2]}</b></div>`).join('')}</div>`;
+
+/* ===== Сервис и ТО ===== */
+const SVC=[
+ {sn:'RX75-22-0004',cl:'C1',m:'RX-75',hrs:742,next:750,st:'soon',eng:'TM'},
+ {sn:'SC55-23-0201',cl:'C1',m:'SC-55',hrs:488,next:500,st:'soon',eng:'TM'},
+ {sn:'SC55-22-0112',cl:'C5',m:'SC-55',hrs:1240,next:1250,st:'soon',eng:'NS'},
+ {sn:'SC43-23-0880',cl:'C4',m:'SC-43',hrs:302,next:500,st:'ok',eng:'NS'},
+ {sn:'SW90-23-0144',cl:'C6',m:'SW-90',hrs:610,next:500,st:'repair',eng:'TM'}
+];
+SC.service=()=>`<div class="hd"><div><h2>Сервис и ТО</h2><p>Каждая проданная машина остаётся в системе: моточасы, ТО каждые 250 часов, ремонты, запчасти со склада. За 2 недели до ТО менеджер получает задачу — это повторная продажа щёток, падов и химии.</p></div><div class="btns"><button class="bt p" onclick="newTask(null,'Сервисная заявка')">+ Заявка в сервис</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Машина</th><th>Клиент</th><th class="r">Моточасы</th><th>До ТО</th><th>Инженер</th><th>Статус</th><th></th></tr></thead><tbody>
+ ${SVC.map(s=>`<tr onclick="openSN('${s.sn}')"><td class="mono">${s.sn}<span class="sub">${esc(PR(s.m).n)}</span></td><td>${esc(CL(s.cl).n)}</td><td class="r">${s.hrs}</td><td style="min-width:120px">${bar(pct(s.hrs%250||250,250),s.st==='repair'?'r':s.st==='soon'?'w':'g')}<span class="sub">${s.st==='repair'?'в ремонте':Math.max(0,s.next-s.hrs)+' ч'}</span></td><td>${fn(s.eng)}</td><td>${tag(s.st==='repair'?'ремонт':s.st==='soon'?'скоро ТО':'в норме',s.st==='repair'?'r':s.st==='soon'?'w':'g')}</td><td>${s.st==='soon'?`<button class="bt sm" onclick="event.stopPropagation();svcPlan('${s.sn}')">Назначить ТО</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+ <div class="g2" style="margin-top:12px"><div class="pan"><h3>Комплект на ТО SC-55</h3>${[['BR-55',2],['SQ-75',1],['CH-DET',2]].map(([p,q])=>`<div class="kv"><span>${esc(PR(p).n)}</span><b>${q} шт · ${tg(PR(p).price*q)}</b></div>`).join('')}<p class="mini">Списывается со склада сервиса автоматически при закрытии задачи.</p></div>
+ <div class="pan"><h3>Выручка сервиса, ноябрь</h3><div class="kv"><span>ТО и ремонты</span><b>${tg(2100000)}</b></div><div class="kv"><span>Запчасти и расходники</span><b>${tg(4100000)}</b></div><div class="kv"><span>Повторные продажи из ТО</span><b>${tg(1650000)}</b></div></div></div>`;
+function svcPlan(sn){const s=SVC.find(x=>x.sn===sn);TASKS.unshift({id:'T-3'+(10+TASKS.length),t:'ТО '+sn+' · '+CL(s.cl).n,who:s.eng,by:'OL',due:'12.11',st:'new',pr:'mid',deal:null,chk:[['Комплект со склада',false],['ТО по регламенту',false],['Акт клиенту',false]],com:[],watch:['OL']});render();toast(`ТО назначено на 12.11, ${fn(s.eng)} получил задачу, клиенту — напоминание в WhatsApp, менеджеру — задача предложить расходники.`)}
+
+/* ===== Задачи ===== */
+const tFilt=()=>TASKS.filter(t=>tWho==='all'||t.who===tWho||(tWho==='me'&&t.who===meId()));
+const meId=()=>({'Собственник':'AL','Руководитель продаж':'RS','Менеджер':'DN','Кладовщик':'ER','Сервисный инженер':'TM','Бухгалтер':'SV'}[role]);
+const tcard=t=>`<div class="tc" draggable="true" ondragstart="event.dataTransfer.setData('t','${t.id}')" onclick="openTask('${t.id}')"><div class="tch"><code>${t.id}</code>${tag(PRN[t.pr][0],PRN[t.pr][1])}</div><b>${esc(t.t)}</b>${t.chk.length?`<div class="tchk">${bar(pct(t.chk.filter(c=>c[1]).length,t.chk.length),'g')}<span>${t.chk.filter(c=>c[1]).length}/${t.chk.length}</span></div>`:''}<div class="tcf"><i class="av">${ini(t.who)}</i><span>${esc(fn(t.who))}</span><time class="${t.due==='сегодня'||t.due==='04.11'?'bad':''}">${t.due}</time>${t.com.length?`<em>${t.com.length}</em>`:''}</div></div>`;
+SC.tasks=()=>{const T=tFilt();
+ return `<div class="hd"><div><h2>Задачи</h2><p>Задачи ставятся из сделки, звонка, склада или вручную. Чек-лист, наблюдатели, комментарии, сроки. Пропущенный звонок, оплата, отгрузка и ТО создают задачи сами.</p></div><div class="btns"><div class="seg">${[['board','Доска'],['list','Список'],['people','По людям']].map(([k,n])=>`<a class="${tView===k?'on':''}" onclick="tView='${k}';render()">${n}</a>`).join('')}</div><select class="sel" onchange="tWho=this.value;render()"><option value="all">Все</option><option value="me" ${tWho==='me'?'selected':''}>Мои</option>${STAFF.map(s=>`<option value="${s.id}" ${tWho===s.id?'selected':''}>${esc(s.n)}</option>`).join('')}</select><button class="bt p" onclick="newTask()">+ Задача</button></div></div>
+ ${tView==='board'?`<div class="kanban k4">${TST.map(([k,n])=>{const x=T.filter(t=>t.st===k);return `<div class="kcol" ondragover="event.preventDefault()" ondrop="dropTask(event,'${k}')"><div class="kh"><b>${n}</b><span>${x.length}</span></div>${x.map(tcard).join('')||'<div class="kempty">перетащите сюда</div>'}</div>`}).join('')}</div>`
+ :tView==='list'?`<div class="tw"><table class="t"><thead><tr><th>№</th><th>Задача</th><th>Исполнитель</th><th>Поставил</th><th>Срок</th><th>Статус</th></tr></thead><tbody>${T.map(t=>`<tr onclick="openTask('${t.id}')"><td class="mono">${t.id}</td><td><b>${esc(t.t)}</b>${t.deal?`<span class="sub">сделка ${t.deal}</span>`:''}</td><td>${esc(SF(t.who).n)}</td><td>${t.by==='Система'?'Система':fn(t.by)}</td><td class="mono">${t.due}</td><td>${tag(TST.find(s=>s[0]===t.st)[1],t.st==='done'?'g':t.st==='check'?'i':t.st==='work'?'w':'')}</td></tr>`).join('')}</tbody></table></div>`
+ :`<div class="people">${STAFF.filter(s=>s.st!=='off').map(s=>{const x=TASKS.filter(t=>t.who===s.id&&t.st!=='done');return `<div class="pcol"><div class="pch"><i class="av">${ini(s.id)}</i><div><b>${esc(s.n)}</b><small>${esc(s.pos)}</small></div><em class="${x.length>4?'bad':''}">${x.length}</em></div>${x.map(t=>`<a onclick="openTask('${t.id}')"><i class="dt ${PRN[t.pr][1]}"></i>${esc(t.t)}<time>${t.due}</time></a>`).join('')||'<span class="mini">свободен</span>'}</div>`}).join('')}</div>`}`};
+function dropTask(e,k){const t=TASKS.find(x=>x.id===e.dataTransfer.getData('t'));if(!t)return;t.st=k;FEED.unshift([NOW,meId()||'RS','перевёл задачу в «'+TST.find(s=>s[0]===k)[1]+'»',t.id+' · '+t.t,'task']);render();toast(k==='check'?`${t.id} на проверке — постановщику ${fn(t.by)} пришло уведомление.`:`${t.id} → ${TST.find(s=>s[0]===k)[1]}.`)}
+function openTask(id){curT=id;go('task')}
+SC.task=()=>{const t=TASKS.find(x=>x.id===curT)||TASKS[0];const si=TST.findIndex(s=>s[0]===t.st);
+ return crumbs(['Задачи',"go('tasks')"],[t.id])+`<div class="hd"><div><h2>${esc(t.t)}</h2><p>Поставил ${t.by==='Система'?'Система':esc(SF(t.by).n)} · исполнитель ${esc(SF(t.who).n)} · срок ${t.due}${t.deal?` · сделка <a class="lnk" onclick="openDeal('${t.deal}')">${t.deal}</a>`:''}</p></div><div class="btns">${t.st!=='done'?`<button class="bt" onclick="reassign('${t.id}')">Передать</button>`:''}${t.st==='check'?`<button class="bt" onclick="tSet('${t.id}','work');toast('Возвращено на доработку.')">Вернуть</button><button class="bt g" onclick="tSet('${t.id}','done')">Принять</button>`:t.st!=='done'?`<button class="bt p" onclick="tSet('${t.id}','check')">Сдать на проверку</button>`:tag('готово','g')}</div></div>
+ <div class="chainS c4">${TST.map(([k,n],i)=>`<a class="${i<si?'ok':i===si?'cur':''}" onclick="tSet('${t.id}','${k}')">${n}</a>`).join('')}</div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Чек-лист</h3><div class="chk">${t.chk.map((c,i)=>`<div class="ci"><span class="bx ${c[1]?'on':''}" onclick="tChk('${t.id}',${i})">✓</span><span class="nm">${esc(c[0])}</span></div>`).join('')}<div class="ci"><input class="qin wide" placeholder="+ пункт и Enter" onkeydown="if(event.key==='Enter'&&this.value){TASKS.find(x=>x.id==='${t.id}').chk.push([this.value,false]);render()}"></div></div></div>
+  <div class="pan"><h3>Обсуждение</h3>${t.com.map(c=>`<div class="cm"><i class="av">${c[0]==='Система'?'С':c[0]}</i><div><b>${c[0]==='Система'?'Система':esc(SF(c[0]).n)}</b><time>${c[1]}</time><p>${esc(c[2])}</p></div></div>`).join('')||'<p class="mini">Пока пусто.</p>'}
+   <div class="wsend"><input id="ctx" placeholder="Комментарий… @имя — упомянуть"><button class="bt p" onclick="tCom('${t.id}')">Отправить</button></div></div>
+ </div><div>
+  <div class="pan"><h3>Параметры</h3><div class="kv"><span>Исполнитель</span><b>${esc(SF(t.who).n)}</b></div><div class="kv"><span>Приоритет</span><b>${PRN[t.pr][0]}</b></div><div class="kv"><span>Срок</span><b>${t.due}</b></div><div class="kv"><span>Наблюдатели</span><b>${t.watch.map(fn).join(', ')||'—'}</b></div><div class="kv"><span>Напоминание</span><b>за 2 часа в WhatsApp</b></div></div>
+  <div class="pan"><h3>История</h3>${[['создана',t.by==='Система'?'Система':fn(t.by)],['принята в работу',fn(t.who)]].map(h=>`<div class="kv"><span>${h[0]}</span><b>${h[1]}</b></div>`).join('')}</div>
+ </div></div>`};
+function tSet(id,k){const t=TASKS.find(x=>x.id===id);t.st=k;FEED.unshift([NOW,meId()||'RS','изменил статус задачи',t.id+' → '+TST.find(s=>s[0]===k)[1],'task']);render()}
+function tChk(id,i){const t=TASKS.find(x=>x.id===id);t.chk[i][1]=!t.chk[i][1];render()}
+function tCom(id){const v=document.getElementById('ctx').value;if(!v)return;TASKS.find(x=>x.id===id).com.push([meId()||'RS',NOW,v]);render();toast('Комментарий отправлен. Исполнитель и наблюдатели получили уведомление.')}
+function reassign(id){const t=TASKS.find(x=>x.id===id);openM('Передать задачу',esc(t.t),`<div class="form"><label>Кому<select id="rto">${STAFF.filter(s=>s.st==='on'&&s.id!==t.who).map(s=>`<option value="${s.id}">${esc(s.n)} · ${TASKS.filter(x=>x.who===s.id&&x.st!=='done').length} задач</option>`).join('')}</select></label><label>Комментарий<input value="Подхвати, пожалуйста"></label></div><div class="btns l"><button class="bt p" onclick="const t=TASKS.find(x=>x.id==='${id}');t.who=document.getElementById('rto').value;closeM();render();toast('Задача передана '+esc(SF(t.who).n)+'.')">Передать</button></div>`)}
+function newTask(deal,title){openM('Новая задача',deal?'по сделке '+deal:'',`<div class="form"><label>Что сделать<input id="ntt" value="${esc(title||'Подготовить спецификацию для тендера')}"></label><label>Исполнитель<select id="ntw">${STAFF.filter(s=>s.st==='on').map(s=>`<option value="${s.id}">${esc(s.n)}</option>`).join('')}</select></label><label>Срок<input id="ntd" value="07.11"></label><label>Приоритет<select id="ntp"><option value="high">срочно</option><option value="mid" selected>обычная</option><option value="low">низкая</option></select></label><label>Чек-лист (через ;)<input id="ntc" value="Собрать данные; Согласовать с Русланом; Отправить клиенту"></label><label class="cbx"><input type="checkbox" checked> Повторять каждую неделю</label></div><div class="btns l"><button class="bt p" onclick="saveTask('${deal||''}')">Поставить</button></div>`)}
+function saveTask(deal){const id='T-'+(320+TASKS.length);TASKS.unshift({id,t:document.getElementById('ntt').value,who:document.getElementById('ntw').value,by:meId()||'RS',due:document.getElementById('ntd').value,st:'new',pr:document.getElementById('ntp').value,deal:deal||null,chk:document.getElementById('ntc').value.split(';').map(x=>[x.trim(),false]).filter(x=>x[0]),com:[],watch:[]});FEED.unshift([NOW,meId()||'RS','поставил задачу',id,'task']);closeM();curT=id;go('task');toast(`Задача ${id} поставлена. Исполнителю — уведомление в WhatsApp.`)}
+
+/* ===== Лента ===== */
+let fType='all';
+SC.feed=()=>`<div class="hd"><div><h2>Лента</h2><p>Всё, что происходит в компании, в одном потоке: сделки, звонки, WhatsApp, склад, задачи. Можно написать объявление всей команде.</p></div><div class="btns"><div class="seg">${[['all','Всё'],['deal','Сделки'],['call','Звонки'],['wa','WhatsApp'],['wh','Склад'],['task','Задачи']].map(([k,n])=>`<a class="${fType===k?'on':''}" onclick="fType='${k}';render()">${n}</a>`).join('')}</div></div></div>
+ <div class="g21"><div class="pan"><div class="post"><textarea id="ptx" placeholder="Объявление команде…">С понедельника демо-зал работает до 20:00. Записывайте клиентов через задачи.</textarea><button class="bt p" onclick="FEED.unshift([NOW,meId()||'AL','написал всем',document.getElementById('ptx').value,'post']);render();toast('Объявление ушло 15 сотрудникам.')">Опубликовать</button></div>
+ ${FEED.filter(f=>fType==='all'||f[4]===fType).map(feedRow).join('')}</div>
+ <div class="pan"><h3>Сегодня в цифрах</h3><div class="kv"><span>Звонков</span><b>47</b></div><div class="kv"><span>Сообщений WhatsApp</span><b>112</b></div><div class="kv"><span>Новых лидов</span><b>6</b></div><div class="kv"><span>Задач закрыто</span><b>14</b></div><div class="kv"><span>Отгрузок</span><b>2</b></div></div></div>`;
+
+/* ===== Команда ===== */
+SC.team=()=>{const deps=[...new Set(STAFF.map(s=>s.dep))];
+ return `<div class="hd"><div><h2>Сотрудники · ${STAFF.filter(s=>s.st!=='off').length}</h2><p>Добавление — за минуту: роль задаёт доступы, WhatsApp и внутренний номер АТС выдаются сразу. Удаление — без потерь: сделки, задачи и клиенты передаются другому сотруднику, доступ закрывается мгновенно.</p></div><div class="btns"><button class="bt p" onclick="addEmp()">+ Сотрудник</button></div></div>
+ ${deps.map(d=>`<div class="dep"><h4>${d}</h4><div class="tw"><table class="t"><tbody>${STAFF.filter(s=>s.dep===d).map(s=>{const dl=DEALS.filter(x=>x.mgr===s.id).length,tk=TASKS.filter(x=>x.who===s.id&&x.st!=='done').length;return `<tr class="${s.st==='off'?'off':''}"><td style="width:40%"><i class="av">${ini(s.id)}</i> <b>${esc(s.n)}</b><span class="sub">${esc(s.pos)}</span></td><td class="mono">${s.ph}</td><td>${s.st==='on'?tag('работает','g'):s.st==='vac'?tag('отпуск','w'):tag('отключён','r')}</td><td class="r">${dl} сделок · ${tk} задач</td><td class="r">${s.st!=='off'&&s.id!=='AL'?`<button class="bt sm" onclick="delEmp('${s.id}')">Удалить</button>`:''}</td></tr>`}).join('')}</tbody></table></div></div>`).join('')}`};
+function addEmp(){openM('Новый сотрудник','Доступы выдаются по роли',`<div class="form"><label>ФИО<input id="ena" value="Алия Мукашева"></label><label>Телефон (WhatsApp)<input id="eph" value="+7 701 777 12 34"></label><label>Должность<input id="epo" value="Менеджер по продажам"></label><label>Роль<select id="ero">${Object.keys(ROLES).filter(r=>r!=='Собственник').map(r=>`<option>${r}</option>`).join('')}</select></label><label>Отдел<select id="ede"><option>Продажи</option><option>Склад</option><option>Сервис</option><option>Финансы</option></select></label><label>Бизнесы<select multiple size="3">${BIZ.map((b,i)=>`<option ${i===0?'selected':''}>${b.n}</option>`).join('')}</select></label></div>
+ <div class="pan" style="margin-top:10px"><h3>Что произойдёт</h3><div class="kv"><span>Приглашение в WhatsApp со ссылкой на вход</span><b>сразу</b></div><div class="kv"><span>Внутренний номер АТС</span><b>116</b></div><div class="kv"><span>Задача «Онбординг» руководителю</span><b>на 3 дня</b></div></div><div class="btns l"><button class="bt p" onclick="saveEmp()">Добавить</button></div>`)}
+function saveEmp(){const n=document.getElementById('ena').value;const id=n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2)+'2';STAFF.push({id,n,pos:document.getElementById('epo').value,dep:document.getElementById('ede').value,ph:document.getElementById('eph').value,st:'on',tasks:0});FEED.unshift([NOW,meId()||'AL','добавил сотрудника',n,'post']);closeM();render();toast(`${esc(n)} добавлен. Приглашение ушло в WhatsApp, внутренний номер 116.`)}
+function delEmp(id){const s=SF(id);const dl=DEALS.filter(x=>x.mgr===id),tk=TASKS.filter(x=>x.who===id&&x.st!=='done');
+ openM('Удалить: '+esc(s.n),esc(s.pos),`<p class="mini">Ничего не теряется: всё, что было на сотруднике, передаётся другому. Доступ закроется сразу, история останется.</p>
+ <div class="pan"><h3>Передать дела</h3><div class="kv"><span>Сделки (${dl.length})</span><b><select class="sel sm" id="dto">${STAFF.filter(x=>x.st==='on'&&x.id!==id).map(x=>`<option value="${x.id}" ${x.id==='RS'?'selected':''}>${esc(x.n)}</option>`).join('')}</select></b></div>
+ <div class="kv"><span>Открытые задачи (${tk.length})</span><b>тому же</b></div><div class="kv"><span>Клиенты и переписка WhatsApp</span><b>тому же</b></div><div class="kv"><span>Внутренний номер АТС</span><b>освобождается</b></div></div>
+ <div class="btns l"><button class="bt w" onclick="doDel('${id}')">Передать и отключить</button></div>`)}
+function doDel(id){const to=document.getElementById('dto').value;DEALS.forEach(d=>{if(d.mgr===id)d.mgr=to});TASKS.forEach(t=>{if(t.who===id&&t.st!=='done')t.who=to});SF(id).st='off';FEED.unshift([NOW,meId()||'AL','отключил сотрудника',SF(id).n+' · дела переданы '+SF(to).n,'post']);closeM();render();toast(`Доступ закрыт. Сделки и задачи переданы <b>${esc(SF(to).n)}</b>.`)}
+
+/* ===== Роли ===== */
+const PERM=['Воронка — все сделки','Воронка — только свои','Цены закупки и маржа','Склад — просмотр','Склад — приход и отгрузка','Инвентаризация — проводить акт','Задачи — ставить всем','Сотрудники — добавлять','Записи звонков','Excel-выгрузки','Все бизнесы'];
+const PM={'Собственник':'11111111111','Руководитель продаж':'10111001111','Менеджер':'01010000010','Кладовщик':'00011000010','Сервисный инженер':'00010000000','Бухгалтер':'10111000010'};
+SC.roles=()=>`<div class="hd"><div><h2>Роли и права</h2><p>Каждый видит своё. Нажмите на клетку — право переключится. Роль можно скопировать и создать свою.</p></div></div>
+ <div class="tw"><table class="t perm"><thead><tr><th>Право</th>${Object.keys(PM).map(r=>`<th class="c">${r}</th>`).join('')}</tr></thead><tbody>${PERM.map((p,i)=>`<tr><td>${p}</td>${Object.keys(PM).map(r=>`<td class="c"><a class="pm ${PM[r][i]==='1'?'on':''}" onclick="PM['${r}']=PM['${r}'].slice(0,${i})+(PM['${r}'][${i}]==='1'?'0':'1')+PM['${r}'].slice(${i+1});render()">${PM[r][i]==='1'?'✓':''}</a></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+
+/* ===== Мультибизнес ===== */
+SC.multi=()=>{const tot=BIZ.reduce((a,b)=>a+b.rev,0);
+ return `<div class="hd"><div><h2>Мультибизнес · опция +400 000 ₸</h2><p>Если Александр захочет вести несколько своих бизнесов в одной системе: у каждого своя воронка, свой склад, свои задачи и команда — а у собственника один сводный пульт. Переключатель бизнеса — слева вверху.</p></div></div>
+ <div class="mbiz">${BIZ.map(b=>`<a class="${b.id===biz?'on':''}" style="--c:${b.c}" onclick="setBiz('${b.id}')"><i></i><b>${b.n}</b><span>${b.d}</span>
+  <div class="kv"><span>Продажи ноября</span><b>${mln(b.rev)} ₸</b></div><div class="kv"><span>Открытых сделок</span><b>${b.deals}</b></div><div class="kv"><span>Склад</span><b>${mln(b.stock)} ₸</b></div><div class="kv"><span>Задач</span><b>${b.tasks}</b></div><div class="share"><i style="width:${pct(b.rev,tot)}%"></i></div><small>${pct(b.rev,tot)}% выручки группы</small></a>`).join('')}</div>
+ <div class="g2"><div class="pan"><h3>Что даёт опция</h3>${[['Мультиворонки','у каждого бизнеса свои этапы: техника — через демо и тендер, химия — через автозаказ'],['Мультисклады','отдельные остатки и инвентаризации, перемещения между бизнесами — документом'],['Мультизадачи','сотрудник может работать в двух бизнесах, задачи помечены цветом бизнеса'],['Мультидашборд','сводный пульт собственника: выручка, маржа, склад, долги — по группе и по каждому']].map(x=>`<div class="kv"><span><b>${x[0]}</b><br><span class="mini">${x[1]}</span></span></div>`).join('')}</div>
+ <div class="pan"><h3>Сводно по группе</h3><div class="kv"><span>Выручка ноября</span><b>${tg(tot)}</b></div><div class="kv"><span>Склад, все бизнесы</span><b>${tg(BIZ.reduce((a,b)=>a+b.stock,0))}</b></div><div class="kv"><span>Открытых сделок</span><b>${BIZ.reduce((a,b)=>a+b.deals,0)}</b></div><div class="kv"><span>Клиенты в нескольких бизнесах</span><b>Mega, CleanPro, Magnum</b></div><p class="mini">Общий клиент виден во всех бизнесах: продали машину — сервис и химия сразу знают.</p></div></div>`};
+function setBiz(id){biz=id;const s=document.getElementById('bizsel');if(s)s.value=id;build();toast(`Бизнес: <b>${esc(BIZ.find(b=>b.id===id).n)}</b>. Воронка, склад и задачи переключились.`)}
+
+/* ===== Запуск и стоимость ===== */
+SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Система под ваш процесс: CRM, склады, инвентаризация, задачи, WhatsApp и IP-телефония. Без абонплаты за пользователей.</p></div></div>
+ <div class="g21"><div class="pan"><h3>Состав</h3><div class="tw"><table class="t"><tbody>${[['CRM: воронка, сделки, клиенты, КП и счета из шаблонов'],['WhatsApp: общий номер, переписка в сделке, шаблоны, уведомления клиенту'],['IP-телефония: звонки из CRM, записи, пропущенные → задачи, лид с нового номера'],['Склады: 4 склада, ячейки, серийные номера, резерв, приход, отгрузки, перемещения'],['Инвентаризация: план, слепой подсчёт с телефона, расхождения, акт, проведение'],['Отчёты в Excel и отчёты по расписанию'],['Задачи: доска, чек-листы, наблюдатели, авто-задачи, лента'],['Сотрудники и роли: добавление, отключение с передачей дел, права'],['Сервис и ТО по моточасам'],['Перенос клиентов и остатков из Excel, обучение команды']].map((x,i)=>`<tr><td class="mono" style="width:40px">${String(i+1).padStart(2,'0')}</td><td>${x[0]}</td></tr>`).join('')}</tbody></table></div></div>
+ <div><div class="pan price"><h3>Стоимость</h3><div class="kv"><span>Разработка и внедрение</span><b>${tg(2000000)}</b></div><div class="kv opt"><span>Опция «Мультибизнес» +20%: мультиворонки, мультисклады, мультизадачи, мультидашборд</span><b>+ ${tg(400000)}</b></div><div class="kv tot"><span>С мультибизнесом</span><b>${tg(2400000)}</b></div></div>
+ <div class="pan"><h3>Оплата и сроки</h3><div class="kv"><span>Предоплата</span><b>10%</b></div><div class="kv"><span>После демонстрации CRM и склада</span><b>45%</b></div><div class="kv"><span>После запуска</span><b>45%</b></div><div class="kv"><span>Срок</span><b>8–10 недель</b></div></div></div></div>`;
+
+/* ===== Каркас ===== */
+const SUBT={dash:'Деньги, склад и задачи на одном экране',funnel:'От лида до пусконаладки',deal:'Товары, резерв, переписка, звонки',clients:'Объекты и техника у клиента',inbox:'Общий номер и АТС',kp:'Из сделки — в WhatsApp',stock:'Склады, ячейки, серийники',product:'Остатки и движение',receive:'Сверка, сканирование, проведение',ship:'Сборка, доставка, резерв',moves:'Между складами',inv:'План → подсчёт → акт',whrep:'Скачивается по кнопке',service:'Моточасы и ТО',tasks:'Доска, список, по людям',task:'Чек-лист и обсуждение',feed:'Всё, что происходит',team:'Добавить и отключить',roles:'Кто что видит',multi:'Несколько бизнесов в одном',launch:'Цена и сроки'};
+function searchDemo(v){if(!v)return;const q=v.toLowerCase().trim();const s=SERIALS.find(x=>x.sn.toLowerCase().includes(q));if(s){openSN(s.sn);return}const p=PRODUCTS.find(x=>(x.n+' '+x.id).toLowerCase().includes(q));if(p&&allowed('product')){openProd(p.id);return}const d=DEALS.find(x=>(x.t+' '+CL(x.cl).n+' '+x.id).toLowerCase().includes(q));if(d&&allowed('deal')){openDeal(d.id);return}toast('Не найдено. Попробуйте: «Mega», «SC-55», «SC55-24».')}
+function renderRoles(){const r=document.getElementById('roles');if(r)r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option>${esc(k)}</option>`).join('');
+ const b=document.getElementById('bizsel');if(b){b.innerHTML=BIZ.map(x=>`<option value="${x.id}">${esc(x.n)}</option>`).join('');b.onchange=e=>setBiz(e.target.value)}}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Собственник';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');const s=document.getElementById('rsel');if(s)s.value=role;setMe();if(!allowed(cur))cur=ROLES[role].s[0];build()}
+function setMe(){document.getElementById('me').textContent=ROLES[role].av;const n=document.getElementById('mename');if(n)n.innerHTML=`<b>${esc(ROLES[role].n)}</b><small>${esc(role)}</small>`;const b=document.getElementById('bizw');if(b)b.style.display=role==='Собственник'?'':'none'}
+function switchRole(k){role=k;setMe();const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль <b>${esc(role)}</b>: ${esc(ROLES[role].note)}.`)}
+function buildRail(){const cnt={inbox:INBOX.reduce((a,m)=>a+(m.un||0),0),tasks:TASKS.filter(t=>t.st==='new').length,stock:PRODUCTS.filter(p=>freeQ(p.id)<p.min).length,ship:SHIPS.filter(s=>s.st==='pick').length,service:SVC.filter(s=>s.st!=='ok').length};
+ document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<div class="ng">${s.n}</div>`+s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="ri ${x[0]===cur?'on':''}" onclick="go('${x[0]}')"><code>${x[2]}</code><span>${esc(x[1])}</span>${cnt[x[0]]?`<em>${cnt[x[0]]}</em>`:''}</a>`).join('')).join('');
+ const bz=BIZ.find(b=>b.id===biz);const d=document.getElementById('bizdot');if(d)d.style.background=bz.c}
+function build(){buildRail();render()}
+function render(){const f=SC[cur]||SC.dash;document.getElementById('ttl').textContent=SUBN[cur]||'Глянец';const sb=document.getElementById('subt');if(sb)sb.textContent=SUBT[cur]||'';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildRail();try{history.replaceState(null,'','?s='+cur)}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль справа вверху.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0;document.body.classList.remove('nav')}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show')}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+let theme='light';
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme()}
+const TOUR=[
+ ['dash','1 · Пульт собственника: деньги в воронке, продажи, склад в тенге, что горит сегодня.'],
+ ['funnel','2 · Воронка: от лида до пусконаладки. Перетаскивание, без оплаты не отгрузить.'],
+ ['deal','3 · Сделка: товары с живым остатком, резерв машины по серийнику, WhatsApp и звонки.'],
+ ['inbox','4 · Общий WhatsApp и IP-телефония: новый номер — лид, пропущенный — задача.'],
+ ['stock','5 · Склад: 4 склада, ячейки, серийники, свободно/резерв, ниже минимума — к заказу.'],
+ ['product','6 · Карточка товара: остатки по складам, серийные номера, движение.'],
+ ['receive','7 · Приход: сверка, скан серийников, провести — остатки обновились.'],
+ ['inv','8 · Инвентаризация: план → слепой подсчёт с телефона → расхождения → акт → Excel.'],
+ ['whrep','9 · Отчёты в Excel одной кнопкой и по расписанию.'],
+ ['tasks','10 · Задачи: доска, по людям, авто-задачи из звонков, оплат и ТО.'],
+ ['team','11 · Команда: добавить за минуту, удалить — с передачей сделок и задач.'],
+ ['multi','12 · Опция «Мультибизнес»: несколько бизнесов, один пульт. +400 000 ₸.'],
+ ['launch','13 · Стоимость: 2 000 000 ₸.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■ Стоп';step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){stopTour();toast('Сценарий закончен — всё кликается.');return}const [k,m]=TOUR[ti];if(!allowed(k))switchRole('Собственник');cur=k;build();toast('<b>'+m+'</b>');setTimeout(step,5200)}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶ Сценарий'}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+
+/* ===== Инвентаризация ===== st: plan → count → diff → posted */
+let INV={id:'ИНВ-0010',wh:'W1',zone:'Все ячейки',st:'plan',who:['ER','DM'],rows:[]};
+const INVHIST=[['ИНВ-0009','15.10','Склад Алматы','ячейки B',0,0],['ИНВ-0008','01.10','Склад Астана','полная',-2,-19000],['ИНВ-0007','15.09','Склад Алматы','полная',-1,-68000]];
+function invBuild(){INV.rows=PRODUCTS.map(p=>{const b=qty(p.id,INV.wh);return {p:p.id,book:b,fact:null}})}
+SC.inv=()=>{const st=INV.st;const S=['plan','count','diff','posted'];const si=S.indexOf(st);
+ const head=`<div class="hd"><div><h2>Инвентаризация ${INV.id}</h2><p>Как это работает: <b>1</b> — запланировать (склад, зона, кто считает), склад «замораживается» на время пересчёта; <b>2</b> — кладовщики сканируют телефоном ячейки и серийники; <b>3</b> — система сама показывает расхождения; <b>4</b> — руководитель утверждает и проводит акт, остатки «садятся» на факт; <b>5</b> — выгрузка акта в Excel.</p></div><div class="btns"><button class="bt" onclick="xlsInv()">Акт в Excel</button></div></div>
+ <div class="steps3 s4">${[['Планирование','склад, зона, люди'],['Подсчёт','сканирование'],['Расхождения','сверка с учётом'],['Проведено','остатки = факт']].map((x,i)=>`<div class="${i<si?'ok':i===si?'cur':''}"><b>${i+1}</b>${x[0]}<small>${x[1]}</small></div>`).join('')}</div>`;
+ if(st==='plan')return head+`<div class="g21"><div class="pan"><h3>Новая инвентаризация</h3><p>Выберите что и кем считаем.</p><div class="form">
+  <label>Склад<select onchange="INV.wh=this.value">${WH.map(w=>`<option value="${w.id}" ${INV.wh===w.id?'selected':''}>${w.n}</option>`).join('')}</select></label>
+  <label>Зона<select onchange="INV.zone=this.value"><option>Все ячейки</option><option>Ячейки A — техника</option><option>Ячейки B — запчасти</option><option>Ячейки D — химия</option></select></label>
+  <label>Тип<select><option>Полная</option><option>Выборочная (циклическая)</option><option>Только серийные номера</option></select></label>
+  <label>Считают<select multiple size="3">${STAFF.filter(s=>s.dep==='Склад').map(s=>`<option selected>${esc(s.n)}</option>`).join('')}</select></label>
+  <label class="cbx"><input type="checkbox" checked> Заморозить движения по складу на время подсчёта</label>
+  <label class="cbx"><input type="checkbox" checked> Слепой подсчёт — кладовщик не видит учётный остаток</label></div>
+  <div class="btns l"><button class="bt p" onclick="invStart()">Начать инвентаризацию</button></div></div>
+  <div class="pan"><h3>Прошлые инвентаризации</h3><div class="tw"><table class="t sm"><thead><tr><th>№</th><th>Дата</th><th>Склад</th><th class="r">Расх.</th><th class="r">Сумма</th></tr></thead><tbody>${INVHIST.map(h=>`<tr onclick="toast('Акт ${h[0]} открыт: ${h[2]}, ${h[3]}.')"><td class="mono">${h[0]}</td><td class="mono">${h[1]}</td><td>${h[2]}<span class="sub">${h[3]}</span></td><td class="r ${h[4]?'bad':''}">${h[4]}</td><td class="r">${tg(h[5])}</td></tr>`).join('')}</tbody></table></div><p class="mini" style="margin-top:9px">Совет системы: ячейки B (мелкие запчасти) считать раз в 2 недели, технику — раз в месяц, по серийникам.</p></div></div>`;
+ if(st==='count'){const done=INV.rows.filter(r=>r.fact!==null).length;
+  return head+`<div class="g21"><div class="pan"><h3>Подсчёт · ${WN(INV.wh)} · ${INV.zone}</h3><p>Слепой подсчёт: учётного остатка не видно. Введите факт или «сканируйте» ячейку. Посчитано ${done} из ${INV.rows.length}.</p>${bar(pct(done,INV.rows.length),'g')}
+  <div class="tw" style="margin-top:10px"><table class="t"><thead><tr><th>Ячейка</th><th>Товар</th><th class="r">Факт</th><th></th></tr></thead><tbody>
+  ${INV.rows.map((r,i)=>{const P=PR(r.p);return `<tr><td class="mono">${P.cell}</td><td><b>${esc(P.n)}</b><span class="sub">${P.id}</span></td><td class="r"><input class="qin" type="number" value="${r.fact===null?'':r.fact}" onchange="INV.rows[${i}].fact=+this.value;render()"></td><td><button class="bt sm" onclick="invScan(${i})">Скан</button></td></tr>`}).join('')}</tbody></table></div>
+  <div class="btns l"><button class="bt" onclick="invScanAll()">Досчитать всё (демо)</button><button class="bt p" ${done<INV.rows.length?'disabled':''} onclick="INV.st='diff';render()">Завершить подсчёт</button></div></div>
+  <div class="pan phone2"><h3>Так выглядит у кладовщика</h3><div class="ph2"><div class="ph2s"><b>${INV.id}</b><small>${WN(INV.wh)}</small><div class="scanbox"><i></i><span>Наведите на QR ячейки</span></div><div class="kv"><span>Ячейка</span><b>A-02</b></div><div class="kv"><span>SC43-24-1104</span><b>✓</b></div><div class="kv"><span>SC43-24-1105</span><b>✓</b></div><button class="bt p full">Ячейка готова</button></div></div></div></div>`}
+ if(st==='diff'){const D=INV.rows.map(r=>({...r,d:r.fact-r.book})).filter(r=>r.d!==0);const sum=D.reduce((a,r)=>a+r.d*PR(r.p).cost,0);
+  return head+`<div class="pan"><h3>Расхождения: ${D.length} ${plural(D.length,['позиция','позиции','позиций'])} · ${tg(sum)}</h3><p>Система сравнила факт с учётом. По каждой строке — причина, затем руководитель утверждает акт. Недостача по технике с серийником сразу видна поштучно.</p>
+  <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Учёт</th><th class="r">Факт</th><th class="r">Разница</th><th class="r">Сумма</th><th>Причина</th></tr></thead><tbody>
+  ${D.map(r=>{const P=PR(r.p);return `<tr><td><b>${esc(P.n)}</b><span class="sub">${P.cell}</span></td><td class="r">${r.book}</td><td class="r">${r.fact}</td><td class="r ${r.d<0?'bad':'ok'}">${r.d>0?'+':''}${r.d}</td><td class="r">${tg(r.d*P.cost)}</td><td><select class="sel sm"><option>Пересорт</option><option>Списание — брак</option><option>Не проведён расход</option><option>Недостача — на кладовщика</option></select></td></tr>`}).join('')||'<tr><td colspan="6">Расхождений нет</td></tr>'}</tbody></table></div>
+  <div class="btns l"><button class="bt" onclick="INV.st='count';render()">Пересчитать</button><button class="bt p" onclick="invPost()">Утвердить и провести акт</button></div></div>`}
+ return head+`<div class="pan done"><h3>Акт ${INV.id} проведён · остатки «сели» на факт</h3><p>${TODAY}, ${NOW}. Утвердил ${esc(ROLES[role].n)}. Склад разморожен. Движения по остаткам записаны с документом ${INV.id} — в карточке каждого товара видно, откуда изменение.</p>
+  <div class="btns l"><button class="bt p" onclick="xlsInv()">Скачать акт в Excel</button><button class="bt" onclick="toast('Акт ИНВ-0010 отправлен на печать, форма ИНВ-3.')">Печать акта</button><button class="bt" onclick="INV={id:'ИНВ-0011',wh:'W1',zone:'Все ячейки',st:'plan',who:[],rows:[]};render()">Новая инвентаризация</button></div></div>`};
+function invStart(){invBuild();INV.st='count';FEED.unshift([NOW,'ER','начал инвентаризацию',INV.id+' · '+WN(INV.wh),'wh']);render();toast('Склад заморожен. Кладовщикам ушла задача с листом подсчёта в телефон.')}
+function invScan(i){const r=INV.rows[i];r.fact=r.book;render()}
+function invScanAll(){INV.rows.forEach((r,i)=>{if(r.fact===null)r.fact=r.book+(r.p==='PD-43'?-3:r.p==='CH-DET'?2:r.p==='SQ-75'?-1:0)});render()}
+function invPost(){INV.rows.forEach(r=>{const P=PR(r.p);if(P.kind!=='m'&&r.fact!==null){QTY[r.p]=QTY[r.p]||{};QTY[r.p][INV.wh]=r.fact}});INV.st='posted';FEED.unshift([NOW,'AL','провёл акт инвентаризации',INV.id,'wh']);render()}
+
+/* ===== Excel ===== */
+function xls(name,head,rows,title){const h=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>${title?`<h3>${esc(title)}</h3>`:''}<table border="1"><tr>${head.map(x=>`<th style="background:#0e7c86;color:#fff">${esc(x)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td${typeof c==='number'?' style="mso-number-format:\'#,##0\'"':''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+ try{const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name+'.xls';document.body.appendChild(a);a.click();a.remove()}catch(e){}
+ toast(`Файл <b>${esc(name)}.xls</b> скачан — откройте в Excel.`)}
+const xlsStock=()=>xls('Остатки_'+TODAY,['Артикул','Товар','Категория','Ячейка',...WH.map(w=>w.n),'Всего','Свободно','Закупка','Сумма'],PRODUCTS.map(p=>[p.id,p.n,p.cat,p.cell,...WH.map(w=>qty(p.id,w.id)),qty(p.id),freeQ(p.id),p.cost,qty(p.id)*p.cost]),'Остатки на '+TODAY);
+const xlsDeals=()=>xls('Воронка_'+TODAY,['Сделка','Клиент','Что','Этап','Сумма','Вероятность','Менеджер','Следующий шаг'],bizDeals().map(d=>[d.id,CL(d.cl).n,d.t,STN(d.stg),d.sum,d.prob+'%',SF(d.mgr).n,d.next]));
+const xlsClients=()=>xls('Клиенты',['Клиент','Тип','Город','Площадь','ЛПР','Телефон','Машин'],CLIENTS.map(c=>[c.n,c.type,c.city,c.area,c.lpr,c.ph,c.owned.length]));
+const xlsInv=()=>{if(!INV.rows.length)invBuild();xls('Акт_'+INV.id,['Ячейка','Артикул','Товар','Учёт','Факт','Разница','Сумма расхождения'],INV.rows.map(r=>{const P=PR(r.p),f=r.fact===null?r.book:r.fact;return [P.cell,P.id,P.n,r.book,f,f-r.book,(f-r.book)*P.cost]}),'Акт инвентаризации '+INV.id+' · '+WN(INV.wh))};
+const xlsShips=()=>xls('Отгрузки',['Документ','Клиент','Дата','Статус'],SHIPS.map(s=>[s.id,CL(DL(s.deal).cl).n,s.date,SHS[s.st][0]]));
+const xlsDash=()=>xls('Пульт_'+TODAY,['Показатель','Значение'],[['Продажи ноября',BIZ[0].rev],['Открыто в воронке',bizDeals().filter(d=>d.stg!=='paid').reduce((a,d)=>a+d.sum,0)],['Склад в закупочных',PRODUCTS.reduce((a,p)=>a+qty(p.id)*p.cost,0)],['Открытых задач',TASKS.filter(t=>t.st!=='done').length]]);
+const REPS=[
+ ['Остатки по складам','все склады, ячейки, свободно/резерв, сумма',()=>xlsStock()],
+ ['Движение товара за период','приход, расход, перемещения по каждому SKU',()=>xls('Движение_ноябрь',['Дата','Документ','Товар','Склад','Приход','Расход'],[['04.11','ПР-0087','MINI-30','Склад Алматы',3,0],['01.11','ОТ-0412','CH-DET','Склад Алматы',0,20],['28.10','ПМ-0031','SC-55','Склад Астана',1,0]])],
+ ['Серийные номера','где каждая машина и в каком статусе',()=>xls('Серийные_номера',['Серийный №','Модель','Склад','Статус','Сделка','Пришла'],SERIALS.map(s=>[s.sn,PR(s.p).n,WN(s.wh),SST[s.st][0],s.deal||'',s.in]))],
+ ['Ниже минимума — к заказу','что и сколько заказать поставщику',()=>xls('К_заказу',['Артикул','Товар','Свободно','Минимум','Заказать'],PRODUCTS.filter(p=>freeQ(p.id)<p.min).map(p=>[p.id,p.n,freeQ(p.id),p.min,p.min*2-freeQ(p.id)]))],
+ ['Оборачиваемость и неликвид','сколько дней товар лежит',()=>xls('Оборачиваемость',['Товар','Средний срок, дней','Неликвид >180'],PRODUCTS.map((p,i)=>[p.n,30+i*17,i===3?'да':'нет']))],
+ ['Акт инвентаризации','последний акт с расхождениями',()=>xlsInv()],
+ ['Воронка продаж','все сделки с этапами и суммами',()=>xlsDeals()],
+ ['Продажи по менеджерам','выручка, маржа, звонки',()=>xls('Менеджеры',['Менеджер','Продажи','Маржа','Звонки'],[['Руслан Абенов',18200000,5400000,41],['Дана Сейтова',12900000,3900000,96],['Марат Исаев',9800000,2700000,77]])]
+];
+SC.whrep=()=>`<div class="hd"><div><h2>Отчёты и Excel</h2><p>Любой отчёт — в Excel одной кнопкой. Попробуйте: файлы реально скачиваются. Регулярные отчёты система присылает сама — в почту или WhatsApp по расписанию.</p></div></div>
+ <div class="reps">${REPS.map((r,i)=>`<div class="rep"><code>XLS</code><div><b>${r[0]}</b><span>${r[1]}</span></div><button class="bt" onclick="REPS[${i}][2]()">Скачать</button></div>`).join('')}</div>
+ <div class="pan" style="margin-top:12px"><h3>По расписанию</h3>${[['Остатки и «к заказу»','каждый понедельник 09:00','Александр, Ерлан'],['Воронка и продажи менеджеров','ежедневно 19:00','Руслан'],['Движение товара за месяц','1-го числа','Светлана']].map(x=>`<div class="kv"><span><b>${x[0]}</b> · ${x[1]}</span><b>${x[2]}</b></div>`).join('')}</div>`;
