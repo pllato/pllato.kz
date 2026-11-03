@@ -24,8 +24,8 @@ const SEC=[
 const SECOF={},SUBN={},CODE={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1];CODE[x[0]]=x[2]}));
 const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
 const ROLES={
- 'Собственник':{av:'АЛ',n:'Александр',note:'Все бизнесы, деньги, воронки, склады, команда',s:ALL.slice()},
- 'Руководитель продаж':{av:'РС',n:'Руслан',note:'Воронка, сделки, КП, задачи команды, склад для продаж',s:['dash','funnel','deal','clients','inbox','kp','stock','product','ship','service','tasks','task','feed','team']},
+ 'Собственник':{av:'АР',n:'Александр Разинков',note:'Все бизнесы, деньги, воронки, склады, команда',s:ALL.slice()},
+ 'Операционный директор':{av:'РС',n:'Руслан',note:'Воронка, сделки, КП, задачи команды, склад для продаж',s:['dash','funnel','deal','clients','inbox','kp','stock','product','ship','service','tasks','task','feed','team']},
  'Менеджер':{av:'ДН',n:'Дана · менеджер',note:'Свои сделки, звонки, WhatsApp, КП, резерв техники, задачи',s:['funnel','deal','clients','inbox','kp','stock','product','tasks','task','feed']},
  'Кладовщик':{av:'ЕР',n:'Ерлан · склад',note:'Приход, отгрузки, перемещения, инвентаризация, Excel',s:['stock','product','receive','ship','moves','inv','whrep','tasks','task','feed']},
  'Сервисный инженер':{av:'ТМ',n:'Тимур · сервис',note:'Пусконаладка, ТО, ремонт, запчасти со склада',s:['service','stock','product','tasks','task','feed']},
@@ -36,23 +36,23 @@ let role='Собственник',cur='dash';
 /* ===== Бизнесы (мультибизнес) ===== */
 const BIZ=[
  {id:'B1',n:'Глянец · Техника',d:'продажа уборочной техники',c:'#0e7c86',rev:48600000,deals:23,stock:186400000,tasks:41},
- {id:'B2',n:'Глянец · Сервис',d:'ремонт и ТО техники',c:'#e0a823',rev:6200000,deals:14,stock:12800000,tasks:27},
- {id:'B3',n:'Глянец · Химия',d:'моющие средства оптом',c:'#7a5ad0',rev:9800000,deals:31,stock:21300000,tasks:12}
+ {id:'B2',n:'Скалолазание',d:'ассоциация и скалодром',c:'#e0a823',rev:6200000,deals:14,stock:4800000,tasks:27},
+ {id:'B3',n:'Баскетбол',d:'клуб и секции',c:'#7a5ad0',rev:3800000,deals:31,stock:1300000,tasks:12}
 ];
 let biz='B1';
 
 /* ===== Команда ===== */
 let STAFF=[
- {id:'AL',n:'Александр Ким',pos:'Собственник',dep:'Руководство',ph:'+7 701 100 20 30',st:'on',tasks:3},
- {id:'RS',n:'Руслан Абенов',pos:'Руководитель продаж',dep:'Продажи',ph:'+7 701 200 31 40',st:'on',tasks:6},
- {id:'DN',n:'Дана Сейтова',pos:'Менеджер по продажам',dep:'Продажи',ph:'+7 707 310 22 18',st:'on',tasks:8},
+ {id:'AL',n:'Александр Разинков',pos:'Генеральный директор, собственник · Астана',dep:'Руководство',ph:'+7 701 100 20 30',st:'on',tasks:3},
+ {id:'RS',n:'Руслан',pos:'Операционный директор · Алматы',dep:'Руководство',ph:'+7 701 200 31 40',st:'on',tasks:6},
+ {id:'DN',n:'Дана Сейтова',pos:'РОП филиала · Алматы',dep:'Продажи',ph:'+7 707 310 22 18',st:'on',tasks:8},
  {id:'MR',n:'Марат Исаев',pos:'Менеджер по продажам',dep:'Продажи',ph:'+7 705 411 30 72',st:'on',tasks:7},
- {id:'AI',n:'Айгерим Нуркенова',pos:'Менеджер по продажам · Астана',dep:'Продажи',ph:'+7 777 520 41 05',st:'on',tasks:5},
- {id:'KM',n:'Камила Ахметова',pos:'Менеджер по тендерам',dep:'Продажи',ph:'+7 702 630 12 90',st:'on',tasks:4},
+ {id:'AI',n:'Айгерим Нуркенова',pos:'РОП филиала · Астана',dep:'Продажи',ph:'+7 777 520 41 05',st:'on',tasks:5},
+ {id:'KM',n:'Камила Ахметова',pos:'РОП филиала · Костанай',dep:'Продажи',ph:'+7 702 630 12 90',st:'on',tasks:4},
  {id:'ER',n:'Ерлан Жумабаев',pos:'Кладовщик',dep:'Склад',ph:'+7 701 744 55 10',st:'on',tasks:5},
- {id:'BS',n:'Бекзат Оспанов',pos:'Кладовщик · Астана',dep:'Склад',ph:'+7 708 812 19 27',st:'on',tasks:2},
- {id:'TM',n:'Тимур Ли',pos:'Сервисный инженер',dep:'Сервис',ph:'+7 701 903 33 41',st:'on',tasks:6},
- {id:'NS',n:'Нурлан Сарсенов',pos:'Сервисный инженер',dep:'Сервис',ph:'+7 776 104 28 63',st:'on',tasks:4},
+ {id:'BS',n:'Бекзат Оспанов',pos:'Кладовщик · Костанай',dep:'Склад',ph:'+7 708 812 19 27',st:'on',tasks:2},
+ {id:'TM',n:'Тимур Ли',pos:'Сервисный инженер · сервисный центр Астана',dep:'Сервис',ph:'+7 701 903 33 41',st:'on',tasks:6},
+ {id:'NS',n:'Нурлан Сарсенов',pos:'Сервисный инженер · Астана',dep:'Сервис',ph:'+7 776 104 28 63',st:'on',tasks:4},
  {id:'SV',n:'Светлана Пак',pos:'Бухгалтер',dep:'Финансы',ph:'+7 701 215 47 80',st:'on',tasks:3},
  {id:'GL',n:'Гульнара Тулеуова',pos:'Офис-менеджер',dep:'Офис',ph:'+7 747 326 64 19',st:'on',tasks:2},
  {id:'DM',n:'Данияр Мусин',pos:'Водитель-экспедитор',dep:'Склад',ph:'+7 707 437 81 52',st:'on',tasks:3},
@@ -78,22 +78,22 @@ let PRODUCTS=[
 ];
 const PR=id=>PRODUCTS.find(p=>p.id===id)||PRODUCTS[0];
 let curP='SC-55';
-const WH=[{id:'W1',n:'Склад Алматы',addr:'ул. Бокейханова, 510'},{id:'W2',n:'Склад Астана',addr:'пр. Тәуелсіздік, 33'},{id:'W3',n:'Демо-зал',addr:'Алматы, шоурум'},{id:'W4',n:'Сервис',addr:'Алматы, мастерская'}];
+const WH=[{id:'W1',n:'Склад Алматы',addr:'филиал Алматы · демо-зал'},{id:'W2',n:'Склад Астана',addr:'филиал Астана · сервисный центр'},{id:'W3',n:'Склад Костанай',addr:'филиал Костанай'}];
 const WN=id=>(WH.find(w=>w.id===id)||WH[0]).n;
 let whF='all';
 
 /* ===== Серийные номера техники ===== st: free — свободна, res — в резерве под сделку, demo — демо-машина, svc — в ремонте, sold — продана */
 let SERIALS=[
- {sn:'SC55-24-0412',p:'SC-55',wh:'W1',st:'free',in:'12.09'},{sn:'SC55-24-0413',p:'SC-55',wh:'W1',st:'res',deal:'D-118',in:'12.09'},{sn:'SC55-24-0419',p:'SC-55',wh:'W2',st:'free',in:'12.09'},{sn:'SC55-23-0288',p:'SC-55',wh:'W3',st:'demo',in:'15.03'},
+ {sn:'SC55-24-0412',p:'SC-55',wh:'W1',st:'free',in:'12.09'},{sn:'SC55-24-0413',p:'SC-55',wh:'W1',st:'res',deal:'D-118',in:'12.09'},{sn:'SC55-24-0419',p:'SC-55',wh:'W2',st:'free',in:'12.09'},{sn:'SC55-23-0288',p:'SC-55',wh:'W1',st:'demo',in:'15.03'},
  {sn:'SC43-24-1104',p:'SC-43',wh:'W1',st:'free',in:'02.10'},{sn:'SC43-24-1105',p:'SC-43',wh:'W1',st:'free',in:'02.10'},{sn:'SC43-24-1106',p:'SC-43',wh:'W2',st:'res',deal:'D-121',in:'02.10'},
- {sn:'RX75-24-0031',p:'RX-75',wh:'W1',st:'res',deal:'D-115',in:'20.08'},{sn:'RX75-23-0017',p:'RX-75',wh:'W3',st:'demo',in:'10.11.25'},
- {sn:'SW90-24-0205',p:'SW-90',wh:'W1',st:'free',in:'18.07'},{sn:'SW90-23-0144',p:'SW-90',wh:'W4',st:'svc',in:'01.06.25'},
+ {sn:'RX75-24-0031',p:'RX-75',wh:'W1',st:'res',deal:'D-115',in:'20.08'},{sn:'RX75-23-0017',p:'RX-75',wh:'W1',st:'demo',in:'10.11.25'},
+ {sn:'SW90-24-0205',p:'SW-90',wh:'W1',st:'free',in:'18.07'},{sn:'SW90-23-0144',p:'SW-90',wh:'W2',st:'svc',in:'01.06.25'},
  {sn:'MC30-24-3301',p:'MINI-30',wh:'W1',st:'free',in:'05.10'},{sn:'MC30-24-3302',p:'MINI-30',wh:'W1',st:'free',in:'05.10'},{sn:'MC30-24-3303',p:'MINI-30',wh:'W2',st:'free',in:'05.10'}
 ];
 const SST={free:['свободна','g'],res:['резерв','w'],demo:['демо-зал','i'],svc:['в ремонте','r'],sold:['продана','']};
 let curSN='SC55-24-0413';
 /* количество для штучных товаров по складам */
-let QTY={'BR-55':{W1:14,W2:6,W4:3},'PD-43':{W1:120,W2:35,W4:10},'SQ-75':{W1:5,W2:1,W4:2},'AKB-240':{W1:7,W2:2,W4:1},'CH-DET':{W1:210,W2:64}};
+let QTY={'BR-55':{W1:14,W2:6,W3:3},'PD-43':{W1:120,W2:35,W3:10},'SQ-75':{W1:5,W2:1,W3:2},'AKB-240':{W1:7,W2:2,W3:1},'CH-DET':{W1:210,W2:64,W3:30}};
 const qty=(p,w)=>{const P=PR(p);if(P.kind==='m')return SERIALS.filter(s=>s.p===p&&s.st!=='sold'&&(!w||w==='all'||s.wh===w)).length;const q=QTY[p]||{};return w&&w!=='all'?(q[w]||0):Object.values(q).reduce((a,x)=>a+x,0)};
 const freeQ=p=>PR(p).kind==='m'?SERIALS.filter(s=>s.p===p&&s.st==='free').length:qty(p);
 
@@ -119,9 +119,10 @@ let DEALS=[
  {id:'D-127',cl:'C6',biz:'B1',t:'Нурлы Тау: демо RX-75',sum:14600000,stg:'demo',mgr:'MR',src:'Сайт',items:[['RX-75',1]],next:'Демо-показ 06.11 в 10:00',days:2,prob:40},
  {id:'D-129',cl:'C7',biz:'B1',t:'Школа: мини-поломойки × 2',sum:2380000,stg:'qual',mgr:'AI',src:'Instagram',items:[['MINI-30',2]],next:'Уточнить бюджет',days:4,prob:25},
  {id:'D-130',cl:'C2',biz:'B1',t:'Dostyk: химия на год',sum:2280000,stg:'lead',mgr:'DN',src:'WhatsApp',items:[['CH-DET',60]],next:'Связаться сегодня',days:0,prob:15},
- {id:'D-131',cl:'C1',biz:'B2',t:'Mega: ТО парка, 6 машин',sum:1450000,stg:'bill',mgr:'OL',src:'Сервис',items:[],next:'Счёт подписан',days:1,prob:90},
- {id:'D-132',cl:'C4',biz:'B3',t:'CleanPro: химия ежемесячно',sum:860000,stg:'paid',mgr:'MR',src:'Повторный',items:[['CH-DET',20]],next:'Автозаказ 01.12',days:0,prob:100}
+ {id:'D-131',cl:'C1',biz:'B1',t:'Mega: ТО парка, 6 машин',sum:1450000,stg:'bill',mgr:'OL',src:'Сервис',items:[],next:'Счёт подписан',days:1,prob:90},
+ {id:'D-132',cl:'C4',biz:'B1',t:'CleanPro: химия ежемесячно',sum:860000,stg:'paid',mgr:'MR',src:'Повторный',items:[['CH-DET',20]],next:'Автозаказ 01.12',days:0,prob:100}
 ];
+DEALS.push({id:'S-201',cl:'C7',biz:'B2',t:'Абонементы на скалодром для лицея, 40 детей',sum:1440000,stg:'kp',mgr:'GL',src:'Сайт',items:[],next:'Согласовать расписание',days:1,prob:50},{id:'S-202',cl:'C6',biz:'B2',t:'Корпоратив на скалодроме',sum:380000,stg:'paid',mgr:'GL',src:'Instagram',items:[],next:'Мероприятие 15.11',days:0,prob:100},{id:'K-301',cl:'C6',biz:'B3',t:'Аренда зала под корпоративную лигу',sum:960000,stg:'agree',mgr:'AS',src:'Звонок',items:[],next:'Договор до 10.11',days:2,prob:60},{id:'K-302',cl:'C7',biz:'B3',t:'Детская секция, 25 абонементов',sum:625000,stg:'lead',mgr:'AS',src:'WhatsApp',items:[],next:'Пробная тренировка',days:0,prob:20});
 const DL=id=>DEALS.find(d=>d.id===id)||DEALS[0];
 let curD='D-118';
 
@@ -133,6 +134,7 @@ let INBOX=[
  {id:'m4',ch:'Звонок',who:'+7 701 909 11 55 · новый номер',deal:null,t:'09:05',dur:'—',dir:'пропущенный',rec:false,sum:'Пропущенный — система создала задачу «перезвонить» дежурному менеджеру.'},
  {id:'m5',ch:'Звонок',who:'Тендерный отдел · Аэропорт',deal:'D-124',t:'вчера',dur:'12:03',dir:'исходящий',rec:true,sum:'Уточнили техническое задание тендера: ширина уборки от 55 см, гарантия 2 года.'}
 ];
+INBOX.splice(3,0,{id:'m6',ch:'Telegram',who:'Олжас · ТОО «ЧистоДом»',deal:null,t:'09:12',un:1,msgs:[['in','Добрый день, нужна аренда поломойки на месяц под объект','09:12']]},{id:'m7',ch:'Сайт',who:'Заявка с glyanets.kz · Костанай',deal:null,t:'08:40',un:1,msgs:[['in','Форма «Подобрать машину»: ТЦ 6 000 м², бюджет до 4 млн','08:40']]});
 let curM='m1';
 
 /* ===== Задачи и лента ===== st: new — новая, work — в работе, check — на проверке, done — готово */
@@ -251,15 +253,15 @@ SC.clients=()=>`<div class="hd"><div><h2>Клиенты и объекты</h2><p
  <div class="tw"><table class="t"><thead><tr><th>Клиент</th><th>Тип</th><th>Город</th><th>Площадь</th><th class="r">Машин у клиента</th><th class="r">Сделки</th><th>ЛПР</th></tr></thead><tbody>
  ${CLIENTS.map(c=>`<tr onclick="openClient('${c.id}')"><td><b>${esc(c.n)}</b></td><td>${esc(c.type)}</td><td>${c.city}</td><td>${c.area}</td><td class="r">${c.owned.length}</td><td class="r">${DEALS.filter(d=>d.cl===c.id).length}</td><td class="mini">${esc(c.lpr)}</td></tr>`).join('')}</tbody></table></div>`;
 function openClient(id){const c=CL(id);openM(esc(c.n),esc(c.type)+' · '+c.city+' · '+c.area,`<div class="kv"><span>ЛПР</span><b>${esc(c.lpr)}</b></div><div class="kv"><span>Телефон</span><b>${c.ph}</b></div>
- <div class="pan" style="margin-top:12px"><h3>Техника у клиента</h3>${c.owned.map(s=>`<div class="kv"><span><code>${s}</code></span><b>ТО через ${(s.length%5)+1} нед.</b></div>`).join('')||'<p class="mini">Пока не покупал технику.</p>'}</div>
+ <div class="pan" style="margin-top:12px"><h3>Техника у клиента</h3>${c.owned.map(s=>`<div class="kv" style="cursor:pointer" onclick="svcHist('${s}')"><span><code>${s}</code></span><b>ТО через ${(s.length%5)+1} нед.</b></div>`).join('')||'<p class="mini">Пока не покупал технику.</p>'}</div>
  <div class="pan"><h3>Сделки</h3>${DEALS.filter(d=>d.cl===id).map(d=>`<a class="trow" onclick="closeM();openDeal('${d.id}')"><i class="dt i"></i><b>${esc(d.t)}</b><span>${STN(d.stg)} · ${tg(d.sum)}</span></a>`).join('')}</div>`)}
 
 /* ===== WhatsApp и звонки ===== */
 SC.inbox=()=>{const m=INBOX.find(x=>x.id===curM)||INBOX[0];
- return `<div class="hd"><div><h2>WhatsApp и звонки</h2><p>Один общий номер WhatsApp на всю команду и IP-телефония. Входящий с нового номера — сразу лид в воронке; пропущенный — задача «перезвонить».</p></div><div class="btns"><span class="live"><i></i>WhatsApp подключён</span><span class="live"><i></i>АТС · 4 линии</span></div></div>
- <div class="inbox"><div class="ilist">${INBOX.map(x=>`<a class="${x.id===m.id?'on':''}" onclick="curM='${x.id}';render()"><span class="ch ${x.ch==='WhatsApp'?'wa':'tel'}">${x.ch==='WhatsApp'?'WA':'ТЛ'}</span><div><b>${esc(x.who)}</b><small>${x.ch==='WhatsApp'?esc(x.msgs[x.msgs.length-1][1]):esc(x.dir+' · '+x.dur)}</small></div><time>${x.t}${x.un?`<em>${x.un}</em>`:''}</time></a>`).join('')}</div>
+ return `<div class="hd"><div><h2>WhatsApp, Telegram, сайты и звонки</h2><p>Все каналы в одном окне: общий номер WhatsApp, Telegram, заявки с нескольких сайтов и IP-телефония (Asterisk). Входящий с нового номера — сразу лид в воронке; пропущенный — задача «перезвонить».</p></div><div class="btns"><span class="live"><i></i>WhatsApp подключён</span><span class="live"><i></i>Telegram</span><span class="live"><i></i>3 сайта</span><span class="live"><i></i>АТС · 4 линии</span></div></div>
+ <div class="inbox"><div class="ilist">${INBOX.map(x=>`<a class="${x.id===m.id?'on':''}" onclick="curM='${x.id}';render()"><span class="ch ${x.msgs?'wa':'tel'} ${x.ch==='Telegram'?'tg':x.ch==='Сайт'?'web':''}">${{WhatsApp:'WA',Telegram:'TG','Сайт':'САЙТ'}[x.ch]||'ТЛ'}</span><div><b>${esc(x.who)}</b><small>${x.msgs?esc(x.msgs[x.msgs.length-1][1]):esc(x.dir+' · '+x.dur)}</small></div><time>${x.t}${x.un?`<em>${x.un}</em>`:''}</time></a>`).join('')}</div>
  <div class="ichat"><div class="ich"><div><b>${esc(m.who)}</b><small>${m.deal?`сделка <a class="lnk" onclick="openDeal('${m.deal}')">${m.deal}</a>`:'без сделки'}</small></div>${m.deal?'':`<button class="bt sm p" onclick="leadFrom('${m.id}')">Создать сделку</button>`}</div>
-  ${m.ch==='WhatsApp'?`<div class="bubbles">${m.msgs.map(x=>`<div class="bb ${x[0]}"><p>${esc(x[1])}</p><time>${x[2]}</time></div>`).join('')}</div>
+  ${m.msgs?`<div class="bubbles">${m.msgs.map(x=>`<div class="bb ${x[0]}"><p>${esc(x[1])}</p><time>${x[2]}</time></div>`).join('')}</div>
   <div class="tpls">${['Счёт во вложении','Пришлите реквизиты','Когда удобно демо-показ?','Машина в наличии, резерв на 3 дня'].map(t=>`<a onclick="document.getElementById('itx').value='${t}'">${t}</a>`).join('')}</div>
   <div class="wsend"><input id="itx" placeholder="Ответ…"><button class="bt g" onclick="replyWA('${m.id}')">Отправить</button></div>`
   :`<div class="callc"><b>${m.dir==='пропущенный'?'Пропущенный звонок':'Звонок · '+m.dir+' · '+m.dur}</b><p>${esc(m.sum)}</p>${m.rec?`<button class="bt" onclick="playRec('${m.id}')">▶ Прослушать запись</button>`:`<button class="bt p" onclick="callC('+7 701 909 11 55')">Перезвонить</button>`}</div>`}
@@ -281,7 +283,7 @@ let stCat='all',stQ='';
 const KIND={m:'Техника',p:'Запчасти и расходники',c:'Химия'};
 SC.stock=()=>{const P=PRODUCTS.filter(p=>(stCat==='all'||p.kind===stCat)&&(!stQ||(p.n+p.id).toLowerCase().includes(stQ)));
  const val=PRODUCTS.reduce((a,p)=>a+qty(p.id,whF)*p.cost,0);
- return `<div class="hd"><div><h2>Остатки</h2><p>Четыре склада, ячейки, серийные номера. Техника учитывается поштучно по серийнику — видно, какая машина свободна, какая в резерве под сделку, какая стоит в демо-зале или в ремонте.</p></div><div class="btns"><button class="bt" onclick="go('receive')">Приход</button><button class="bt" onclick="go('moves')">Перемещение</button><button class="bt" onclick="go('inv')">Инвентаризация</button><button class="bt p" onclick="xlsStock()">Excel</button></div></div>
+ return `<div class="hd"><div><h2>Остатки</h2><p>Три склада в трёх филиалах, ячейки, серийные номера. Техника учитывается поштучно по серийнику — видно, какая машина свободна, какая в резерве под сделку, какая стоит в демо-зале или в ремонте.</p></div><div class="btns"><button class="bt" onclick="go('receive')">Приход</button><button class="bt" onclick="go('moves')">Перемещение</button><button class="bt" onclick="go('inv')">Инвентаризация</button><button class="bt p" onclick="xlsStock()">Excel</button></div></div>
  <div class="whtabs"><a class="${whF==='all'?'on':''}" onclick="whF='all';render()"><b>Все склады</b><span>${tg(PRODUCTS.reduce((a,p)=>a+qty(p.id)*p.cost,0))}</span></a>${WH.map(w=>`<a class="${whF===w.id?'on':''}" onclick="whF='${w.id}';render()"><b>${w.n}</b><span>${tg(PRODUCTS.reduce((a,p)=>a+qty(p.id,w.id)*p.cost,0))}</span></a>`).join('')}</div>
  <div class="fbar"><div class="seg">${[['all','Всё'],['m','Техника'],['p','Запчасти'],['c','Химия']].map(([k,n])=>`<a class="${stCat===k?'on':''}" onclick="stCat='${k}';render()">${n}</a>`).join('')}</div><input class="sel" placeholder="Поиск: артикул, название" value="${esc(stQ)}" onchange="stQ=this.value.toLowerCase();render()"><span class="mini">${P.length} позиций · ${tg(val)} в закупочных ценах</span></div>
  <div class="tw"><table class="t"><thead><tr><th>Артикул</th><th>Товар</th><th>Ячейка</th><th class="r">Остаток</th><th class="r">Свободно</th><th class="r">Резерв</th><th class="r">Мин.</th><th class="r">Сумма</th><th></th></tr></thead><tbody>
@@ -405,18 +407,22 @@ const SVC=[
  {sn:'SC55-23-0201',cl:'C1',m:'SC-55',hrs:488,next:500,st:'soon',eng:'TM'},
  {sn:'SC55-22-0112',cl:'C5',m:'SC-55',hrs:1240,next:1250,st:'soon',eng:'NS'},
  {sn:'SC43-23-0880',cl:'C4',m:'SC-43',hrs:302,next:500,st:'ok',eng:'NS'},
- {sn:'SW90-23-0144',cl:'C6',m:'SW-90',hrs:610,next:500,st:'repair',eng:'TM'}
+ {sn:'SW90-23-0144',cl:'C6',m:'SW-90',hrs:610,next:500,st:'repair',eng:'TM'},
+ {sn:'SC43-22-0517',cl:'C2',m:'SC-43',hrs:1310,next:1500,st:'ok',eng:'NS',rent:true}
 ];
-SC.service=()=>`<div class="hd"><div><h2>Сервис и ТО</h2><p>Каждая проданная машина остаётся в системе: моточасы, ТО каждые 250 часов, ремонты, запчасти со склада. За 2 недели до ТО менеджер получает задачу — это повторная продажа щёток, падов и химии.</p></div><div class="btns"><button class="bt p" onclick="newTask(null,'Сервисная заявка')">+ Заявка в сервис</button></div></div>
+const SHIST={def:[['12.09.2026','ТО-500','Тимур Ли','Замена щётки BR-55, резины сквиджа, чистка бака','BR-55 × 2, SQ-75 × 1','Клиент: машина оставляет разводы у входа — устранено'],['03.06.2026','Гарантийный ремонт','Нурлан Сарсенов','Замена датчика уровня воды','датчик ДУ-2 × 1','Клиент: простой 2 дня, просит подменную машину'],['15.03.2026','ТО-250','Тимур Ли','Плановое ТО по регламенту','PD-43 × 2','—'],['20.12.2025','Пусконаладка','Тимур Ли','Запуск, обучение 3 операторов','—','Акт подписан'],['10.12.2025','Продажа','Дана Сейтова','Сделка D-071, гарантия 24 мес','—','Лид: звонок, КП, демо-показ']]};
+function svcHist(sn){const s=SVC.find(x=>x.sn===sn)||{sn,cl:'C1',m:'SC-55',hrs:0,eng:'TM'};const c=CL(s.cl);openM('<code>'+esc(sn)+'</code> · '+esc(PR(s.m).n),esc(c.n)+(s.rent?' · аренда, на балансе компании':' · продана, гарантия до 12.2027')+' · '+s.hrs+' моточасов',`<p class="mini">Вся жизнь машины в одном месте: как нашли клиента, продажа, пусконаладка, каждое ТО, установленные запчасти и замечания клиента. Акт сервисный инженер заполняет с телефона прямо у машины.</p><div class="tw"><table class="t"><thead><tr><th>Дата</th><th>Что</th><th>Работы</th><th>Запчасти</th><th>Замечание клиента</th></tr></thead><tbody>${SHIST.def.map(h=>`<tr><td class="mono">${h[0]}</td><td><b>${h[1]}</b><span class="sub">${h[2]}</span></td><td>${h[3]}</td><td class="mini">${h[4]}</td><td class="mini">${h[5]}</td></tr>`).join('')}</tbody></table></div><div class="btns l"><button class="bt p" onclick="svcAct('${sn}')">+ Сервисный акт</button><button class="bt" onclick="xls('История_${sn}',['Дата','Что','Инженер','Работы','Запчасти','Замечание'],SHIST.def)">Excel</button></div>`)}
+function svcAct(sn){openM('Сервисный акт · '+esc(sn),'Заполняется с телефона у машины',`<div class="form"><label>Вид работ<select><option>ТО-750</option><option>Ремонт</option><option>Гарантия</option><option>Диагностика</option></select></label><label>Моточасы<input value="748"></label><label>Установленные запчасти<input value="BR-55 × 2; SQ-75 × 1"></label><label>Замечание клиента<input value="Шумит щёточный узел"></label><label class="cbx"><input type="checkbox" checked> Списать запчасти со склада сервиса</label><label class="cbx"><input type="checkbox" checked> Отправить акт клиенту в WhatsApp на подпись</label></div><div class="btns l"><button class="bt p" onclick="SHIST.def.unshift(['04.11.2026','ТО-750',ROLES[role].n,'Плановое ТО','BR-55 × 2; SQ-75 × 1','Шумит щёточный узел — устранено']);closeM();svcHist('${sn}');toast('Акт сохранён, запчасти списаны, клиенту ушёл акт в WhatsApp.')">Сохранить акт</button></div>`)}
+SC.service=()=>`<div class="hd"><div><h2>Сервис и ТО</h2><p>Сервис централизован в Астане и ведёт машины всех филиалов. Нажмите на машину — откроется вся история: продажа, ТО, запчасти, замечания клиента. Каждая проданная или арендная машина остаётся в системе: моточасы, ТО каждые 250 часов, ремонты, запчасти со склада. За 2 недели до ТО менеджер получает задачу — это повторная продажа щёток, падов и химии.</p></div><div class="btns"><button class="bt p" onclick="newTask(null,'Сервисная заявка')">+ Заявка в сервис</button></div></div>
  <div class="tw"><table class="t"><thead><tr><th>Машина</th><th>Клиент</th><th class="r">Моточасы</th><th>До ТО</th><th>Инженер</th><th>Статус</th><th></th></tr></thead><tbody>
- ${SVC.map(s=>`<tr onclick="openSN('${s.sn}')"><td class="mono">${s.sn}<span class="sub">${esc(PR(s.m).n)}</span></td><td>${esc(CL(s.cl).n)}</td><td class="r">${s.hrs}</td><td style="min-width:120px">${bar(pct(s.hrs%250||250,250),s.st==='repair'?'r':s.st==='soon'?'w':'g')}<span class="sub">${s.st==='repair'?'в ремонте':Math.max(0,s.next-s.hrs)+' ч'}</span></td><td>${fn(s.eng)}</td><td>${tag(s.st==='repair'?'ремонт':s.st==='soon'?'скоро ТО':'в норме',s.st==='repair'?'r':s.st==='soon'?'w':'g')}</td><td>${s.st==='soon'?`<button class="bt sm" onclick="event.stopPropagation();svcPlan('${s.sn}')">Назначить ТО</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+ ${SVC.map(s=>`<tr onclick="svcHist('${s.sn}')"><td class="mono">${s.sn}${s.rent?' '+tag('аренда','i'):''}<span class="sub">${esc(PR(s.m).n)}</span></td><td>${esc(CL(s.cl).n)}</td><td class="r">${s.hrs}</td><td style="min-width:120px">${bar(pct(s.hrs%250||250,250),s.st==='repair'?'r':s.st==='soon'?'w':'g')}<span class="sub">${s.st==='repair'?'в ремонте':Math.max(0,s.next-s.hrs)+' ч'}</span></td><td>${fn(s.eng)}</td><td>${tag(s.st==='repair'?'ремонт':s.st==='soon'?'скоро ТО':'в норме',s.st==='repair'?'r':s.st==='soon'?'w':'g')}</td><td>${s.st==='soon'?`<button class="bt sm" onclick="event.stopPropagation();svcPlan('${s.sn}')">Назначить ТО</button>`:''}</td></tr>`).join('')}</tbody></table></div>
  <div class="g2" style="margin-top:12px"><div class="pan"><h3>Комплект на ТО SC-55</h3>${[['BR-55',2],['SQ-75',1],['CH-DET',2]].map(([p,q])=>`<div class="kv"><span>${esc(PR(p).n)}</span><b>${q} шт · ${tg(PR(p).price*q)}</b></div>`).join('')}<p class="mini">Списывается со склада сервиса автоматически при закрытии задачи.</p></div>
  <div class="pan"><h3>Выручка сервиса, ноябрь</h3><div class="kv"><span>ТО и ремонты</span><b>${tg(2100000)}</b></div><div class="kv"><span>Запчасти и расходники</span><b>${tg(4100000)}</b></div><div class="kv"><span>Повторные продажи из ТО</span><b>${tg(1650000)}</b></div></div></div>`;
 function svcPlan(sn){const s=SVC.find(x=>x.sn===sn);TASKS.unshift({id:'T-3'+(10+TASKS.length),t:'ТО '+sn+' · '+CL(s.cl).n,who:s.eng,by:'OL',due:'12.11',st:'new',pr:'mid',deal:null,chk:[['Комплект со склада',false],['ТО по регламенту',false],['Акт клиенту',false]],com:[],watch:['OL']});render();toast(`ТО назначено на 12.11, ${fn(s.eng)} получил задачу, клиенту — напоминание в WhatsApp, менеджеру — задача предложить расходники.`)}
 
 /* ===== Задачи ===== */
 const tFilt=()=>TASKS.filter(t=>tWho==='all'||t.who===tWho||(tWho==='me'&&t.who===meId()));
-const meId=()=>({'Собственник':'AL','Руководитель продаж':'RS','Менеджер':'DN','Кладовщик':'ER','Сервисный инженер':'TM','Бухгалтер':'SV'}[role]);
+const meId=()=>({'Собственник':'AL','Операционный директор':'RS','Менеджер':'DN','Кладовщик':'ER','Сервисный инженер':'TM','Бухгалтер':'SV'}[role]);
 const tcard=t=>`<div class="tc" draggable="true" ondragstart="event.dataTransfer.setData('t','${t.id}')" onclick="openTask('${t.id}')"><div class="tch"><code>${t.id}</code>${tag(PRN[t.pr][0],PRN[t.pr][1])}</div><b>${esc(t.t)}</b>${t.chk.length?`<div class="tchk">${bar(pct(t.chk.filter(c=>c[1]).length,t.chk.length),'g')}<span>${t.chk.filter(c=>c[1]).length}/${t.chk.length}</span></div>`:''}<div class="tcf"><i class="av">${ini(t.who)}</i><span>${esc(fn(t.who))}</span><time class="${t.due==='сегодня'||t.due==='04.11'?'bad':''}">${t.due}</time>${t.com.length?`<em>${t.com.length}</em>`:''}</div></div>`;
 SC.tasks=()=>{const T=tFilt();
  return `<div class="hd"><div><h2>Задачи</h2><p>Задачи ставятся из сделки, звонка, склада или вручную. Чек-лист, наблюдатели, комментарии, сроки. Пропущенный звонок, оплата, отгрузка и ТО создают задачи сами.</p></div><div class="btns"><div class="seg">${[['board','Доска'],['list','Список'],['people','По людям']].map(([k,n])=>`<a class="${tView===k?'on':''}" onclick="tView='${k}';render()">${n}</a>`).join('')}</div><select class="sel" onchange="tWho=this.value;render()"><option value="all">Все</option><option value="me" ${tWho==='me'?'selected':''}>Мои</option>${STAFF.map(s=>`<option value="${s.id}" ${tWho===s.id?'selected':''}>${esc(s.n)}</option>`).join('')}</select><button class="bt p" onclick="newTask()">+ Задача</button></div></div>
@@ -466,24 +472,24 @@ function doDel(id){const to=document.getElementById('dto').value;DEALS.forEach(d
 
 /* ===== Роли ===== */
 const PERM=['Воронка — все сделки','Воронка — только свои','Цены закупки и маржа','Склад — просмотр','Склад — приход и отгрузка','Инвентаризация — проводить акт','Задачи — ставить всем','Сотрудники — добавлять','Записи звонков','Excel-выгрузки','Все бизнесы'];
-const PM={'Собственник':'11111111111','Руководитель продаж':'10111001111','Менеджер':'01010000010','Кладовщик':'00011000010','Сервисный инженер':'00010000000','Бухгалтер':'10111000010'};
+const PM={'Собственник':'11111111111','Операционный директор':'10111001111','Менеджер':'01010000010','Кладовщик':'00011000010','Сервисный инженер':'00010000000','Бухгалтер':'10111000010'};
 SC.roles=()=>`<div class="hd"><div><h2>Роли и права</h2><p>Каждый видит своё. Нажмите на клетку — право переключится. Роль можно скопировать и создать свою.</p></div></div>
  <div class="tw"><table class="t perm"><thead><tr><th>Право</th>${Object.keys(PM).map(r=>`<th class="c">${r}</th>`).join('')}</tr></thead><tbody>${PERM.map((p,i)=>`<tr><td>${p}</td>${Object.keys(PM).map(r=>`<td class="c"><a class="pm ${PM[r][i]==='1'?'on':''}" onclick="PM['${r}']=PM['${r}'].slice(0,${i})+(PM['${r}'][${i}]==='1'?'0':'1')+PM['${r}'].slice(${i+1});render()">${PM[r][i]==='1'?'✓':''}</a></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
 /* ===== Мультибизнес ===== */
 SC.multi=()=>{const tot=BIZ.reduce((a,b)=>a+b.rev,0);
- return `<div class="hd"><div><h2>Мультибизнес · опция +400 000 ₸</h2><p>Если Александр захочет вести несколько своих бизнесов в одной системе: у каждого своя воронка, свой склад, свои задачи и команда — а у собственника один сводный пульт. Переключатель бизнеса — слева вверху.</p></div></div>
+ return `<div class="hd"><div><h2>Мультибизнес · опция +400 000 ₸</h2><p>У Александра есть и другие направления — ассоциация скалолазания, баскетбол. Их можно вести в этой же системе: у каждого своя воронка, свой склад, свои задачи и команда — а у собственника один сводный пульт. Переключатель бизнеса — слева вверху.</p></div></div>
  <div class="mbiz">${BIZ.map(b=>`<a class="${b.id===biz?'on':''}" style="--c:${b.c}" onclick="setBiz('${b.id}')"><i></i><b>${b.n}</b><span>${b.d}</span>
   <div class="kv"><span>Продажи ноября</span><b>${mln(b.rev)} ₸</b></div><div class="kv"><span>Открытых сделок</span><b>${b.deals}</b></div><div class="kv"><span>Склад</span><b>${mln(b.stock)} ₸</b></div><div class="kv"><span>Задач</span><b>${b.tasks}</b></div><div class="share"><i style="width:${pct(b.rev,tot)}%"></i></div><small>${pct(b.rev,tot)}% выручки группы</small></a>`).join('')}</div>
  <div class="g2"><div class="pan"><h3>Что даёт опция</h3>${[['Мультиворонки','у каждого бизнеса свои этапы: техника — через демо и тендер, химия — через автозаказ'],['Мультисклады','отдельные остатки и инвентаризации, перемещения между бизнесами — документом'],['Мультизадачи','сотрудник может работать в двух бизнесах, задачи помечены цветом бизнеса'],['Мультидашборд','сводный пульт собственника: выручка, маржа, склад, долги — по группе и по каждому']].map(x=>`<div class="kv"><span><b>${x[0]}</b><br><span class="mini">${x[1]}</span></span></div>`).join('')}</div>
- <div class="pan"><h3>Сводно по группе</h3><div class="kv"><span>Выручка ноября</span><b>${tg(tot)}</b></div><div class="kv"><span>Склад, все бизнесы</span><b>${tg(BIZ.reduce((a,b)=>a+b.stock,0))}</b></div><div class="kv"><span>Открытых сделок</span><b>${BIZ.reduce((a,b)=>a+b.deals,0)}</b></div><div class="kv"><span>Клиенты в нескольких бизнесах</span><b>Mega, CleanPro, Magnum</b></div><p class="mini">Общий клиент виден во всех бизнесах: продали машину — сервис и химия сразу знают.</p></div></div>`};
+ <div class="pan"><h3>Сводно по группе</h3><div class="kv"><span>Выручка ноября</span><b>${tg(tot)}</b></div><div class="kv"><span>Склад, все бизнесы</span><b>${tg(BIZ.reduce((a,b)=>a+b.stock,0))}</b></div><div class="kv"><span>Открытых сделок</span><b>${BIZ.reduce((a,b)=>a+b.deals,0)}</b></div><p class="mini">Команды и воронки у направлений разные, а пульт собственника — один: деньги и задачи всех бизнесов на одном экране.</p></div></div>`};
 function setBiz(id){biz=id;const s=document.getElementById('bizsel');if(s)s.value=id;build();toast(`Бизнес: <b>${esc(BIZ.find(b=>b.id===id).n)}</b>. Воронка, склад и задачи переключились.`)}
 
 /* ===== Запуск и стоимость ===== */
 SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Система под ваш процесс: CRM, склады, инвентаризация, задачи, WhatsApp и IP-телефония. Без абонплаты за пользователей.</p></div></div>
- <div class="g21"><div class="pan"><h3>Состав</h3><div class="tw"><table class="t"><tbody>${[['CRM: воронка, сделки, клиенты, КП и счета из шаблонов'],['WhatsApp: общий номер, переписка в сделке, шаблоны, уведомления клиенту'],['IP-телефония: звонки из CRM, записи, пропущенные → задачи, лид с нового номера'],['Склады: 4 склада, ячейки, серийные номера, резерв, приход, отгрузки, перемещения'],['Инвентаризация: план, слепой подсчёт с телефона, расхождения, акт, проведение'],['Отчёты в Excel и отчёты по расписанию'],['Задачи: доска, чек-листы, наблюдатели, авто-задачи, лента'],['Сотрудники и роли: добавление, отключение с передачей дел, права'],['Сервис и ТО по моточасам'],['Перенос клиентов и остатков из Excel, обучение команды']].map((x,i)=>`<tr><td class="mono" style="width:40px">${String(i+1).padStart(2,'0')}</td><td>${x[0]}</td></tr>`).join('')}</tbody></table></div></div>
- <div><div class="pan price"><h3>Стоимость</h3><div class="kv"><span>Разработка и внедрение</span><b>${tg(2000000)}</b></div><div class="kv opt"><span>Опция «Мультибизнес» +20%: мультиворонки, мультисклады, мультизадачи, мультидашборд</span><b>+ ${tg(400000)}</b></div><div class="kv tot"><span>С мультибизнесом</span><b>${tg(2400000)}</b></div></div>
- <div class="pan"><h3>Оплата и сроки</h3><div class="kv"><span>Предоплата</span><b>10%</b></div><div class="kv"><span>После демонстрации CRM и склада</span><b>45%</b></div><div class="kv"><span>После запуска</span><b>45%</b></div><div class="kv"><span>Срок</span><b>8–10 недель</b></div></div></div></div>`;
+ <div class="g21"><div class="pan"><h3>Состав</h3><div class="tw"><table class="t"><tbody>${[['CRM: воронка, сделки, клиенты, КП и счета из шаблонов'],['WhatsApp (Green API), Telegram и заявки с нескольких сайтов — в одном окне'],['IP-телефония (Asterisk): звонки из CRM, записи, пропущенные → задачи, лид с нового номера'],['3 филиала: Алматы, Астана, Костанай; РОП и продажники филиала видят своё'],['Склады: 3 склада в филиалах, ячейки, серийные номера, резерв, приход, отгрузки, перемещения'],['Инвентаризация: план, слепой подсчёт с телефона, расхождения, акт, проведение'],['Отчёты в Excel и отчёты по расписанию'],['Задачи: доска, чек-листы, наблюдатели, авто-задачи, лента'],['Сотрудники и роли: добавление, отключение с передачей дел, права'],['Сервис: история каждой машины — продажа, ТО, запчасти, замечания клиента; аренда'],['Перенос клиентов и остатков (до 10 000 позиций) из Bitrix24, Excel и 1С, обучение команды']].map((x,i)=>`<tr><td class="mono" style="width:40px">${String(i+1).padStart(2,'0')}</td><td>${x[0]}</td></tr>`).join('')}</tbody></table></div></div>
+ <div><div class="pan price"><h3>Стоимость</h3><div class="kv"><span>Разработка и внедрение</span><b>${tg(2000000)}</b></div><div class="kv opt"><span>Опция «Мультибизнес» +20%: мультиворонки, мультисклады, мультизадачи, мультидашборд</span><b>+ ${tg(400000)}</b></div><div class="kv tot"><span>С мультибизнесом</span><b>${tg(2400000)}</b></div><div class="kv opt"><span>По желанию: постоянный обмен с 1С (вместо разового переноса)</span><b>+ ${tg(800000)}</b></div></div>
+ <div class="pan"><h3>Оплата и сроки</h3><div class="kv"><span>Предоплата</span><b>10%</b></div><div class="kv"><span>После демонстрации CRM и склада</span><b>45%</b></div><div class="kv"><span>После запуска</span><b>45%</b></div><div class="kv"><span>Срок</span><b>4–6 недель</b></div><div class="kv"><span>Сервер (Cloudflare)</span><b>5–10 $ в месяц</b></div><div class="kv"><span>Абонплата за пользователей</span><b>нет</b></div></div></div></div>`;
 
 /* ===== Каркас ===== */
 const SUBT={dash:'Деньги, склад и задачи на одном экране',funnel:'От лида до пусконаладки',deal:'Товары, резерв, переписка, звонки',clients:'Объекты и техника у клиента',inbox:'Общий номер и АТС',kp:'Из сделки — в WhatsApp',stock:'Склады, ячейки, серийники',product:'Остатки и движение',receive:'Сверка, сканирование, проведение',ship:'Сборка, доставка, резерв',moves:'Между складами',inv:'План → подсчёт → акт',whrep:'Скачивается по кнопке',service:'Моточасы и ТО',tasks:'Доска, список, по людям',task:'Чек-лист и обсуждение',feed:'Всё, что происходит',team:'Добавить и отключить',roles:'Кто что видит',multi:'Несколько бизнесов в одном',launch:'Цена и сроки'};
@@ -512,7 +518,7 @@ const TOUR=[
  ['funnel','2 · Воронка: от лида до пусконаладки. Перетаскивание, без оплаты не отгрузить.'],
  ['deal','3 · Сделка: товары с живым остатком, резерв машины по серийнику, WhatsApp и звонки.'],
  ['inbox','4 · Общий WhatsApp и IP-телефония: новый номер — лид, пропущенный — задача.'],
- ['stock','5 · Склад: 4 склада, ячейки, серийники, свободно/резерв, ниже минимума — к заказу.'],
+ ['stock','5 · Склад: 3 склада в филиалах, ячейки, серийники, свободно/резерв, ниже минимума — к заказу.'],
  ['product','6 · Карточка товара: остатки по складам, серийные номера, движение.'],
  ['receive','7 · Приход: сверка, скан серийников, провести — остатки обновились.'],
  ['inv','8 · Инвентаризация: план → слепой подсчёт с телефона → расхождения → акт → Excel.'],
@@ -520,7 +526,7 @@ const TOUR=[
  ['tasks','10 · Задачи: доска, по людям, авто-задачи из звонков, оплат и ТО.'],
  ['team','11 · Команда: добавить за минуту, удалить — с передачей сделок и задач.'],
  ['multi','12 · Опция «Мультибизнес»: несколько бизнесов, один пульт. +400 000 ₸.'],
- ['launch','13 · Стоимость: 2 000 000 ₸.']
+ ['service','12б · Сервис: история каждой машины — ТО, запчасти, замечания клиента.'],['launch','13 · Стоимость: 2 000 000 ₸, 4–6 недель, без абонплаты.']
 ];
 let ti=-1,tRun=false;
 function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■ Стоп';step()}

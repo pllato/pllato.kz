@@ -34,10 +34,10 @@ g0=s.index('<section class="gate" id="gate">');g1=s.index('</section>',g0)+len('
 gate=f'''<section class="gate" id="gate">
  <div class="gate-l">
   <div class="glogo">{MARK.format(w=52)}<div><b class="gname">ГЛЯНЕЦ</b><small class="gsub">ПРОФЕССИОНАЛЬНАЯ УБОРОЧНАЯ ТЕХНИКА · CRM И СКЛАД</small></div></div>
-  <div class="kicker">Демо для Александра и Руслана · 15 человек · 4 склада</div>
+  <div class="kicker">Демо для Александра Разинкова и Руслана · 15 человек · 3 филиала</div>
   <h1>Продали машину в ТРЦ — <em>склад, сервис и задачи знают об этом сразу.</em></h1>
   <p class="glead">Воронка от лида до пусконаладки, общий WhatsApp и IP-телефония в карточке сделки, склады с ячейками и серийными номерами, инвентаризация с телефона, отчёты в Excel и задачи для всей команды.</p>
-  <div class="gstat"><div><small>Экранов</small><b class="a">21</b></div><div><small>Ролей</small><b>6</b></div><div><small>Складов</small><b>4</b></div><div><small>Интеграции</small><b>WA · АТС</b></div></div>
+  <div class="gstat"><div><small>Экранов</small><b class="a">21</b></div><div><small>Ролей</small><b>6</b></div><div><small>Филиалов</small><b>3</b></div><div><small>Интеграции</small><b>WA · АТС</b></div></div>
  </div>
  <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только нужное.</p><div class="roles" id="roles"></div>
   <div class="lnote"><b>Демо на вымышленных данных</b>Клиенты, модели машин, цены и остатки придуманы. Кнопки работают, Excel реально скачивается. «Сценарий» — показ по шагам.</div></div></div>
