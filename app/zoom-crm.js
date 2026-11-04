@@ -86,7 +86,7 @@ export function zoomClient({ base, getToken, compact = false }) {
         container.innerHTML = ` ${isMeet(meeting)?'':`<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>`}
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку ${isMeet(meeting)?'Pllato Meet':'Zoom'}</button>
-          <button type="button" class="tbtn tbtn-a" data-host>${isMeet(meeting)?'Войти как организатор':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
+          <button type="button" class="tbtn tbtn-a" data-host>Войти как организатор</button><div data-host-status role="status"></div>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка встречи: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
         const invitation=zoomInvitation(meeting);
         const preview=document.createElement('details');preview.style.cssText='font-size:13px;margin:12px 0';
@@ -99,7 +99,10 @@ export function zoomClient({ base, getToken, compact = false }) {
           const popup=isMeet(meeting)?window.open('about:blank','_blank'):null;
           try {
             const authToken=await getToken();
-            const {hostKey,hostUrl}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
+            const {hostKey,hostUrl,provider}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
+            if(provider==='zoom' && hostUrl && meetingUrl(hostUrl)){
+              const a=document.createElement('a');a.href=hostUrl;a.target='_blank';a.rel='noopener noreferrer';a.className='tbtn tbtn-a';a.textContent='Открыть Zoom ведущим';box.replaceChildren(a);return;
+            }
             if(hostUrl && meetingUrl(hostUrl)){ if(popup){storeMeetStaffAccess(popup.sessionStorage,meeting.meeting_id,{hostKey,hostUrl,authToken});popup.opener=null;popup.location.replace(hostUrl);}else{storeMeetStaffAccess(sessionStorage,meeting.meeting_id,{hostKey,hostUrl,authToken});const a=document.createElement('a');a.href=hostUrl;a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
             box.textContent='Код организатора: '+hostKey+'. В Zoom: Участники → Принять права организатора → введите код. Не отправляйте его клиентам.';
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать код';
