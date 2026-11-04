@@ -1,3 +1,4 @@
+import { createPllatoMeeting } from './meet-crm.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -33,12 +34,12 @@ test('OAuth state одноразовый, токены не хранятся о�
   assert.ok(!stored.includes('test-token'));assert.ok(!stored.includes('test-refresh'));
   assert.equal((await f.request('/callback?state=test&code=test')).status,403);
 });
-test('повторное создание события возвращает одну Pllato Meet без Zoom API',async()=>{
+test('повторное создание события возвращает одну постоянную Zoom комнату',async()=>{
   const f=fixture();await f.connect();
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
   let posts=0;const original=globalThis.fetch;
   globalThis.fetch=async(url,options)=>{assert.equal(options.method,'POST');posts++;return Response.json({id:123,join_url:'https://zoom.us/j/123'});};
-  try{const a=await ensureZoomForTask(f.env,'t1'),b=await ensureZoomForTask(f.env,'t1');assert.equal(posts,0);assert.equal(a.meeting_id,b.meeting_id);assert.match(a.join_url,/pllato.kz\/m\/d[a-f0-9]{12}$/);}finally{globalThis.fetch=original;}
+  try{const a=await ensureZoomForTask(f.env,'t1'),b=await ensureZoomForTask(f.env,'t1');assert.equal(posts,1);assert.equal(a.meeting_id,b.meeting_id);assert.equal(a.join_url,'https://zoom.us/j/123');}finally{globalThis.fetch=original;}
 });
 test('неопределённый результат старого Zoom не создаёт дубликат',async()=>{
   const f=fixture();await f.connect();
@@ -90,7 +91,7 @@ test('Первый Zoom из карточки создаёт одну встре
   let posts=0,patches=0;const original=globalThis.fetch;
   globalThis.fetch=async(url,options)=>{
     const body=JSON.parse(options.body);
-    assert.equal(body.start_time,'2026-09-29T14:57:00.000Z');
+    assert.equal(body.type,3);assert.equal(body.settings.auto_recording,'cloud');
     if(options.method==='POST'){posts++;return Response.json({id:456,join_url:'https://zoom.us/j/456'});}
     assert.equal(options.method,'PATCH');patches++;return new Response(null,{status:204});
   };
@@ -98,8 +99,8 @@ test('Первый Zoom из карточки создаёт одну встре
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     const data=await (await f.request('/deals/deal_first/first-meeting')).json();
-    assert.match(data.meeting.join_url,/^https:\/\/pllato.kz\/m\/d[a-f0-9]{12}$/);
-    assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,0);assert.equal(patches,0);
+    assert.equal(data.meeting.join_url,'https://zoom.us/j/456');
+    assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,1);assert.equal(patches,0);
     f.deps.canEditRecord=async()=>false;
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,403);
   }finally{globalThis.fetch=original;}
@@ -249,7 +250,7 @@ test('Pllato Meet: private host access, CRM attachment and idempotent archive',a
   const f=fixture();await f.request('/status');
   f.db.prepare('INSERT INTO deals(id) VALUES(?)').run('deal_1');
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
-  const m=await ensureZoomForTask(f.env,'t1');
+  const m=await createPllatoMeeting(f.env,{id:'t1',title:'Legacy Meet'},'deal_1');
   const response=await f.request('/meetings/'+m.meeting_id+'/host-access','POST');
   assert.equal(response.status,200);
   const {hostUrl,hostKey:key}=await response.json();
@@ -277,7 +278,7 @@ test('CRM room cannot be claimed by the first guest; only issued key grants host
   const {MeetRoom}=await import('../meet-worker/worker.js');
   const f=fixture();await f.request('/status');
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'[]',1);
-  const meeting=await ensureZoomForTask(f.env,'t1');
+  const meeting=await createPllatoMeeting(f.env,{id:'t1',title:'Legacy Meet'},'deal_1');
   const values=new Map([['roomId',meeting.meeting_id]]),messages=[];
   const socket={send:s=>messages.push(JSON.parse(s)),serializeAttachment(a){this.a=a},deserializeAttachment(){return this.a}};
   const room=new MeetRoom({storage:{get:async k=>values.get(k),put:async(k,v)=>values.set(k,v)},getWebSockets:()=>[socket]},{CRM_DB:f.env.DB});
@@ -297,7 +298,7 @@ test('CRM archive HTTP blocks public reads, foreign keys and publishes only afte
   const worker=(await import('../meet-worker/worker.js')).default;
   const f=fixture();await f.request('/status');
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'[]',1);
-  const m=await ensureZoomForTask(f.env,'t1'),id=m.meeting_id+'-1234567890';
+  const m=await createPllatoMeeting(f.env,{id:'t1',title:'Legacy Meet'},'deal_1'),id=m.meeting_id+'-1234567890';
   const key=f.db.prepare('SELECT v FROM zoom_private WHERE k=?').get('pmeet-host:'+m.meeting_id).v;
   const env={ARCHIVE:f.env.FILES,CRM_DB:f.env.DB,CRM_FILES:f.env.FILES};
   const call=(path,method='GET',token='',body)=>worker.fetch(new Request('https://meet.test'+path,{method,headers:{Authorization:'Bearer '+token},body:body?JSON.stringify(body):undefined}),env);
@@ -310,29 +311,24 @@ test('CRM archive HTTP blocks public reads, foreign keys and publishes only afte
   assert.equal(f.db.prepare('SELECT kind FROM zoom_files').get().kind,'chat_metadata');
 });
 
-test('Permanent deal room: concurrent creation, repeated events, cancellation and staff boundaries',async()=>{
-  const f=fixture();await f.request('/status');f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT');
-  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_1','Client One');
-  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_2','Client Two');
-  assert.equal((await (await f.request('/deals/deal_1/room')).json()).meeting,null);
-  const requests=await Promise.all([f.request('/deals/deal_1/room','POST'),f.request('/deals/deal_1/room','POST')]);
-  assert.ok(requests.every(r=>r.status===200));
-  const [a,b]=await Promise.all(requests.map(r=>r.json()));assert.equal(a.meeting.join_url,b.meeting.join_url);
-  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM zoom_meetings WHERE deal_id=?').get('deal_1').n,1);
-  for(const id of ['t1','t2'])f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run(id,id,'zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
-  assert.equal((await ensureZoomForTask(f.env,'t1')).join_url,a.meeting.join_url);
-  assert.equal((await ensureZoomForTask(f.env,'t2')).join_url,a.meeting.join_url);
-  await syncZoomTask(f.env,'t1',{},true);
-  assert.equal((await (await f.request('/tasks/t2')).json()).meeting.join_url,a.meeting.join_url);
-  const other=await (await f.request('/deals/deal_2/room','POST')).json();assert.notEqual(a.meeting.join_url,other.meeting.join_url);
-  f.deps.resolveCanonicalUser=async()=>({role:'agent',canonicalUid:'staff'});f.deps.canEditRecord=async()=>false;
-  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,200);
-  f.deps.dealAccessSql=()=>({where:' AND id=?',params:['deal_2']});
-  assert.equal((await f.request('/deals/deal_1/room','POST')).status,403);
-  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,403);
-  f.deps.dealAccessSql=()=>({where:'',params:[]});f.deps.resolveCanonicalUser=async()=>({role:'guest'});
-  assert.equal((await f.request('/meetings/'+a.meeting.meeting_id+'/host-access','POST')).status,403);
-  assert.equal((await f.request('/deals/deal_1/room')).status,403);
+test('Zoom room concurrency, old link redirect, history preservation and cancellation',async()=>{
+ const f=fixture();await f.connect();f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT');
+ f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_1','Client One');
+ const old=await createPllatoMeeting(f.env,{id:'legacy',title:'Legacy Meet'},'deal_1');
+ let posts=0;const original=globalThis.fetch;
+ globalThis.fetch=async(url,opts)=>{assert.equal(opts.method,'POST');posts++;return Response.json({id:789,join_url:'https://zoom.us/j/789'});};
+ try {
+  const responses=await Promise.all([f.request('/deals/deal_1/room','POST'),f.request('/deals/deal_1/room','POST')]);
+  assert.equal(posts,1);assert.ok(responses.some(r=>r.status===200));assert.ok(responses.every(r=>[200,409].includes(r.status)));
+  const {meeting}=await (await f.request('/deals/deal_1/room')).json();assert.equal(meeting.meeting_id,'789');
+  f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Next meeting','zoom_meeting','2026-11-05T10:00:00Z','2026-11-05T11:00:00Z',null,'["deal_1"]',1);
+  assert.equal((await ensureZoomForTask(f.env,'t1')).meeting_id,'789');await syncZoomTask(f.env,'t1',{},true);
+  assert.equal((await (await f.request('/tasks/t1')).json()).meeting.meeting_id,'789');
+  assert.equal(f.db.prepare('SELECT status FROM zoom_meetings WHERE meeting_id=?').get(old.meeting_id).status,'ready');
+  const alias=new URL(old.join_url).pathname.split('/').pop();
+  for(const ref of [alias,old.meeting_id]) assert.equal((await (await f.request('/public-room/'+ref)).json()).joinUrl,'https://zoom.us/j/789');
+  f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});assert.equal((await f.request('/deals/deal_1/room')).status,403);
+ }finally{globalThis.fetch=original;}
 });
 test('Adopt an issued link without losing archives; cancelling its old event retains the room',async()=>{
   const {createPllatoMeeting,ensureDealRoom}=await import('./meet-crm.js');
