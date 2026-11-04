@@ -2529,13 +2529,19 @@ function showTranscriptModal(it){
   const params=new URLSearchParams(location.search);
   const pathMatch=location.pathname.match(/^\/m\/([a-z0-9\-]+)/i);
   let room=parseRoomFromInput(params.get('room') || (pathMatch && pathMatch[1]));
-  if(/^d[a-f0-9]{12,32}$/.test(room||'')){
+  if(/^(?:d[a-f0-9]{12,32}|crm-[a-f0-9-]{36})$/.test(room||'')){
     state.publicLink=location.origin+'/m/'+room;
     showScreen('screen-prejoin');$('btn-enter').disabled=true;
     try{
       const response=await fetch(CRM_MEET_API+'/public-room/'+room,{signal:AbortSignal.timeout(8000)});
       if(!response.ok)throw Error('Встреча не найдена. Проверьте ссылку.');
-      room=(await response.json()).room;
+      const resolved=await response.json();
+      if(resolved.provider==='zoom' && resolved.joinUrl){
+        const target=new URL(resolved.joinUrl);
+        if(target.protocol==='https:' && /(^|\.)zoom\.(us|com)$/.test(target.hostname) && !target.username && !target.password){location.replace(target.href);return;}
+        throw Error('Некорректная ссылка Zoom. Обратитесь к организатору.');
+      }
+      room=resolved.room;
     }catch(e){$('pre-error').textContent=e.message;return;}
   }
   if(room){

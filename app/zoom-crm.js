@@ -107,7 +107,7 @@ export function zoomClient({ base, getToken, compact = false }) {
           }catch(error){popup?.close();box.textContent=error.message;}finally{b.disabled=false;}
         };
       } else {
-        container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка встречи ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Pllato Meet</button>`;
+        container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка встречи ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Zoom</button>`;
         container.querySelector('[data-create]').onclick = async e => {
           e.target.disabled=true;
           try { await api(path,{method:'POST'}); await event(container,taskId,path); }
