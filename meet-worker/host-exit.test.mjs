@@ -6,7 +6,7 @@ const html=readFileSync(new URL('../meet.html',import.meta.url),'utf8');
 const leave=html.slice(html.indexOf('async function leaveRoom(options={}){'),html.indexOf("window.addEventListener('beforeunload'"));
 function setup(){
  let resolve,reject;const upload=new Promise((a,b)=>{resolve=a;reject=b;});const events=[];
- const ctx={state:{isHost:true,recording:true},wsSend:m=>events.push(m.t),showMeetingEnding:()=>events.push('countdown'),showHostExit:()=>events.push('hidden'),showHostExitError:()=>events.push('error'),stopMeetingMedia:()=>events.push('media-stopped'),
+ const ctx={clientCardLoader:{clear(){}},state:{isHost:true,recording:true},wsSend:m=>events.push(m.t),showMeetingEnding:()=>events.push('countdown'),showHostExit:()=>events.push('hidden'),showHostExitError:()=>events.push('error'),stopMeetingMedia:()=>events.push('media-stopped'),
  clearTimeout(){},clearInterval(){},setTimeout:()=>{events.push('delay');},recordingRetryTimer:null,timerInt:null,wsReconnectTimer:null,meetingEndTimer:null,
  floatingParticipants:{close(){}},$:()=>({disabled:false,remove(){}}),document:{},stopRecognition(){},recStarting:null,recSaving:null,recUpload:{},recordingSaved:false,wsClosedByUser:false,ws:{close(){}},peers:new Map(),toast(){},stopRecording:()=>{events.push('upload');return upload;},window:{close:()=>events.push('closed')},location:{},outBg:null,previewBg:null};
  vm.createContext(ctx);vm.runInContext(leave,ctx);return {ctx,events,resolve,reject};
