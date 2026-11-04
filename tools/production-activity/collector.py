@@ -39,7 +39,7 @@ def collect(source,home,state,now=None):
     now=now or int(time.time()*1000);cutoff=now-180*24*HOUR
     roots=[home/'.codex/sessions',home/'.codex/archived_sessions'] if source=='codex' else [home/'.claude/projects']
     files=[p for root in roots if root.exists() for p in root.rglob('*.jsonl') if 'subagents' not in p.parts]
-    if not files:return {'available':False,'observedAt':now}
+    if not files and not state.exists():return {'available':False,'observedAt':now}
     db=sqlite3.connect(state);db.executescript('CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY,size INTEGER,mtime INTEGER);CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,at INTEGER);')
     for p in files:
         st=p.stat();old=db.execute('SELECT size,mtime FROM files WHERE path=?',(str(p),)).fetchone()
@@ -68,6 +68,12 @@ def main():
     with open(path.with_suffix('.lock'),'w') as lock:
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:return
+        if cfg.get('claudeCloud') and cfg['source']=='claude':
+            from claude_cloud import sync
+            since=timestamp(cfg['cloudSince'])
+            if not since:raise ValueError('cloudSince must be an ISO date')
+            added=sync(path.with_suffix('.sqlite'),since,int(time.time()*1000),event,timestamp)
+            print(datetime.datetime.now().isoformat(timespec='seconds'),'claude cloud imported',added)
         body=collect(cfg['source'],pathlib.Path.home(),path.with_suffix('.sqlite'))
         if args.dry_run:
             print(json.dumps({'source':cfg['source'],'available':body['available'],'hours':len(body.get('buckets',[])),'requests':sum(b['count'] for b in body.get('buckets',[])),'coverageStart':body.get('coverageStart')},ensure_ascii=False));return
