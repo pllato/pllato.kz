@@ -283,7 +283,9 @@ export class MeetRoom {
       case 'presence': {
         if (!self) return;
         const patch = m.patch || {};
-        for (const key of ['micOn','camOn','sharing']) if (typeof patch[key] === 'boolean') self.info[key] = patch[key];
+        if(typeof patch.sharing==='boolean')self.info.sharing=patch.sharing && self.info.canShare!==false;
+        if(self.info.canShare===false)patch.screenStreamId=null;
+        for (const key of ['micOn','camOn']) if (typeof patch[key] === 'boolean') self.info[key] = patch[key];
         for (const key of ['camStreamId','screenStreamId']) if (patch[key] === null || typeof patch[key] === 'string') self.info[key] = patch[key];
         this.setAtt(ws, self);
         this.broadcast({ t: 'peer-update', peer: self.peer, info: self.info }, self.peer);
@@ -297,6 +299,26 @@ export class MeetRoom {
       case 'transcript': {
         if (!self || !self.info.admitted) return;
         this.broadcast({ t: 'transcript', from: self.peer, name: self.info.name, text: String(m.text || '').slice(0, 2000), ts: Date.now() }, null);
+        return;
+      }
+      case 'kick': {
+        if(!self?.info.admitted || self.info.role!=='host' || m.target===self.peer)return;
+        const target=this.sockFor(m.target);if(!target)return;
+        const room=await this.getRoom();
+        room.removedPeers={...room.removedPeers,[m.target]:Date.now()};await this.saveRoom(room);
+        this.send(target,{t:'removed'});
+        await this.onGone(target);
+        try{target.close(4003,'Removed by host');}catch{}
+        return;
+      }
+      case 'screen-permission': {
+        if(!self?.info.admitted || self.info.role!=='host' || m.target===self.peer || typeof m.allowed!=='boolean')return;
+        const target=this.sockFor(m.target),a=target&&this.attOf(target);if(!a?.info.admitted)return;
+        const room=await this.getRoom();room.screenPermissions={...room.screenPermissions,[a.peer]:m.allowed};await this.saveRoom(room);
+        a.info.canShare=m.allowed;
+        if(!m.allowed){a.info.sharing=false;a.info.screenStreamId=null;}
+        this.setAtt(target,a);
+        this.broadcast({t:'peer-update',peer:a.peer,info:a.info},null);
         return;
       }
       case 'admit': {
@@ -363,6 +385,7 @@ export class MeetRoom {
       room.hostKey=linked.host_key;
     }
     const peer = String(m.peer || '').slice(0, 40);
+    if(room.removedPeers?.[peer] && Date.now()-room.removedPeers[peer]<86400000){this.send(ws,{t:'removed'});ws.close(4003,'Removed by host');return;}
     if (!peer) { this.send(ws, { t: 'error', msg: 'no peer id' }); return; }
 
     // 1) СТРОГО: хост по личности — Gmail-владелец персональной комнаты (u-<slug email>)
@@ -402,14 +425,15 @@ export class MeetRoom {
       camOn: m.camOn !== false,
       camStreamId: typeof m.camStreamId === 'string' ? m.camStreamId : null,
       screenStreamId: typeof m.screenStreamId === 'string' ? m.screenStreamId : null,
-      sharing: m.sharing === true,
+      canShare:room.screenPermissions?.[peer] ?? isHost,
+      sharing:(room.screenPermissions?.[peer] ?? isHost) && m.sharing === true,
     };
     this.setAtt(ws, { peer, info });
 
     // welcome the newcomer with the current roster
     this.send(ws, {
       t: 'welcome',
-      self: { peer, role: info.role, admitted, isHost },
+      self: { peer, role: info.role, admitted, isHost, canShare:info.canShare },
       room: { status: room.status, locked: room.locked, recorderPeer:room.recorderPeer||null,recordingActive:!!room.recordingActive },
       peers: this.peersList(peer),
     });

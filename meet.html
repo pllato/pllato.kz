@@ -150,6 +150,7 @@ button{font-family:inherit;cursor:pointer}
 .side-pane.active{display:flex}
 
 .person{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px}
+.person-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.person-actions .btn{font-size:11px;padding:5px 8px}.person-remove{color:#bd3434}
 .person:hover{background:var(--surface-2)}
 .person .nm{flex:1;font-size:13.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .person .rl{font-size:11px;color:var(--text-3)}
@@ -216,13 +217,13 @@ button{font-family:inherit;cursor:pointer}
 .screen-area .tile.screen video{object-fit:contain;background:#000}
 .stage.presenting .grid{
   position:absolute;left:50%;transform:translateX(-50%);bottom:10px;
-  display:flex;flex-wrap:nowrap;gap:6px;height:auto;max-width:94%;
-  grid-template-columns:none;overflow-x:auto;overflow-y:hidden;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px;height:auto;width:94%;max-height:40%;
+  grid-template-columns:none;overflow-x:hidden;overflow-y:auto;
   padding:6px;border-radius:14px;background:rgba(10,15,26,.5);backdrop-filter:blur(10px);z-index:6;
 }
 .stage.presenting .grid::-webkit-scrollbar{height:6px}
 .stage.presenting .grid::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
-.stage.presenting .grid .tile{width:150px;height:86px;flex:0 0 auto;min-height:0;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.stage.presenting .grid .tile{width:clamp(90px,14vw,150px);height:86px;flex:0 0 auto;min-height:0;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
 .stage.presenting #caption-bar{bottom:112px}
 @media(max-width:560px){
   .stage.presenting .grid{bottom:8px;gap:5px;padding:5px}
@@ -234,8 +235,8 @@ button{font-family:inherit;cursor:pointer}
 .stage.presenting .grid .tile-name{font-size:11px;padding:2px 7px;left:6px;bottom:6px}
 .stage.presenting .grid .host-tag{display:none} /* в оверлее ведущего показывает бронзовая рамка, текст лишний */
 .stage.presenting .grid .tile .avatar{width:44px!important;height:44px!important;font-size:18px!important}
-/* в оверлее показываем только живые видео-портреты; камера выключена — прячем (в списке участников всё равно виден) */
-.stage.presenting .grid .tile.cam-off{display:none}
+/* Все участники остаются видны, в том числе с выключенной камерой. */
+.stage.presenting .grid .tile.cam-off{display:block}
 
 /* settings menu (devices + действия) */
 .menu{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);background:var(--surface-2);
@@ -1293,7 +1294,7 @@ function handleWsMessage(m){
     case 'welcome': {
       clearTimeout(wsConnectTimeout); $('btn-enter').disabled=false;
       state._everConnected=true;
-      state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      state.isHost=m.self.isHost; state.admitted=m.self.admitted; state.canShare=m.self.canShare ?? state.isHost;
       if(!state.isHost)clientCardLoader.clear();
       state.recorderPeer=m.room?.recorderPeer||null;state.remoteRecording=!!m.room?.recordingActive;
       $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
@@ -1303,18 +1304,19 @@ function handleWsMessage(m){
       for(const id of [...peers.keys()]){ if(!(m.peers||[]).some(p=>p.peer===id)) removePeer(id); }
       presenceCache.clear();
       for(const p of (m.peers||[])) presenceCache.set(p.peer, p.info);
-      presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
+      presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, canShare:state.canShare, micOn:state.micOn, camOn:state.camOn });
       for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
       participantNames.add(state.name);
       if(state.admitted){ wsSend({t:'ice-servers'}); onAdmitted(); connectToAdmittedPeers();reconcileRecordingOwner(); }
       else{ showWaitingPreview(); }
       break;
     }
-    case 'peer-join': { if(m.info.admitted) participantNames.add(m.info.name); presenceCache.set(m.peer, m.info); if(m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
+    case 'peer-join': { if(m.info.admitted) participantNames.add(m.info.name); presenceCache.set(m.peer, m.info); if(m.peer!==peerId && m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
     case 'peer-update': {
       if(m.info.admitted) participantNames.add(m.info.name);
       presenceCache.set(m.peer, m.info);
-      if(m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
+      if(m.peer===peerId){state.canShare=m.info.canShare!==false;if(!state.canShare && state.sharing)toggleShare();refreshShareLabel();}
+      if(m.peer!==peerId && m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
       if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); syncRemoteScreen(m.peer,p); }
       renderPeopleList(); updateBadges(); break;
     }
@@ -1330,6 +1332,11 @@ function handleWsMessage(m){
       renderPeopleList();break;
     }
     case 'recording-transfer-failed':toast('Передача записи не состоялась. Прежний администратор продолжает запись.',8000);break;
+    case 'removed':
+      wsClosedByUser=true;clearTimeout(wsReconnectTimer);state.admitted=false;
+      stopMeetingMedia();for(const {pc} of peers.values())pc.close();
+      toast('Организатор удалил вас из встречи.',10000);
+      leaveRoom({keepMeeting:true});break;
     case 'peer-leave': removePeer(m.peer); break;
     case 'you-admitted': if(!state.admitted){ state.admitted=true; wsSend({t:'ice-servers'}); const me=presenceCache.get(peerId); if(me) me.admitted=true; onAdmitted(); connectToAdmittedPeers(); } break;
     case 'meeting-ending': showMeetingEnding(m.endAt); break;
@@ -1414,7 +1421,7 @@ function renderPeopleList(){
   }
   for(const [id,i] of admitted){
     const me = id===peerId ? ' (вы)' : '';
-    html+=`<div class="person"><div class="avatar" style="width:34px;height:34px;font-size:13px">${initials(i.name)}</div><div style="flex:1;min-width:0"><div class="nm">${escapeHtml(i.name)}${me}</div><div class="rl">${i.role==='host'?'организатор':'участник'} · ${i.micOn?'микр.вкл':'микр.выкл'}</div></div></div>`;
+    html+=`<div class="person"><div class="avatar" style="width:34px;height:34px;font-size:13px">${initials(i.name)}</div><div style="flex:1;min-width:0"><div class="nm">${escapeHtml(i.name)}${me}</div><div class="rl">${i.role==='host'?'организатор':'участник'} · ${i.micOn?'микр.вкл':'микр.выкл'}</div>${state.isHost&&id!==peerId?`<div class="person-actions"><button class="btn person-screen" data-id="${escapeHtml(id)}" data-allowed="${i.canShare===false}">${i.canShare===false?'Разрешить экран':'Запретить экран'}</button><button class="btn person-remove" data-id="${escapeHtml(id)}">Удалить</button></div>`:''}</div></div>`;
   }
   if(state.isHost){
     const recorder=presenceCache.get(state.recorderPeer);
@@ -1425,6 +1432,8 @@ function renderPeopleList(){
   }
   if(state.isHost&&state.recorderPeer!==peerId&&admitted.some(([id,i])=>id!==peerId&&i.role==='host'))html+='<button class="btn leave-only">Выйти, оставив встречу</button>';
   list.innerHTML=html;
+  list.querySelectorAll('.person-screen').forEach(b=>b.onclick=()=>{wsSend({t:'screen-permission',target:b.dataset.id,allowed:b.dataset.allowed==='true'});});
+  list.querySelectorAll('.person-remove').forEach(b=>b.onclick=()=>{const name=presenceCache.get(b.dataset.id)?.name||'участника';if(confirm('Удалить '+name+' из встречи?'))wsSend({t:'kick',target:b.dataset.id});});
   const leaveOnly=list.querySelector('.leave-only');if(leaveOnly)leaveOnly.onclick=()=>leaveRoom({keepMeeting:true});
   list.querySelectorAll('.transfer-recording').forEach(b=>b.onclick=()=>{b.disabled=true;b.textContent='Запускаем запись у другого администратора…';wsSend({t:'recording-transfer',target:b.dataset.id});});
   list.querySelectorAll('.person-admit').forEach(b=> b.onclick=()=> admitGuest(b.dataset.id));
@@ -1522,7 +1531,8 @@ function sendDescription(id,peer){
   }});
 }
 function syncRemoteScreen(id,peer){
-  if(peer.info?.sharing && peer.screenStream.getVideoTracks().some(t=>t.readyState==='live')) attachScreenTile(id,peer);
+  if(peer.screenAudioEl)peer.screenAudioEl.muted=peer.info?.canShare===false || !peer.info?.sharing;
+  if(peer.info?.canShare!==false && peer.info?.sharing && peer.screenStream.getVideoTracks().some(t=>t.readyState==='live')) attachScreenTile(id,peer);
   else removeScreenTile(peer);
 }
 function handleRemoteTrack(id,peer,ev){
@@ -1531,6 +1541,7 @@ function handleRemoteTrack(id,peer,ev){
     if(mid!=null && mid===peer.remoteSlots?.screenAudio){
       peer.screenAudioStream.addTrack(track);
       if(!peer.screenAudioEl){peer.screenAudioEl=document.createElement('audio');peer.screenAudioEl.autoplay=true;}
+      peer.screenAudioEl.muted=peer.info?.canShare===false || !peer.info?.sharing;
       peer.screenAudioEl.srcObject=peer.screenAudioStream;
       keepMediaPlaying(peer.screenAudioEl);
       connectRecordingAudio(peer.screenAudioStream);
@@ -1892,6 +1903,7 @@ async function cycleBackground(){
 // показ экрана отдельной дорожкой — камера (лицо) продолжает идти
 async function toggleShare(){
   if(!state.admitted){toast("Демонстрация станет доступна, когда войдёт администратор.");return;}
+  if(!state.sharing && state.canShare===false){toast('Попросите организатора разрешить показ экрана.');return;}
   if(!state.sharing){
     // iOS Safari (и любой мобильный браузер) не даёт getDisplayMedia — честно предупреждаем
     if(!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia!=='function'){
@@ -1905,6 +1917,7 @@ async function toggleShare(){
         audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false },
         surfaceSwitching:'include', selfBrowserSurface:'exclude'
       });
+      if(state.canShare===false || !state.admitted){state.screenStream.getTracks().forEach(t=>t.stop());state.screenStream=null;return;}
       state.sharing=true; connectRecordingAudio(state.screenStream);
       const st=state.screenStream.getVideoTracks()[0];
       try{ st.contentHint='detail'; }catch{}
