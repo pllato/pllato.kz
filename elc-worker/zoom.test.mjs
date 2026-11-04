@@ -395,3 +395,18 @@ test('Zoom organizer URL is temporary and restricted to deal editors',async()=>{
   f.deps.canEditRecord=async()=>false;assert.equal((await f.request('/meetings/987/host-access','POST')).status,403);assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('Standalone legacy event redirects to Zoom and cancellation updates its replacement',async()=>{
+ const f=fixture();await f.connect();
+ f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('solo','Standalone','zoom_meeting','2026-11-05T10:00:00Z','2026-11-05T11:00:00Z',null,'[]',1);
+ const old=await createPllatoMeeting(f.env,{id:'solo',title:'Standalone'},null);
+ const original=globalThis.fetch;let deleted='';
+ globalThis.fetch=async(url,opts)=>{if(opts.method==='DELETE'){deleted=String(url);return new Response(null,{status:204});}return Response.json({id:555,join_url:'https://zoom.us/j/555'});};
+ try{
+  assert.equal((await ensureZoomForTask(f.env,'solo')).meeting_id,'555');
+  assert.equal((await (await f.request('/public-room/'+old.meeting_id)).json()).provider,'zoom');
+  await syncZoomTask(f.env,'solo',{},true);assert.ok(deleted.endsWith('/meetings/555'));
+  assert.equal(f.db.prepare("SELECT COUNT(*) n FROM zoom_meetings WHERE status='cancelled'").get().n,2);
+  assert.equal((await f.request('/public-room/'+old.meeting_id)).status,404);
+ }finally{globalThis.fetch=original;}
+});
