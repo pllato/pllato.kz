@@ -40,6 +40,7 @@ def main():
     for kind in kinds:
         cfg,config=prepare(root,kind,name);register(cfg,bundle['enrollmentToken'])
         script=root/'collector.py';shutil.copy2(source/'collector.py',script)
+        if (source/'claude_cloud.py').exists():shutil.copy2(source/'claude_cloud.py',root/'claude_cloud.py')
         label='kz.pllato.activity.'+kind;folder=pathlib.Path.home()/'Library/LaunchAgents';folder.mkdir(exist_ok=True)
         plist=folder/(label+'.plist');plist.write_bytes(plistlib.dumps({'Label':label,'ProgramArguments':[sys.executable,str(script),'--config',str(config)],'RunAtLoad':True,'StartInterval':600,'StandardOutPath':str(root/(kind+'.log')),'StandardErrorPath':str(root/(kind+'-error.log'))}))
         subprocess.run(['launchctl','bootout','gui/'+str(os.getuid()),str(plist)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
