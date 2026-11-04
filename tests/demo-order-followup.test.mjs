@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const html=fs.readFileSync(new URL('../app.html',import.meta.url),'utf8');
-const functions=['financeWeekBoundsAt','demoOrderFollowups','financeDemoTaskLink','syncDemoOrderFollowups'];
+const functions=['demoOrderTaskTitle','financeDemoTaskText','financeWeekBoundsAt','demoOrderFollowups','financeDemoTaskLink','syncDemoOrderFollowups'];
 const code=functions.map(name=>{const start=html.search(new RegExp('(?:async )?function '+name+'\\('));return html.slice(start,html.indexOf('\n}',start)+2);}).join('\n');
 const now=Date.parse('2026-10-28T15:00:00+05:00');
 const record={projectId:'client',title:'Клиент',timestamp:now-3600000,manager:'manager@example.com',demoUrl:'app/client.html',crmDealId:'deal1'};
@@ -36,4 +36,18 @@ test('date-only publication is actionable in the morning, but not on future date
  const [task]=c.demoOrderFollowups([{...record,dateOnly:true,timestamp:Date.parse('2026-10-29T12:00:00+05:00')}],[],morning);
  assert.ok(task);assert.equal(task.start,Date.parse('2026-10-22T14:00:00+05:00'));
  assert.equal(c.demoOrderFollowups([{...record,dateOnly:true,timestamp:Date.parse('2026-10-30T12:00:00+05:00')}],[],morning).length,0);
+});
+
+test('follow-up starts with the contact from the linked deal',()=>{
+ const c=setup();
+ const [task]=c.demoOrderFollowups([{...record,crmDealTitle:'Александр Разинков · оборудование'}],[],now);
+ assert.equal(task.text,'Александр Разинков · оборудование — Связаться после демо');
+ assert.equal(c.demoOrderTaskTitle({...record,contactName:'Руслан',crmDealTitle:'Компания'}),'Руслан — Связаться после демо');
+ assert.equal(c.demoOrderTaskTitle(record),'Клиент — Связаться после демо');
+});
+test('legacy default labels update without changing custom tasks or stored state',()=>{
+ const c=setup(),task={source:'demo-followup',sourceProjectId:'client',text:'Связаться после демо — Клиент',done:true};
+ assert.equal(c.financeDemoTaskText(task),'Клиент — Связаться после демо');
+ assert.equal(task.text,'Связаться после демо — Клиент');
+ for(const custom of [{...task,text:'Гаухар на пятницу. Связаться после демо'}, {...task,text:task.text+' завтра'}, {...task,source:'manual'}])assert.equal(c.financeDemoTaskText(custom),custom.text);
 });

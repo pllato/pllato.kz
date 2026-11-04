@@ -7707,6 +7707,17 @@ async function loadFinanceWeekTasks(){
   FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
   FINANCE_WEEK_TASKS_LOADED=true;
 }
+function demoOrderTaskTitle(record){
+  const client=String(record.contactName||record.crmDealTitle||record.title||record.projectId||'').trim();
+  return `${client} — Связаться после демо`;
+}
+function financeDemoTaskText(task){
+  const text=String(task.text||'');
+  if(task.source!=='demo-followup' || !text.startsWith('Связаться после демо — '))return text;
+  const record=appDemoRecords().find(record=>record.projectId===task.sourceProjectId);
+  // Only replace the original generated title; preserve manually edited tasks.
+  return record && text===`Связаться после демо — ${record.title}`?demoOrderTaskTitle(record):text;
+}
 // Only newly published demos enter the sales follow-up queue; legacy catalog is not backfilled.
 function demoOrderFollowups(records,existing,now=Date.now()){
   const cutoff=Date.parse('2026-10-28T00:00:00+05:00');
@@ -7717,7 +7728,7 @@ function demoOrderFollowups(records,existing,now=Date.now()){
     if(!record.projectId || !record.timestamp || record.timestamp<cutoff || record.timestamp>(record.dateOnly?todayEnd:now) || known.has(id))return [];
     known.add(id);
     const bounds=financeWeekBoundsAt(Math.min(record.timestamp,now));
-    return [{id,kind:'orders',...bounds,text:`Связаться после демо — ${record.title}`,
+    return [{id,kind:'orders',...bounds,text:demoOrderTaskTitle(record),
       source:'demo-followup',automatic:true,sourceProjectId:record.projectId,
       managerEmail:record.manager||'',sourceDemoUrl:record.demoUrl||'',crmDealId:record.crmDealId||'',
       done:false,starred:false,createdAt:record.timestamp,updatedAt:now}];
@@ -8105,7 +8116,7 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
         : '');
     const remove=canEditFinanceTask(task) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
     const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
-    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${financeDemoTaskLink(task)}${status}${remove}</span></div>`;
+    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(financeDemoTaskText(task))}"><span class="fc-week-task-title">${mEsc(financeDemoTaskText(task))}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${financeDemoTaskLink(task)}${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
 }
@@ -8162,7 +8173,7 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
         : canEditFinanceTask(task)
         ? `<span class="fc-week-task-actions">${carry}${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
         : '<span class="fc-week-task-actions"></span>';
-      return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+financeDemoTaskLink(task)+star)}</div>`;
+      return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(financeDemoTaskText(task))}"><span class="fc-week-task-title">${mEsc(financeDemoTaskText(task))}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+financeDemoTaskLink(task)+star)}</div>`;
     }).join('')
     : kind==='demos'&&!next?'':`<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
   const plan=showAmounts?`<span class="plan"><span>План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span><span>★ Со звёздочкой: ${mEsc(financeWeekTaskAmount(starredTotal))}</span></span>`:'';
@@ -8474,7 +8485,7 @@ function appDemoRecords(){
     if(seen.has(id))return [];seen.add(id);
     // Date-only legacy catalog entries are assigned to noon Almaty, like legacy payments.
     const timestamp=/^\d{4}-\d{2}-\d{2}$/.test(date||'')?Date.parse(date+'T12:00:00+05:00'):0;
-    return [{projectId:id,title:card.querySelector('h3')?.textContent.trim()||id,timestamp,manager:String(PROJECT_MANAGERS[id]||'').toLowerCase(),demoUrl:card.querySelector('a.tool-cta[href]')?.getAttribute('href')||'',crmDealId:card.dataset.crmDealId||'',dateOnly:true}];
+    return [{projectId:id,contactName:card.dataset.contactName||'',crmDealTitle:card.dataset.crmDealTitle||'',title:card.querySelector('h3')?.textContent.trim()||id,timestamp,manager:String(PROJECT_MANAGERS[id]||'').toLowerCase(),demoUrl:card.querySelector('a.tool-cta[href]')?.getAttribute('href')||'',crmDealId:card.dataset.crmDealId||'',dateOnly:true}];
   });
 }
 function appDemoAdjustment(start,end){
