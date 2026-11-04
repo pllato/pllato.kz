@@ -382,3 +382,16 @@ test('Client card rejects anonymous requests and guests before loading private c
  const response=await f.request('/public-room/d111111111111');
  assert.ok(!JSON.stringify(await response.json()).includes('client'));
 });
+
+test('Zoom organizer URL is temporary and restricted to deal editors',async()=>{
+ const f=fixture();await f.connect();f.db.prepare('INSERT INTO deals(id) VALUES(?)').run('deal_1');
+ f.db.prepare("INSERT INTO zoom_meetings(task_id,meeting_id,deal_id,status,created_at) VALUES('zoom_room:deal_1','987','deal_1','ready','2026-11-04')").run();
+ const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({start_url:'https://zoom.us/s/987?zak=temporary-test'});};
+ try {
+  const response=await f.request('/meetings/987/host-access','POST');assert.equal(response.status,200);
+  assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.deepEqual(await response.json(),{hostUrl:'https://zoom.us/s/987?zak=temporary-test',provider:'zoom'});
+  assert.equal(f.db.prepare("SELECT COUNT(*) n FROM zoom_private WHERE v LIKE '%temporary-test%'").get().n,0);
+  f.deps.canEditRecord=async()=>false;assert.equal((await f.request('/meetings/987/host-access','POST')).status,403);assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

@@ -465,7 +465,14 @@ export async function handleZoomRequest(request, env, deps) {
       }
       const saved=await get(env,'host_key');
       const hostKey=saved?(await unseal(env,saved)).value:env.ZOOM_HOST_KEY;
-      if(!/^\d{6}$/.test(hostKey||'')) throw fail('Администратору нужно сохранить код организатора: Календарь → Zoom → Код организатора.',409);
+      if(!/^\d{6}$/.test(hostKey||'')) {
+        // Zoom issues a short-lived organizer URL. Never store it or return it to guests.
+        const remote=await api(env,'/meetings/'+encodeURIComponent(meetingId));
+        let start;try{start=new URL(remote.start_url);}catch{}
+        if(!start || start.protocol!=='https:' || !/(^|\.)zoom\.(us|com)$/.test(start.hostname) || start.username || start.password) throw fail('Zoom не вернул вход организатора. Войдите в оплаченный аккаунт Zoom.',409);
+        const response=json({hostUrl:start.href,provider:'zoom'},200,request);
+        response.headers.set('Cache-Control','private, no-store');return response;
+      }
       // Guests may already be inside a join-before-host meeting. They still
       // need the key to claim host, but we must not change a live meeting.
       await applyStaffAdmission(env,meetingId);
