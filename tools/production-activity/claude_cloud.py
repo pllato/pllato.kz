@@ -21,7 +21,7 @@ def access_token():
         raise RuntimeError('Claude login expired; run claude auth login')
     body = {'grant_type': 'refresh_token', 'refresh_token': oauth['refreshToken'],
             'client_id': '9d1c250a-e61b-44d9-88ed-5944d1962f5e'}
-    request = urllib.request.Request('https://platform.claude.com/v1/oauth/token', json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+    request = urllib.request.Request('https://platform.claude.com/v1/oauth/token', json.dumps(body).encode(), headers={'Content-Type': 'application/json', 'User-Agent': 'PllatoActivity/1.0 (macOS)'})
     with urllib.request.urlopen(request, timeout=30) as response:
         fresh = json.load(response)
     current = credentials()
