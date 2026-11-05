@@ -12,3 +12,7 @@ const malicious={sources:[source('a','<img src=x onerror=alert(1)>','codex',1)]}
 const mapped={...data,settings:{people:{a:'Платон',b:'Платон'}}};assert.equal(api.people(mapped).filter(p=>p.name==='Платон').length,1);
 assert.equal(api.peopleSeries(mapped,periods).find(l=>l.name==='Платон').points[1].value,10);
 console.log('PASS people graph: aggregation, assignment, periods, missing history, colors and escaped names');
+const zeroData={sources:[source('zero','Zero person','codex',0),source('active','Active person','claude',2),{id:'unknown',name:'Unknown person',source:'claude'}]};
+const list=api.peopleList(zeroData,periods[1]);
+assert(!list.includes('Zero person'));assert(list.includes('Active person'));assert(list.includes('Unknown person'));
+assert.equal(api.people(zeroData).length,3); // Hide rows, never delete connections.
