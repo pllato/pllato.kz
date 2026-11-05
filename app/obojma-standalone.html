@@ -1,0 +1,1353 @@
+<!doctype html>
+<!--
+  Автономная версия демо «Обойма · договоры, спецификации, подбор по трём складам, отгрузки и 1С · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/obojma.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Обойма · договоры, спецификации, подбор по трём складам, отгрузки и 1С · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231c2026'/><circle cx='50' cy='50' r='34' fill='none' stroke='%23f2b100' stroke-width='9'/><circle cx='50' cy='50' r='13' fill='none' stroke='%23fff' stroke-width='7'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#1c2026;--rail2:#15181c;--rail-h:#2a3038;--rail-a:#f2b100;
+ --brand:#a86f00;--brand2:#f2b100;--brandl:#fbf2d9;--steel:#8b96a3;
+ --bg:#eceef1;--card:#fff;--card2:#f6f7f9;--card3:#e3e7ec;
+ --text:#1a2028;--muted:#5d6875;--muted2:#95a0ad;--line:#dde2e8;--line2:#c3cbd4;
+ --acc:#1f5f8b;--acc2:#a3c2d9;--accl:#e7f0f7;
+ --ok:#2e6b3f;--ok-l:#e6f2e9;--bad:#b23a26;--bad-l:#fbe9e5;--warn:#b77900;--warn-l:#fdf1d8;
+ --info:#1f5f8b;--info-l:#e7f0f7;--violet:#6b4f8f;--violet-l:#f0ebf6;
+ --r:4px;--sh:0 1px 2px rgba(20,26,34,.08);--sh2:0 10px 30px rgba(20,26,34,.2);
+}
+body.dark{
+ --bg:#12151a;--card:#191d23;--card2:#1f242b;--card3:#2a3038;
+ --text:#e8ecf0;--muted:#9aa5b1;--muted2:#6c7784;--line:#2a3038;--line2:#39414b;
+ --accl:#122232;--brandl:#2c2412;--violet-l:#221c2b;--ok-l:#15261a;--bad-l:#2e1714;--warn-l:#2e2413;--info-l:#122232;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#f2b100}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'IBM Plex Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#8a5b00;border-color:#8a5b00;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'IBM Plex Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'IBM Plex Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'IBM Plex Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'IBM Plex Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+/* ===== ОБОЙМА: модули сверху, экраны модуля слева, цепочка документа ===== */
+.app{grid-template-columns:230px 1fr;grid-template-rows:52px 1fr}
+.rail{grid-column:1/3;grid-row:1;flex-direction:row;align-items:center;height:52px;padding:0 14px 0 0;overflow:hidden;border-bottom:3px solid var(--brand2)}
+.rail-logo{width:230px;height:100%;display:flex;place-items:initial;align-items:center;justify-content:flex-start;gap:10px;padding:0 18px;margin:0;background:var(--rail2);flex:none}
+.rail-logo b{font:700 17px 'IBM Plex Sans Condensed',sans-serif;letter-spacing:.14em;color:#fff;line-height:1}
+#rail{display:flex;align-items:stretch;height:100%;gap:0;flex:1;overflow-x:auto}
+.mod{display:flex;align-items:center;padding:0 16px;color:#aeb7c1;font:600 12.4px 'IBM Plex Sans',sans-serif;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-3px;white-space:nowrap}
+.mod:hover{color:#fff;background:var(--rail-h)}
+.mod.on{color:#fff;border-bottom-color:var(--brand2);background:var(--rail-h)}
+.rail-bot{margin:0 0 0 auto;padding:0}
+.me{background:var(--brand2);color:#1c2026;border-radius:3px}
+#sub{grid-column:1;grid-row:2;width:auto;background:var(--card);border-right:1px solid var(--line)}
+#sub h4{font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+#sub a{border-left:3px solid transparent;font-size:12.2px}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand2);color:var(--text)}
+.main{grid-column:2;grid-row:2}
+.gname{font:700 28px 'IBM Plex Sans Condensed',sans-serif;letter-spacing:.16em;color:#fff;display:block}
+.gate h1,.hd h2,.lform h2{font-family:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;font-weight:700;letter-spacing:-.005em}
+.hd h2{font-size:21px}
+.entsw{display:flex;gap:0;border:1px solid var(--line2);border-radius:3px;overflow:hidden;margin-left:14px}
+.entsw button{border:0;border-right:1px solid var(--line2);background:var(--card);padding:6px 11px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer}
+.entsw button:last-child{border-right:0}
+.entsw button.on{background:var(--rail);color:#fff}
+.chain{display:flex;align-items:center;gap:4px;padding:8px 18px;background:var(--card2);border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
+.chain .ch{display:flex;align-items:baseline;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:3px;background:var(--card);cursor:pointer;white-space:nowrap}
+.chain .ch b{font:700 13px 'IBM Plex Mono',monospace;color:var(--text)}
+.chain .ch span{font-size:10.8px;color:var(--muted);font-weight:600}
+.chain .ch.on{border-color:var(--brand2);background:var(--brandl);box-shadow:inset 0 -2px 0 var(--brand2)}
+.chain .ch.dis{opacity:.45}
+.chain i{font-style:normal;color:var(--muted2);font-weight:700}
+.tag{border-radius:2px}
+.tag.ent{background:color-mix(in srgb,var(--ec) 13%,transparent);color:var(--ec);border-left:3px solid var(--ec)}
+.stg{display:inline-block;font:600 10px 'IBM Plex Sans',sans-serif;padding:3px 8px;border-radius:2px;background:color-mix(in srgb,var(--sc) 14%,transparent);color:var(--sc);border-left:3px solid var(--sc);white-space:nowrap}
+.tri{position:relative;height:12px;background:var(--card3);border-radius:2px;overflow:hidden;min-width:150px}
+.tri i{position:absolute;left:0;top:0;bottom:0;width:var(--w)}
+.tri .t1{background:#9ab7cf}.tri .t2{background:var(--acc);top:3px;bottom:3px}.tri .t3{background:var(--ok);top:5px;bottom:5px}
+.tri.big{height:22px}.tri.big .t2{top:5px;bottom:5px}.tri.big .t3{top:9px;bottom:9px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:10.8px;color:var(--muted);margin:8px 2px 12px;align-items:center}
+.legend i{display:inline-block;width:14px;height:8px;margin-right:5px;vertical-align:0}
+.legend .t1{background:#9ab7cf}.legend .t2{background:var(--acc)}.legend .t3{background:var(--ok)}
+.seg3{position:relative;height:10px;background:var(--card3);border-radius:2px;overflow:hidden}
+.seg3 i{position:absolute;top:0;bottom:0}
+.seg3 .s1{left:0;width:var(--w);background:var(--ok)}
+.seg3 .s2{left:var(--o,0);width:var(--w);background:#9ab7cf}
+.formula{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:11px;line-height:1.5}
+.formula code{font:600 10px 'IBM Plex Mono',monospace;color:var(--brand);white-space:nowrap;padding-top:1px}
+.steps{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto}
+.stp{flex:1;min-width:108px;display:flex;align-items:center;gap:7px;padding:8px 9px;background:var(--card);border:1px solid var(--line);border-radius:3px;font-size:10.6px;color:var(--muted)}
+.stp i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 9.6px 'IBM Plex Mono',monospace;font-style:normal;background:var(--card3);color:var(--muted);flex:none}
+.stp.done i{background:var(--sc);color:#fff}.stp.on{border-color:var(--sc);box-shadow:inset 0 -3px 0 var(--sc);color:var(--text);font-weight:700}.stp.on i{background:var(--sc);color:#fff}
+.pickln{border-left:4px solid var(--brand2)}
+.pkh{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:8px}
+.pkh small{color:var(--muted2);font-size:9.6px}.pkh h3{margin:2px 0 3px;font-size:15px}
+.pkst{display:flex;gap:6px}.pkst>div{border:1px solid var(--line);border-radius:3px;padding:5px 10px;min-width:74px;text-align:center;background:var(--card2)}
+.pkst small{display:block;font:600 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase}.pkst b{font-size:15px;font-family:'IBM Plex Mono',monospace}
+.qin{width:54px;height:26px;border:1px solid var(--line2);border-radius:3px;padding:0 6px;font:600 12px 'IBM Plex Mono',monospace;background:var(--card);color:var(--text);text-align:right}
+.qin:focus{outline:2px solid var(--brand2);border-color:var(--brand2)}
+.srch2{display:flex;align-items:center;gap:9px;border:1px solid var(--line2);border-radius:3px;padding:6px 10px;background:var(--card2);margin-bottom:8px}
+.srch2 span{color:var(--muted2)}.srch2 input{border:0;background:none;outline:0;font:600 12.4px 'IBM Plex Mono',monospace;flex:1;color:var(--text)}.srch2 em{font-style:normal;font-size:10.4px;color:var(--muted)}
+.srch2.big input{font-size:15px}
+table.pk td,table.pk th{padding:7px 9px}
+table.pk .cell{display:flex;align-items:center;justify-content:center;gap:8px}
+table.pk .cell span{font-size:10.4px;color:var(--muted);min-width:44px;text-align:right}
+table.pk .cell.zero span{color:var(--muted2)}
+table.pk .cell i{font-style:normal;color:var(--muted2);width:54px}
+.remember{display:flex;gap:8px;align-items:center;font-size:10.8px;color:var(--muted);margin-top:8px}
+.kanban{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(148px,1fr);gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px}
+.kcol{background:var(--card2);border:1px solid var(--line);border-radius:3px;min-height:260px}
+.kcol.over{outline:2px dashed var(--brand2)}
+.khead{padding:8px 10px;border-top:4px solid var(--sc);background:var(--card)}
+.khead b{display:block;font-size:11.6px}.khead span{font:600 9.8px 'IBM Plex Mono',monospace;color:var(--muted)}
+.kcard{margin:7px;padding:9px 10px;background:var(--card);border:1px solid var(--line);border-radius:3px;cursor:grab;box-shadow:var(--sh)}
+.kcard.late{border-left:4px solid var(--bad)}
+.kcard b{display:block;font-size:11.2px}.kcard span{display:flex;gap:6px;align-items:center;font-size:10.6px;margin-top:3px;flex-wrap:wrap}
+.kcard em{display:block;font-style:normal;font-weight:700;font-size:11.4px;margin-top:5px}.kcard small{display:block;font-size:9.8px;color:var(--muted);margin-top:3px}
+.cols{display:flex;align-items:flex-end;gap:12px;height:190px;padding:10px 4px 0}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end}
+.cb{width:100%;background:linear-gradient(180deg,var(--brand2),#d49a00);border-radius:2px 2px 0 0;position:relative;min-height:6px}
+.cb span{position:absolute;top:-18px;left:0;right:0;text-align:center;font:600 10.4px 'IBM Plex Mono',monospace}
+.col small{margin-top:5px;font-size:10.4px;color:var(--muted)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:12px}
+.cday{background:var(--card);border:1px solid var(--line);border-radius:3px;min-height:104px;padding:7px}
+.cday small{display:block;font:600 9.6px 'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:5px}
+.cday.today{border-color:var(--brand2);box-shadow:inset 0 3px 0 var(--brand2)}.cday.we{background:var(--card2)}
+.cev{font-size:10.2px;line-height:1.35;padding:4px 6px;border-radius:2px;margin-bottom:4px;border-left:3px solid}
+.k-meet{background:var(--accl);border-color:var(--acc)}.k-task{background:var(--card3);border-color:var(--muted2)}.k-dl{background:var(--warn-l);border-color:var(--warn)}.k-pay{background:var(--bad-l);border-color:var(--bad)}
+.cdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;border-left:3px solid;vertical-align:0}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.form label{display:flex;flex-direction:column;gap:4px;font:600 10px 'IBM Plex Sans',sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.form label.wide{grid-column:1/3}
+.form input,.form select,table.fl input,table.fl select{height:32px;border:1px solid var(--line2);border-radius:3px;padding:0 9px;font:500 12.4px 'IBM Plex Sans',sans-serif;background:var(--card);color:var(--text);text-transform:none;letter-spacing:0}
+table.fl input{width:100%}table.fl .qin{width:70px}
+.file{border:1.5px dashed var(--line2);border-radius:3px;padding:12px;text-align:center;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--card3)}.dot.on{background:var(--ok)}
+table.t th.c,table.t td.c{text-align:center}
+.phone .pbar{background:var(--rail);color:#fff;padding:13px 15px;border-bottom:3px solid var(--brand2)}
+.phone .pbar b{display:block;font-size:12.6px}.phone .pbar span{font-size:9.6px;opacity:.72}
+.phone .pin{padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+.pcard{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--card2)}
+.pcard>small{display:block;font:700 8.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.pcard>span{display:block;font-size:10.8px;color:var(--muted)}
+.pcard .kv{padding:5px 0;font-size:11px}.pcard .li{padding:6px 0}.pcard .li>span{font-size:10.6px}
+.pcard .chk{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:7px 0;background:none;font-size:11px}
+.pcard .chk em{display:block;font-style:normal;color:var(--muted);font-size:10px}
+.said{background:#fbf6e6;border-left-color:var(--brand2)}
+body.dark .said{background:#2a2412}
+.said b{color:var(--brand)}
+.said span{display:block;margin-top:6px;font-size:10.8px;color:var(--muted);font-style:normal}
+@media(max-width:980px){.app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}.rail{grid-column:1;flex-wrap:wrap;height:auto}.rail-logo{width:auto;height:46px}#rail{order:3;width:100%;height:42px}#sub{grid-row:2}.main{grid-column:1;grid-row:3}.entsw{order:3;margin:6px 0 0}.kanban{grid-auto-columns:minmax(160px,1fr)}.calgrid{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr}.form label.wide{grid-column:1}.pkh{flex-direction:column}}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* kfpu-0511 */.pills{display:flex;gap:6px;flex-wrap:wrap}.lstp{display:flex;margin-bottom:12px;overflow-x:auto}.lstp a{flex:1;min-width:110px;padding:8px 10px 8px 18px;font-size:10.8px;background:var(--card3);color:var(--muted);cursor:pointer;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%,9px 50%);margin-right:-5px;white-space:nowrap}.lstp a.ok{background:var(--brandl);color:var(--text)}.lstp a.cur{background:var(--brand);color:#fff;font-weight:700}.docv{font-size:11.6px;line-height:1.6}.dvh{display:flex;justify-content:space-between;border-bottom:2px solid var(--text);padding-bottom:6px;margin-bottom:8px}.var{background:#fff3c4;color:#1b2229;padding:0 3px;border-radius:2px}.wrap{white-space:normal;text-align:right;max-width:64%}
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo">
+   <svg width="54" height="54" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#f2b100" stroke-width="9"/><circle cx="50" cy="50" r="17" fill="none" stroke="#fff" stroke-width="7"/><g fill="#f2b100"><circle cx="79.5" cy="50.0" r="6.2"/><circle cx="70.9" cy="70.9" r="6.2"/><circle cx="50.0" cy="79.5" r="6.2"/><circle cx="29.1" cy="70.9" r="6.2"/><circle cx="20.5" cy="50.0" r="6.2"/><circle cx="29.1" cy="29.1" r="6.2"/><circle cx="50.0" cy="20.5" r="6.2"/><circle cx="70.9" cy="29.1" r="6.2"/></g></svg>
+   <div><b class="gname">ОБОЙМА</b>
+    <small style="display:block;font:600 8.6px 'IBM Plex Mono',monospace;color:#8f9aa6;letter-spacing:.13em;margin-top:5px">ПОСТАВКИ ПОДШИПНИКОВ · ТРИ ЮРЛИЦА · ТРИ СКЛАДА · ТРИ БАЗЫ 1С · КАРАГАНДА</small></div>
+  </div>
+  <h1>От договора и спецификации —<br>до подбора по трём складам,<br><em>отгрузки, накладной в 1С и оплаты</em></h1>
+  <span class="gtag">макет по встрече 28 сентября · всё, что вы показали в своей системе</span>
+  <p style="margin-top:15px">Вы показали путь: договор с заказчиком и одним из трёх наших юрлиц, сроки поставки и оплаты, сумма; спецификации к договору вручную, без прайса; заказ на часть позиций — каждая на свой склад заказчика; ручной подбор по складам трёх юрлиц, потому что «3638» у заказчика — это «22338» у нас; закуп того, чего нет; сборка, ожидание отгрузки, отправка, реализация с номером накладной. И чтобы в 1С уходила реализация между нашими компаниями.</p>
+  <p style="color:#f2b100">Всё это — одна система: цепочка документа сверху на каждом экране, воронка исполнения канбаном, «что горит» каждое утро, обмен с тремя базами 1С, мобильная версия сразу. Без интеграции и переноса из Bitrix. Названия компаний, суммы и фамилии в демо вымышленные; обозначения подшипников — реальные.</p>
+  <div class="gstat">
+   <div><small>Экранов</small><b class="a">26</b></div>
+   <div><small>Ролей</small><b>6</b></div>
+   <div><small>Юрлиц · складов · баз 1С</small><b>3 · 3 · 3</b></div>
+   <div><small>Портал · 1С</small><b>1,5 + 1,5 млн</b></div>
+  </div>
+ </div>
+ <div class="gate-r">
+  <div class="lform">
+   <h2>Вход в систему</h2>
+   <p>Выберите роль — разделы и права перестроятся. Руководитель видит всё; менеджер — договоры, спецификации, заказы и подбор; кладовщик — сборку и остатки без цен; снабжение — дефицит; бухгалтерия — реализации, оплаты и 1С; логистика — отгрузки.</p>
+   <div class="roles" id="roles"></div>
+   <div class="lnote"><b>Это демо-макет, а не готовая система</b>
+    Ядро поднимаем первой версией, дальше вы говорите на Zoom «это классно, это не надо» — и за 3–5 версий выходим в бой.</div>
+  </div>
+ </div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="rail">
+  <div class="rail-logo" title="Обойма"><svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#f2b100" stroke-width="9"/><circle cx="50" cy="50" r="17" fill="none" stroke="#fff" stroke-width="7"/><g fill="#f2b100"><circle cx="79.5" cy="50.0" r="6.2"/><circle cx="70.9" cy="70.9" r="6.2"/><circle cx="50.0" cy="79.5" r="6.2"/><circle cx="29.1" cy="70.9" r="6.2"/><circle cx="20.5" cy="50.0" r="6.2"/><circle cx="29.1" cy="29.1" r="6.2"/><circle cx="50.0" cy="20.5" r="6.2"/><circle cx="70.9" cy="29.1" r="6.2"/></g></svg><b>ОБОЙМА</b></div>
+  <nav id="rail"></nav>
+  <div class="rail-bot"><div class="me" id="me">ВИ</div></div>
+ </aside>
+ <aside id="sub"></aside>
+ <main class="main">
+  <header class="top">
+   <h1 id="ttl">Обойма</h1>
+   <div class="entsw" id="entsw"></div>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="договор, спецификация, заказ, 3638, заказчик" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <button class="ab" id="addBtn" onclick="card('newcon')">+ ДОГОВОР</button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Тема">◐</button>
+    <button class="ib" id="tourBtn" onclick="tour()" title="Сценарий показа">▶</button>
+    <select class="rsel" id="rsel"></select>
+   </div>
+  </header>
+  <div class="chain" id="chain"></div>
+  <div class="content" id="content"></div>
+ </main>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ОБОЙМА — система поставок подшипников для горнодобывающих предприятий: договоры, спецификации, заказы по складам заказчика, подбор по трём складам трёх юрлиц, воронка исполнения, реализации и 1С. Демо-макет по встрече 28.09.2026. Названия компаний, суммы и фамилии вымышленные. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const tg=n=>fmt(n)+' ₸';
+const mln=n=>(n<0?'−':'')+(Math.round(Math.abs(n)/100000)/10).toString().replace('.',',')+' млн';
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+const dd=s=>{const [y,m,d]=s.split('-');return d+'.'+m};
+const dl=s=>{const [y,m,d]=s.split('-');return d+'.'+m+'.'+y};
+const TODAY='2026-09-28';
+const addDays=(s,n)=>new Date(new Date(s+'T00:00:00').getTime()+n*864e5).toISOString().slice(0,10);
+const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+const dayOf=s=>['вс','пн','вт','ср','чт','пт','сб'][new Date(s+'T00:00:00').getDay()];
+
+const SEC=[
+ {k:'home',n:'Главная',sub:[['dash','Панель руководителя'],['alerts','Что горит · сроки и риски']]},
+ {k:'lead',n:'Лиды и тендеры',sub:[['leads','Лиды · B2G и B2B'],['lead','Карточка лида · РЭС']]},
+ {k:'dog',n:'Договоры',sub:[['contracts','Договоры и лимиты'],['docgen','Договор из шаблона'],['contract','Карточка договора'],['specs','Спецификации'],['spec','Карточка спецификации'],['clients','Заказчики и их склады']]},
+ {k:'ord',n:'Заказы',sub:[['orders','Заказы в исполнении'],['order','Карточка заказа'],['pick','Подбор по складам'],['funnel','Воронка исполнения'],['exec','Исполнение по накладным'],['costs','Расходы по договору']]},
+ {k:'wh',n:'Склады',sub:[['stock','Остатки трёх складов'],['catalog','Номенклатура и аналоги'],['moves','Перемещения и межфирменные'],['purchase','Закуп · дефицит'],['supply','Снабжение · сравнение и закуп']]},
+ {k:'fin',n:'Деньги',sub:[['realiz','Реализации и накладные'],['receiv','Оплаты и дебиторка']]},
+ {k:'rep',n:'Отчёты',sub:[['analytics','Аналитика поставок'],['managers','Менеджеры · план-факт'],['daily','Ежедневный отчёт']]},
+ {k:'onec',n:'1С',sub:[['sync','Обмен с тремя базами 1С'],['mapping','Что и куда передаётся']]},
+ {k:'talk',n:'Общение',sub:[['chat','Мессенджер'],['feed','Лента'],['tasks','Задачи']]},
+ {k:'sys',n:'Система',sub:[['calendar','Календарь'],['edo','Согласование по СМС · опция'],['mobile','Мобильная версия'],['roles','Роли и права'],['launch','Запуск без переноса из Bitrix']]}
+];
+const SECOF={},SUBN={};
+SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+
+const ROLES={
+ 'Руководитель':{av:'ВИ',n:'Вадим',r:'все юрлица',note:'Договоры и лимиты, что в исполнении, что горит по срокам поставки и оплаты, остатки трёх складов, отгрузки и дебиторка. Всё кликается до позиции спецификации и накладной',s:ALL},
+ 'Менеджер продаж':{av:'МП',n:'Ерлан · продажи',r:'свои договоры',note:'Договоры, спецификации, заказы от заказчика, подбор по складам, отправка в работу, контроль отгрузок и оплат своих клиентов',
+  s:['leads','lead','alerts','contracts','docgen','contract','specs','spec','clients','orders','order','pick','funnel','exec','costs','stock','catalog','receiv','chat','feed','tasks','calendar','mobile']},
+ 'Кладовщик':{av:'КЛ',n:'Сергей · склад №1',r:'склады',note:'Листы сборки, сборка и отгрузка, перемещения между складами юрлиц, остатки. Цены и договоры не видит',
+  s:['funnel','exec','order','stock','catalog','moves','chat','tasks','mobile']},
+ 'Снабжение':{av:'СН',n:'Айгуль · закуп',r:'дефицит и поставщики',note:'Дефицит по заказам, заявки поставщикам, ожидаемые поступления, остатки и аналоги',
+  s:['purchase','supply','stock','catalog','orders','order','alerts','chat','feed','tasks']},
+ 'Бухгалтерия':{av:'БХ',n:'Наталья · 3 базы 1С',r:'реализации и оплаты',note:'Реализации и межфирменные документы, обмен с тремя базами 1С, оплаты и дебиторка по срокам договоров',
+  s:['realiz','receiv','costs','moves','sync','mapping','contracts','contract','chat','feed','tasks']},
+ 'Логистика':{av:'ЛГ',n:'Бахыт · доставка',r:'отгрузки',note:'Ожидание отгрузки, отправка на склады заказчика в Караганду, Жезказган и Балхаш, подтверждение получения',
+  s:['funnel','exec','costs','order','clients','chat','tasks','mobile']}
+};
+let role='Руководитель',cur='dash',theme='light',curEnt='all',curCon='C1',curSpec='SP1',curOrd='ZK1',curClient='K1';
+
+/* ====== НАШИ ЮРЛИЦА · СКЛАДЫ · БАЗЫ 1С ====== */
+const ENT=[
+ {id:'E1',n:'ТОО «КарБеаринг»',short:'КарБеаринг',wh:'Склад №1 · Караганда, Юго-Восток',base:'1С · база «КарБеаринг»',c:'#b07a00'},
+ {id:'E2',n:'ТОО «СтальОпора»',short:'СтальОпора',wh:'Склад №2 · Караганда, Майкудук',base:'1С · база «СтальОпора»',c:'#1f5f8b'},
+ {id:'E3',n:'ТОО «ГорМашСнаб»',short:'ГорМашСнаб',wh:'Склад №3 · Темиртау',base:'1С · база «ГорМашСнаб»',c:'#6b4f8f'}
+];
+const EN=id=>ENT.find(e=>e.id===id);
+const inEnt=x=>curEnt==='all'||x.ent===curEnt;
+
+/* ====== ЗАКАЗЧИКИ И ИХ СКЛАДЫ ====== */
+const CLIENTS=[
+ {id:'K1',n:'АО «Сарыарка ГМК»',short:'Сарыарка ГМК',ind:'медь · рудники и обогатительные фабрики',pts:['Караганда · центральный склад','Жезказган · склад рудника','Балхаш · склад фабрики'],mgr:'Ерлан',bin:'990240001234'},
+ {id:'K2',n:'ТОО «Тентек Көмір»',short:'Тентек Көмір',ind:'уголь · шахты',pts:['Шахтинск · склад шахты','Караганда · ремонтный цех'],mgr:'Ерлан',bin:'080340004567'},
+ {id:'K3',n:'ТОО «Нұра Руда»',short:'Нұра Руда',ind:'железная руда · карьер',pts:['Темиртау · склад карьера'],mgr:'Асель',bin:'150140007890'},
+ {id:'K4',n:'АО «Темір Прокат Сервис»',short:'Темір Прокат',ind:'металлургия · ремонт прокатных станов',pts:['Темиртау · склад РМЦ'],mgr:'Асель',bin:'010840003210'},
+ {id:'K5',n:'ТОО «Балқаш Кен Жөндеу»',short:'Балқаш Кен',ind:'ремонт горного оборудования',pts:['Балхаш · склад','Приозёрск · участок'],mgr:'Ерлан',bin:'170540006543'}
+];
+const CL=id=>CLIENTS.find(c=>c.id===id);
+
+/* ====== ДОГОВОРЫ ====== */
+/* lim — сумма договора; spec — сумма подписанных спецификаций; ship — отгружено; paid — оплачено; dt — срок поставки, дней от заказа; pt — срок оплаты, дней от реализации */
+const CONS=[
+ {id:'C1',no:'ДГ-2026/014',cl:'K1',ent:'E1',d:'2026-02-10',to:'2026-12-31',lim:25000000,spec:21440000,ship:8406000,paid:3120000,dt:39,pt:60,mgr:'Ерлан',st:'active'},
+ {id:'C2',no:'ДГ-2026/021',cl:'K2',ent:'E2',d:'2026-03-04',to:'2027-03-03',lim:12000000,spec:7340000,ship:5210000,paid:5210000,dt:30,pt:45,mgr:'Ерлан',st:'active'},
+ {id:'C3',no:'ДГ-2026/027',cl:'K3',ent:'E1',d:'2026-04-18',to:'2026-12-31',lim:8500000,spec:8120000,ship:6980000,paid:5514000,dt:45,pt:60,mgr:'Асель',st:'limit'},
+ {id:'C4',no:'ДГ-2026/033',cl:'K4',ent:'E3',d:'2026-05-22',to:'2026-11-30',lim:6000000,spec:3960000,ship:1880000,paid:1880000,dt:21,pt:30,mgr:'Асель',st:'active'},
+ {id:'C5',no:'ДГ-2026/038',cl:'K5',ent:'E2',d:'2026-07-01',to:'2027-06-30',lim:9200000,spec:2450000,ship:0,paid:0,dt:39,pt:60,mgr:'Ерлан',st:'active'},
+ {id:'C6',no:'ДГ-2025/102',cl:'K1',ent:'E1',d:'2025-03-12',to:'2026-03-11',lim:18000000,spec:17640000,ship:17640000,paid:17640000,dt:39,pt:60,mgr:'Ерлан',st:'done'}
+];
+const CN=id=>CONS.find(c=>c.id===id);
+const CST={active:['действует','g'],limit:['лимит почти исчерпан','w'],done:['исполнен','']};
+
+/* ====== СПЕЦИФИКАЦИИ ====== */
+/* строки: n — наименование как у заказчика; q — по спецификации; p — цена; ship — отгружено ранее; ord — в текущих заказах */
+const SPECS=[
+ {id:'SP1',no:'4503085694',con:'C1',d:'2026-08-19',src:'прислал заказчик · PDF',lines:[
+  {n:'Подшипник 3638 ГОСТ 5721-75',q:10,p:612000,ship:4,ord:3},
+  {n:'Подшипник 7222А ГОСТ 27365-87',q:12,p:96000,ship:12,ord:0},
+  {n:'Подшипник 23144 CC/W33',q:8,p:684000,ship:2,ord:5},
+  {n:'Подшипник 3053740 Н',q:4,p:1180000,ship:1,ord:1},
+  {n:'Подшипник 180312 ГОСТ 8882-75',q:40,p:14500,ship:20,ord:0},
+  {n:'Подшипник 32620 Л',q:6,p:238000,ship:0,ord:0}]},
+ {id:'SP2',no:'4503079120',con:'C1',d:'2026-06-02',src:'прислал заказчик · PDF',lines:[
+  {n:'Подшипник 22222 ЕК',q:6,p:188000,ship:6,ord:0},
+  {n:'Подшипник 30218 (7218)',q:20,p:42000,ship:20,ord:0}]},
+ {id:'SP3',no:'СП-2026/021-03',con:'C2',d:'2026-08-27',src:'заполнили сами по письму',lines:[
+  {n:'Подшипник 6312-2RS',q:30,p:16800,ship:18,ord:12},
+  {n:'Подшипник NU 2320 ECP',q:4,p:264000,ship:2,ord:0},
+  {n:'Подшипник 24140 CC/W33',q:2,p:1340000,ship:0,ord:2}]},
+ {id:'SP4',no:'РН-7781',con:'C3',d:'2026-09-02',src:'прислал заказчик · скан',lines:[
+  {n:'Подшипник 3622 ГОСТ 5721',q:10,p:176000,ship:6,ord:4},
+  {n:'Подшипник 7218 ГОСТ 27365',q:16,p:41000,ship:10,ord:0}]},
+ {id:'SP5',no:'СП-2026/033-02',con:'C4',d:'2026-09-10',src:'заполнили сами',lines:[
+  {n:'Подшипник 23140 CC/W33',q:2,p:960000,ship:0,ord:2},
+  {n:'Подшипник 32222 J2',q:8,p:98000,ship:4,ord:0}]}
+];
+const SP=id=>SPECS.find(s=>s.id===id);
+const specSum=s=>s.lines.reduce((a,l)=>a+l.q*l.p,0);
+const specShip=s=>s.lines.reduce((a,l)=>a+l.ship*l.p,0);
+const left=l=>l.q-l.ship-l.ord;
+
+/* ====== НАША НОМЕНКЛАТУРА (из 1С, три базы) ====== */
+/* st: остатки по складам E1/E2/E3; an — аналоги (ГОСТ ↔ ISO) для поиска; c — себестоимость */
+const CAT=[
+ {id:'N-101',n:'22338 CC/W33 SKF',an:'3638, 3638Н, 22338',brand:'SKF',dim:'190×400×132',st:{E1:2,E2:0,E3:1},c:405000},
+ {id:'N-102',n:'3638 ГПЗ-4',an:'22338, 3638',brand:'ГПЗ-4',dim:'190×400×132',st:{E1:0,E2:2,E3:0},c:352000},
+ {id:'N-103',n:'22338 MB FAG',an:'3638, 22338',brand:'FAG',dim:'190×400×132',st:{E1:0,E2:1,E3:0},c:428000},
+ {id:'N-110',n:'23144 CC/W33 SKF',an:'3053744, 23144',brand:'SKF',dim:'220×370×120',st:{E1:1,E2:0,E3:0},c:462000},
+ {id:'N-111',n:'3053744 Н ЕПК',an:'23144, 3053744',brand:'ЕПК',dim:'220×370×120',st:{E1:0,E2:1,E3:1},c:398000},
+ {id:'N-120',n:'23140 CC/W33 SKF',an:'3053740, 23140',brand:'SKF',dim:'200×340×112',st:{E1:0,E2:0,E3:1},c:770000},
+ {id:'N-121',n:'3053740 Н ЕПК',an:'23140, 3053740',brand:'ЕПК',dim:'200×340×112',st:{E1:1,E2:0,E3:0},c:690000},
+ {id:'N-130',n:'6312-2RS1 SKF',an:'180312, 6312',brand:'SKF',dim:'60×130×31',st:{E1:18,E2:6,E3:0},c:9800},
+ {id:'N-131',n:'180312 ГПЗ',an:'6312-2RS, 180312',brand:'ГПЗ',dim:'60×130×31',st:{E1:30,E2:0,E3:12},c:7200},
+ {id:'N-140',n:'32222 J2 SKF',an:'7222А, 7222, 32222',brand:'SKF',dim:'110×200×56',st:{E1:4,E2:0,E3:2},c:61000},
+ {id:'N-150',n:'NU 2320 ECP SKF',an:'32620, 32620Л',brand:'SKF',dim:'100×215×73',st:{E1:3,E2:2,E3:0},c:171000},
+ {id:'N-160',n:'30218 J2 SKF',an:'7218, 30218',brand:'SKF',dim:'90×160×32,5',st:{E1:8,E2:0,E3:4},c:27000},
+ {id:'N-170',n:'22222 EK SKF',an:'3622, 113622, 22222',brand:'SKF',dim:'110×200×53',st:{E1:0,E2:5,E3:0},c:121000},
+ {id:'N-180',n:'24140 CC/W33 SKF',an:'4053740, 24140',brand:'SKF',dim:'200×340×140',st:{E1:0,E2:0,E3:1},c:910000}
+];
+const CT=id=>CAT.find(c=>c.id===id);
+const stTot=c=>c.st.E1+c.st.E2+c.st.E3;
+const norm=s=>String(s).toLowerCase().replace(/подшипник|гост[\s\d\-]*/g,'').replace(/[^0-9a-zа-яё]/g,'');
+const findCands=name=>{const q=norm(name).replace(/[а-яё]+$/,'');return CAT.filter(c=>c.an.split(',').some(a=>{const x=norm(a);return x&&q&&(q.startsWith(x)||x.startsWith(q))})||norm(c.n).startsWith(q))};
+/* ====== ЗАКАЗЫ ПО СПЕЦИФИКАЦИЯМ ====== */
+/* lines: li — строка спецификации; q — заказано; pt — склад заказчика (куда везти) */
+const ORDERS=[
+ {id:'ZK1',no:'ЗК-2026/0928-01',ext:'заявка заказчика № 7700-112',sp:'SP1',d:'2026-09-28',st:'pick',lines:[{li:0,q:3,pt:'Караганда · центральный склад'},{li:2,q:5,pt:'Жезказган · склад рудника'},{li:3,q:1,pt:'Балхаш · склад фабрики'}]},
+ {id:'ZK2',no:'ЗК-2026/0828-02',ext:'письмо от 28.08',sp:'SP3',d:'2026-08-28',st:'build',lines:[{li:0,q:12,pt:'Шахтинск · склад шахты'},{li:2,q:2,pt:'Караганда · ремонтный цех'}],note:'ждём 1 шт 24140 CC/W33 от поставщика · 03.10'},
+ {id:'ZK3',no:'ЗК-2026/0924-01',ext:'заявка № 45-0912',sp:'SP4',d:'2026-09-24',st:'wait',lines:[{li:0,q:4,pt:'Темиртау · склад карьера'}]},
+ {id:'ZK4',no:'ЗК-2026/0921-02',ext:'письмо главного механика',sp:'SP5',d:'2026-09-21',st:'sent',lines:[{li:0,q:2,pt:'Темиртау · склад РМЦ'}],note:'отправлено 26.09 · Газель 045 AKZ 09'},
+ {id:'ZK5',no:'ЗК-2026/0915-01',ext:'заявка № 7700-098',sp:'SP1',d:'2026-09-15',st:'real',lines:[{li:4,q:20,pt:'Караганда · центральный склад'}],rn:'РН-000842'},
+ {id:'ZK6',no:'ЗК-2026/0818-03',ext:'заявка № 7700-071',sp:'SP1',d:'2026-08-18',st:'pay',lines:[{li:0,q:4,pt:'Жезказган · склад рудника'},{li:2,q:2,pt:'Балхаш · склад фабрики'},{li:3,q:1,pt:'Балхаш · склад фабрики'}],rn:'РН-000781'},
+ {id:'ZK7',no:'ЗК-2026/0701-01',ext:'заявка № 45-0655',sp:'SP4',d:'2026-07-01',st:'pay',lines:[{li:0,q:6,pt:'Темиртау · склад карьера'},{li:1,q:10,pt:'Темиртау · склад карьера'}],rn:'РН-000702'},
+ {id:'ZK8',no:'ЗК-2026/0610-02',ext:'заявка № 7700-034',sp:'SP2',d:'2026-06-10',st:'paid',lines:[{li:0,q:6,pt:'Караганда · центральный склад'},{li:1,q:20,pt:'Жезказган · склад рудника'}],rn:'РН-000655'}
+];
+const OR=id=>ORDERS.find(o=>o.id===id);
+const FUN=[
+ {k:'pick',n:'Подбор',c:'#7a8594'},{k:'work',n:'В работе · печать',c:'#5f6f82'},{k:'build',n:'Сборка',c:'#1f5f8b'},{k:'wait',n:'Ожидание отгрузки',c:'#2f7d6d'},
+ {k:'sent',n:'Отправлено',c:'#b07a00'},{k:'real',n:'Реализация · накладная',c:'#8a5a2b'},{k:'pay',n:'Ждём оплату',c:'#a0412d'},{k:'paid',n:'Оплачено',c:'#2e6b3f'}];
+const FN=k=>FUN.find(f=>f.k===k);
+const ordCon=o=>CN(SP(o.sp).con);
+const ordSum=o=>o.lines.reduce((a,l)=>a+l.q*SP(o.sp).lines[l.li].p,0);
+const ordDue=o=>addDays(o.d,ordCon(o).dt);
+const ordLate=o=>['pick','work','build','wait'].includes(o.st)&&ordDue(o)<TODAY;
+
+/* ====== ПОДБОР ПО СКЛАДАМ (заказ ЗК-2026/0928-01) ====== */
+/* по каждой строке заказа: какие позиции нашей номенклатуры и с каких складов берём; остальное — в закуп */
+const PICK={ZK1:[
+ {cand:['N-102','N-101','N-103'],alloc:{'N-102':{E1:0,E2:2,E3:0},'N-101':{E1:1,E2:0,E3:0},'N-103':{E1:0,E2:0,E3:0}},buy:0},
+ {cand:['N-110','N-111'],alloc:{'N-110':{E1:1,E2:0,E3:0},'N-111':{E1:0,E2:1,E3:1}},buy:2},
+ {cand:['N-121','N-120'],alloc:{'N-121':{E1:1,E2:0,E3:0},'N-120':{E1:0,E2:0,E3:0}},buy:0}
+]};
+const pickedQ=pl=>Object.values(pl.alloc).reduce((a,x)=>a+x.E1+x.E2+x.E3,0);
+
+/* ====== РЕАЛИЗАЦИИ И ОПЛАТЫ ====== */
+const REAL=[
+ {no:'РН-000842',d:'2026-09-22',ord:'ZK5',ent:'E1',cl:'K1',sum:290000,paid:0,esf:'выписан 22.09'},
+ {no:'РН-000781',d:'2026-08-29',ord:'ZK6',ent:'E1',cl:'K1',sum:4996000,paid:0,esf:'выписан 29.08'},
+ {no:'РН-000702',d:'2026-07-14',ord:'ZK7',ent:'E1',cl:'K3',sum:1466000,paid:0,esf:'выписан 14.07'},
+ {no:'РН-000655',d:'2026-06-24',ord:'ZK8',ent:'E1',cl:'K1',sum:1968000,paid:1968000,esf:'выписан 24.06',pd:'2026-08-20'},
+ {no:'РН-000611',d:'2026-06-05',ord:null,ent:'E2',cl:'K2',sum:2140000,paid:2140000,esf:'выписан 05.06',pd:'2026-07-17'},
+ {no:'РН-000590',d:'2026-05-28',ord:null,ent:'E3',cl:'K4',sum:1880000,paid:1880000,esf:'выписан 28.05',pd:'2026-06-25'}
+];
+const realDue=r=>{const o=r.ord?OR(r.ord):null;const pt=o?ordCon(o).pt:(r.cl==='K4'?30:45);return addDays(r.d,pt)};
+
+/* межфирменные реализации: товар со склада одного юрлица продаётся по договору другого */
+const MOVES=[
+ {no:'МФ-0113',d:TODAY,from:'E2',to:'E1',items:[['N-102',2],['N-111',1]],ord:'ZK1',st:'draft',why:'по договору ДГ-2026/014 поставщик — КарБеаринг, товар на складе СтальОпоры'},
+ {no:'МФ-0114',d:TODAY,from:'E3',to:'E1',items:[['N-111',1]],ord:'ZK1',st:'draft',why:'23144 / 3053744 — 1 шт со склада Темиртау'},
+ {no:'МФ-0109',d:'2026-09-27',from:'E3',to:'E2',items:[['N-180',1]],ord:'ZK2',st:'done',why:'24140 CC/W33 для Тентек Көмір, договор на СтальОпоре'},
+ {no:'МФ-0104',d:'2026-09-19',from:'E1',to:'E3',items:[['N-120',1]],ord:'ZK4',st:'done',why:'23140 для Темір Прокат, договор на ГорМашСнабе'},
+ {no:'ПМ-0221',d:'2026-09-25',from:'E1',to:'E1',items:[['N-131',10]],ord:null,st:'done',why:'внутреннее перемещение: склад №1 → участок комплектации'}
+];
+const MST={draft:['черновик · ждёт отправки в работу','w'],done:['проведено в 1С','g']};
+
+/* закуп: дефицит по заказам и минимальным остаткам */
+const BUY=[
+ {n:'23144 CC/W33 (или 3053744)',q:2,for:'ZK1',why:'не хватает под заказ ЗК-2026/0928-01',sup:'ТОО «Подшипник-Трейд» · Алматы',eta:'2026-10-06',st:'new',price:455000},
+ {n:'24140 CC/W33',q:1,for:'ZK2',why:'не хватает под заказ ЗК-2026/0828-02',sup:'дистрибьютор SKF · Астана',eta:'2026-10-03',st:'ordered',price:905000},
+ {n:'3638 / 22338',q:4,for:null,why:'остаток ниже минимума после заказа (минимум 4)',sup:'ГПЗ-4 · Самара',eta:'—',st:'new',price:350000},
+ {n:'32620 Л / NU 2320',q:6,for:null,why:'позиция 6 спецификации 4503085694 — заказа ещё нет, остатка 5',sup:'дистрибьютор SKF · Астана',eta:'—',st:'plan',price:170000}
+];
+const BST={new:['к заказу','w'],ordered:['заказано','i'],plan:['в плане','']};
+
+/* ====== ЧТО ГОРИТ ====== */
+const ALERTS=[
+ {lv:'r',t:'Просрочена поставка',x:'ЗК-2026/0828-02 · Тентек Көмір: срок 30 дней истёк 27.09, стоит на сборке — ждём 24140 CC/W33 от поставщика до 03.10',go:"openOrd('ZK2')",b:'Заказ'},
+ {lv:'r',t:'Просрочена оплата',x:'РН-000702 · Нұра Руда · 1 466 000 ₸: срок 60 дней истёк 12.09 — 16 дней просрочки',go:"go('receiv')",b:'Дебиторка'},
+ {lv:'w',t:'Лимит договора почти исчерпан',x:'ДГ-2026/027 · Нұра Руда: спецификаций на 8,12 млн из 8,5 млн — 96 %. Новая спецификация не поместится',go:"openCon('C3')",b:'Договор'},
+ {lv:'w',t:'Дефицит под заказ',x:'ЗК-2026/0928-01: 23144 CC/W33 — нужно 5, на трёх складах 3. В закуп 2 шт',go:"go('pick')",b:'Подбор'},
+ {lv:'w',t:'Срок оплаты через 30 дней',x:'РН-000781 · Сарыарка ГМК · 4 996 000 ₸ — до 28.10',go:"go('receiv')",b:'Оплаты'},
+ {lv:'i',t:'Позиции спецификации без заказа',x:'4503085694: 32620 Л — 6 шт на 1,43 млн ещё не заказаны, договор до 31.12',go:"openSpec('SP1')",b:'Спецификация'},
+ {lv:'i',t:'Договор заканчивается',x:'ДГ-2026/033 · Темір Прокат: до 30.11 осталось 63 дня, по спецификациям не отгружено 2,08 млн',go:"openCon('C4')",b:'Договор'},
+ {lv:'b',t:'Обмен с 1С',x:'База «ГорМашСнаб»: 2 позиции без единицы измерения — не выгружены. Остальные базы — обмен 07:30 без ошибок',go:"go('sync')",b:'1С'}
+];
+
+/* ====== 1С ====== */
+const ONEC=[
+ {ent:'E1',ver:'1С:Бухгалтерия для Казахстана 3.0 · сервер в офисе',last:'28.09 07:30',items:1842,stock:'по складу №1',docs:'реализации, межфирменные, поступления денег',err:0},
+ {ent:'E2',ver:'1С:Бухгалтерия для Казахстана 3.0 · сервер в офисе',last:'28.09 07:30',items:1127,stock:'по складу №2',docs:'реализации, межфирменные, поступления денег',err:0},
+ {ent:'E3',ver:'1С:Бухгалтерия для Казахстана 3.0 · сервер в офисе',last:'28.09 07:31',items:964,stock:'по складу №3',docs:'реализации, межфирменные, поступления денег',err:2}
+];
+const SYNCLOG=[
+ ['07:31','E3','← номенклатура','964 позиции · 2 без единицы измерения — пропущены','w'],
+ ['07:30','E1','← остатки','склад №1 · 1 842 позиции','g'],
+ ['07:30','E2','← остатки','склад №2 · 1 127 позиций','g'],
+ ['07:30','E1','← поступления денег','2 платежа · Сарыарка ГМК, Темір Прокат','g'],
+ ['27.09 18:12','E3→E2','→ межфирменная реализация','МФ-0109 · 24140 CC/W33 · 1 шт','g'],
+ ['27.09 16:40','E1','→ реализация','РН-000842 · Сарыарка ГМК · 290 000 ₸','g']
+];
+
+/* ====== КАЛЕНДАРЬ ====== */
+const CAL=[
+ {d:'2026-09-28',t:'10:00',n:'Планёрка отдела продаж',k:'meet'},
+ {d:'2026-09-28',t:'15:00',n:'Звонок: главный механик Сарыарка ГМК · спецификация на IV квартал',k:'meet'},
+ {d:'2026-09-29',t:'',n:'Срок: ответ поставщика по 23144 CC/W33 · 2 шт',k:'task'},
+ {d:'2026-09-30',t:'11:00',n:'Встреча: Балқаш Кен Жөндеу · первая спецификация',k:'meet'},
+ {d:'2026-10-03',t:'',n:'Поступление 24140 CC/W33 от дистрибьютора · под ЗК-2026/0828-02',k:'task'},
+ {d:'2026-10-06',t:'',n:'Поступление 23144 CC/W33 × 2 от поставщика · под ЗК-2026/0928-01',k:'task'},
+ {d:'2026-10-28',t:'',n:'Срок оплаты РН-000781 · 4 996 000 ₸',k:'pay'},
+ {d:'2026-11-06',t:'',n:'Срок поставки ЗК-2026/0928-01 · 39 дней',k:'dl'},
+ {d:'2026-11-08',t:'',n:'Срок поставки ЗК-2026/0924-01 · Нұра Руда · 45 дней',k:'dl'},
+ {d:'2026-11-30',t:'',n:'Окончание договора ДГ-2026/033 · Темір Прокат',k:'dl'}
+];
+
+/* ====== МЕНЕДЖЕРЫ ====== */
+const MGRS=[
+ {n:'Ерлан Жумабаев',plan:12000000,fact:9870000,cons:4,ord:5,late:1,rec:5286000},
+ {n:'Асель Нурпеисова',plan:8000000,fact:5140000,cons:2,ord:3,late:0,rec:1466000}
+];
+const MONTHS=[['апр',6.2],['май',7.9],['июн',9.1],['июл',5.4],['авг',8.8],['сен',7.6]];
+/* ====== ХЕЛПЕРЫ ====== */
+const SC={};
+const entTag=id=>{const e=EN(id);return e?`<span class="tag ent" style="--ec:${e.c}">${esc(e.short)}</span>`:''};
+const conL=(id,t)=>{const c=CN(id);return c?`<a class="lk mono" onclick="openCon('${id}')">${esc(t||c.no)}</a>`:'—'};
+const specL=(id,t)=>{const s=SP(id);return s?`<a class="lk mono" onclick="openSpec('${id}')">${esc(t||'№ '+s.no)}</a>`:'—'};
+const ordL=(id,t)=>{const o=OR(id);return o?`<a class="lk mono" onclick="openOrd('${id}')">${esc(t||o.no)}</a>`:'—'};
+const clL=(id,t)=>{const c=CL(id);return c?`<a class="lk" onclick="card('cl','${id}')">${esc(t||c.short)}</a>`:'—'};
+const catL=id=>{const c=CT(id);return `<a class="lk mono" onclick="card('cat','${id}')">${esc(c.n)}</a>`};
+const stageTag=k=>{const f=FN(k);return `<span class="stg" style="--sc:${f.c}">${esc(f.n)}</span>`};
+const barRow=(n,v,max,cls,lbl)=>`<div class="fr"><span>${n}</span><div class="bar"><i class="${cls||''}" style="--w:${Math.min(100,pct(v,max))}%"></i></div><b>${lbl||fmt(v)}</b></div>`;
+const said=(t,x)=>`<div class="said"><b>Ваши слова на встрече</b><i>${t}</i>${x?`<span>${x}</span>`:''}</div>`;
+const consIn=()=>CONS.filter(c=>inEnt(c));
+function openCon(id){curCon=id;if(!allowed('contract')){card('con',id);return}go('contract')}
+function openSpec(id){curSpec=id;if(!allowed('spec')){card('spec',id);return}go('spec')}
+function openOrd(id){curOrd=id;if(!allowed('order')){card('ord',id);return}go('order')}
+const tri=(c)=>`<div class="tri"><i class="t1" style="--w:${pct(c.spec,c.lim)}%"></i><i class="t2" style="--w:${pct(c.ship,c.lim)}%"></i><i class="t3" style="--w:${pct(c.paid,c.lim)}%"></i></div>`;
+
+/* ====== ГЛАВНАЯ ====== */
+SC.dash=()=>{const cs=consIn().filter(c=>c.st!=='done');const L=cs.reduce((a,c)=>({lim:a.lim+c.lim,spec:a.spec+c.spec,ship:a.ship+c.ship,paid:a.paid+c.paid}),{lim:0,spec:0,ship:0,paid:0});
+ const actv=ORDERS.filter(o=>['pick','work','build','wait','sent'].includes(o.st)&&inEnt(ordCon(o)));const late=actv.filter(ordLate);
+ const debt=REAL.filter(r=>inEnt(r)&&r.paid<r.sum);const over=debt.filter(r=>realDue(r)<TODAY);
+ const stockV=CAT.reduce((a,c)=>a+(curEnt==='all'?stTot(c):c.st[curEnt]||0)*c.c,0);
+ return `<div class="hd"><div><h2>Панель руководителя</h2><p>Вы сказали: «Сколько осталось, наименование какое отгружено, сколько отгрузили, сколько не отгрузили». Здесь все договоры трёх юрлиц: сумма договора, сколько закрыто спецификациями, отгружено и оплачено. Ниже — заказы в работе, что горит по срокам и остатки трёх складов.</p></div>
+ <div class="btns"><button class="bt" onclick="go('daily')">Ежедневный отчёт</button><button class="bt p" onclick="go('alerts')">Что горит · ${ALERTS.filter(a=>a.lv==='r'||a.lv==='w').length}</button></div></div>
+ <div class="wid"><div><small>Договоров действует</small><b class="a">${cs.length}</b><span>на ${mln(L.lim)} · заказчиков ${new Set(cs.map(c=>c.cl)).size}</span></div><div><small>Спецификации</small><b>${mln(L.spec)}</b><span>${pct(L.spec,L.lim)} % лимитов договоров</span></div><div><small>Отгружено</small><b class="g">${mln(L.ship)}</b><span>${pct(L.ship,L.spec)} % от спецификаций</span></div><div><small>Дебиторка</small><b class="r">${mln(debt.reduce((a,r)=>a+r.sum-r.paid,0))}</b><span>просрочено ${mln(over.reduce((a,r)=>a+r.sum-r.paid,0))} · ${over.length} ${plural(over.length,['накладная','накладные','накладных'])}</span></div><div><small>Заказы в исполнении</small><b class="${late.length?'w':''}">${actv.length}</b><span>просрочена поставка · ${late.length}</span></div></div>
+ <div class="tw"><table class="t"><tr><th>Договор</th><th>Заказчик</th><th>Наше юрлицо</th><th class="r">Сумма договора</th><th>Спецификации · отгружено · оплачено</th><th class="r">Остаток по договору</th><th class="r">Не отгружено</th><th class="r">Сроки</th><th>Статус</th></tr><tbody>
+ ${cs.map(c=>`<tr onclick="openCon('${c.id}')"><td>${conL(c.id)}<span class="sub">до ${dl(c.to)} · ${esc(c.mgr)}</span></td><td><b>${esc(CL(c.cl).short)}</b></td><td>${entTag(c.ent)}</td><td class="r">${fmt(c.lim)}</td><td>${tri(c)}<span class="sub">${mln(c.spec)} · ${mln(c.ship)} · ${mln(c.paid)}</span></td><td class="r">${fmt(c.lim-c.spec)}</td><td class="r ${c.spec-c.ship>0?'warnt':''}">${fmt(c.spec-c.ship)}</td><td class="r mono">${c.dt} / ${c.pt} дн.</td><td><span class="tag ${CST[c.st][1]}">${CST[c.st][0]}</span></td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="legend"><span><i class="t1"></i>закрыто спецификациями</span><span><i class="t2"></i>отгружено</span><span><i class="t3"></i>оплачено</span><span class="mini">полная полоса — сумма договора</span></div>
+ <div class="g21"><div class="pan"><h3>Что горит</h3>${ALERTS.slice(0,5).map(a=>`<div class="li ${a.lv}"><i>!</i><span><b>${esc(a.t)}.</b> ${esc(a.x)}</span><button class="bt" onclick="${a.go}">${esc(a.b)}</button></div>`).join('')}</div>
+ <div><div class="pan"><h3>Воронка исполнения</h3>${FUN.slice(0,7).map(f=>{const n=ORDERS.filter(o=>o.st===f.k&&inEnt(ordCon(o))).length;return barRow(esc(f.n),n,3,'',String(n))}).join('')}<div class="btns" style="justify-content:flex-start;margin-top:8px"><button class="bt" onclick="go('funnel')">Открыть канбан</button></div></div>
+ <div class="pan"><h3>Склады · себестоимость остатков</h3>${ENT.filter(e=>curEnt==='all'||e.id===curEnt).map(e=>`<div class="kv"><span>${entTag(e.id)} ${esc(e.wh)}</span><b>${mln(CAT.reduce((a,c)=>a+c.st[e.id]*c.c,0))}</b></div>`).join('')}<div class="kv"><span><b>Всего</b> · выборка ${CAT.length} позиций</span><b>${mln(stockV)}</b></div></div></div></div>`};
+
+SC.alerts=()=>`<div class="hd"><div><h2>Что горит · сроки и риски</h2><p>Вы просили ежедневную отчётность: что прогорело, где непоставка. Система сама проверяет каждый договор, спецификацию, заказ и накладную по формулам ниже и приносит список. Тот же список уходит вам в 08:00.</p></div><div class="btns"><button class="bt" onclick="go('daily')">Как выглядит отчёт</button><button class="bt p" onclick="act('rules')">Настроить правила</button></div></div>
+ <div class="g21"><div class="pan"><h3>Сегодня · понедельник, 28 сентября</h3>${ALERTS.map(a=>`<div class="li ${a.lv}"><i>!</i><span><b>${esc(a.t)}.</b> ${esc(a.x)}</span><button class="bt" onclick="${a.go}">${esc(a.b)}</button></div>`).join('')}</div>
+ <div><div class="pan"><h3>Правила · формулы</h3><div class="formula">
+ <code>Просрочена поставка</code><span>дата заказа + срок поставки из договора &lt; сегодня, и заказ не отгружен</span>
+ <code>Скоро срок поставки</code><span>до срока осталось 7 дней, а заказ ещё в подборе или сборке</span>
+ <code>Просрочена оплата</code><span>дата реализации + срок оплаты из договора &lt; сегодня, и не оплачено полностью</span>
+ <code>Лимит договора</code><span>спецификаций больше 90 % суммы договора</span>
+ <code>Позиция без заказа</code><span>строка спецификации без заказов, до конца договора меньше 100 дней</span>
+ <code>Дефицит</code><span>в заказе нужно больше, чем на трёх складах, — строка в закуп</span>
+ <code>Обмен с 1С</code><span>ошибка или нет обмена дольше 2 часов</span></div></div>
+ ${said('«Чтобы тебе конкретно ежемесячно, ежедневно давала отчётность по тем событиям, что вот здесь прогорели, здесь непоставка».','Платон: «Это всё сводится к формулам»: каждое правило ниже — формула, её можно поменять.')}</div></div>`;
+
+/* ====== ДОГОВОРЫ ====== */
+let conF='all';
+SC.contracts=()=>{const list=consIn().filter(c=>conF==='all'||c.st===conF);
+ return `<div class="hd"><div><h2>Договоры и лимиты</h2><p>Договор с заказчиком: какое из трёх наших юрлиц поставщик, срок поставки и срок оплаты в днях, сумма договора. К договору подкидывают спецификации — они расходуют сумму договора. Сколько осталось по договору и сколько по спецификациям ещё не отгружено — видно сразу.</p></div>
+ <div class="btns"><button class="bt" onclick="act('xls')">⇩ Excel</button><button class="bt p" onclick="card('newcon')">+ Договор</button></div></div>
+ <div class="ptabs">${[['all','Все'],['active','Действуют'],['limit','Лимит почти исчерпан'],['done','Исполнены']].map(x=>`<button class="ptab ${conF===x[0]?'on':''}" onclick="conF='${x[0]}';render()">${x[1]}</button>`).join('')}</div>
+ <div class="tw"><table class="t"><tr><th>Договор</th><th>Заказчик</th><th>Поставщик</th><th>Подписан · до</th><th class="r">Поставка</th><th class="r">Оплата</th><th class="r">Сумма</th><th class="r">Спецификации</th><th class="r">Отгружено</th><th class="r">Оплачено</th><th>Статус</th></tr><tbody>
+ ${list.map(c=>`<tr onclick="openCon('${c.id}')"><td>${conL(c.id)}<span class="sub">${SPECS.filter(s=>s.con===c.id).length} ${plural(SPECS.filter(s=>s.con===c.id).length,['спецификация','спецификации','спецификаций'])} в выборке</span></td><td><b>${esc(CL(c.cl).short)}</b><span class="sub">${esc(c.mgr)}</span></td><td>${entTag(c.ent)}</td><td class="mono">${dd(c.d)} · ${dl(c.to)}</td><td class="r">${c.dt} дн.</td><td class="r">${c.pt} дн.</td><td class="r">${fmt(c.lim)}</td><td class="r">${fmt(c.spec)}<span class="sub">${pct(c.spec,c.lim)} %</span></td><td class="r">${fmt(c.ship)}</td><td class="r">${fmt(c.paid)}</td><td><span class="tag ${CST[c.st][1]}">${CST[c.st][0]}</span></td></tr>`).join('')}</tbody></table></div>`};
+
+SC.contract=()=>{const c=CN(curCon);const cl=CL(c.cl);const sps=SPECS.filter(s=>s.con===c.id);const ords=ORDERS.filter(o=>SP(o.sp).con===c.id);const rls=REAL.filter(r=>r.ord&&ords.some(o=>o.id===r.ord));
+ return `<div class="hd"><div><div class="crumb"><a onclick="go('contracts')">Договоры</a> › <b>${esc(c.no)}</b></div><h2>Договор ${esc(c.no)} · ${esc(cl.short)} <span class="tag ${CST[c.st][1]}">${CST[c.st][0]}</span></h2><p>Поставщик по договору — ${entTag(c.ent)} ${esc(EN(c.ent).n)}. Подписан ${dl(c.d)}, действует до ${dl(c.to)}. Срок поставки ${c.dt} дней от заказа, срок оплаты ${c.pt} дней от реализации. Менеджер — ${esc(c.mgr)}.</p></div>
+ <div class="btns"><button class="bt" onclick="act('doc-body')">Тело договора · PDF</button><button class="bt" onclick="card('newspec','${c.id}')">+ Спецификация</button><button class="bt p" onclick="${sps[0]?`openSpec('${sps[0].id}')`:"act('no-spec')"}">Заказ по спецификации</button></div></div>
+ <div class="wid"><div><small>Сумма договора</small><b>${tg(c.lim)}</b><span>фиксированная</span></div><div><small>Закрыто спецификациями</small><b class="a">${tg(c.spec)}</b><span>${pct(c.spec,c.lim)} % · свободно ${fmt(c.lim-c.spec)}</span></div><div><small>Отгружено</small><b class="g">${tg(c.ship)}</b><span>не отгружено по спецификациям ${fmt(c.spec-c.ship)}</span></div><div><small>Оплачено</small><b>${tg(c.paid)}</b><span>ждём ${fmt(c.ship-c.paid)}</span></div><div><small>Заказов</small><b>${ords.length}</b><span>в исполнении ${ords.filter(o=>!['real','pay','paid'].includes(o.st)).length}</span></div></div>
+ <div class="pan"><h3>Как расходуется договор</h3><div class="tri big">${''}<i class="t1" style="--w:${pct(c.spec,c.lim)}%"></i><i class="t2" style="--w:${pct(c.ship,c.lim)}%"></i><i class="t3" style="--w:${pct(c.paid,c.lim)}%"></i></div><div class="legend"><span><i class="t1"></i>спецификации ${mln(c.spec)}</span><span><i class="t2"></i>отгружено ${mln(c.ship)}</span><span><i class="t3"></i>оплачено ${mln(c.paid)}</span><span class="mini">вся полоса — ${mln(c.lim)}</span></div></div>
+ <div class="g2"><div class="pan"><h3>Спецификации к договору</h3><div class="tw"><table class="t"><tr><th>Спецификация</th><th>Дата</th><th class="r">Позиций</th><th class="r">Сумма</th><th class="r">Отгружено</th><th>Источник</th></tr><tbody>${sps.map(s=>`<tr onclick="openSpec('${s.id}')"><td>${specL(s.id)}</td><td class="mono">${dd(s.d)}</td><td class="r">${s.lines.length}</td><td class="r">${fmt(specSum(s))}</td><td class="r">${pct(specShip(s),specSum(s))} %</td><td class="mini">${esc(s.src)}</td></tr>`).join('')||'<tr><td colspan="6" class="mini">В выборке нет.</td></tr>'}</tbody></table></div></div>
+ <div class="pan"><h3>Заказы по договору</h3><div class="tw"><table class="t"><tr><th>Заказ</th><th>Дата</th><th class="r">Сумма</th><th>Этап</th><th>Срок</th></tr><tbody>${ords.map(o=>`<tr onclick="openOrd('${o.id}')"><td>${ordL(o.id)}</td><td class="mono">${dd(o.d)}</td><td class="r">${fmt(ordSum(o))}</td><td>${stageTag(o.st)}</td><td class="mono ${ordLate(o)?'neg':''}">${dd(ordDue(o))}</td></tr>`).join('')||'<tr><td colspan="5" class="mini">Заказов нет.</td></tr>'}</tbody></table></div></div></div>
+ <div class="g2"><div class="pan"><h3>Реализации и оплаты</h3>${rls.map(r=>`<div class="kv"><span><b class="mono">${r.no}</b> · ${dd(r.d)} · оплатить до ${dd(realDue(r))}</span><b class="${r.paid>=r.sum?'pos':realDue(r)<TODAY?'neg':''}">${fmt(r.sum)} · ${r.paid>=r.sum?'оплачено':'ждём'}</b></div>`).join('')||'<p class="mini">Реализаций нет.</p>'}</div>
+ <div class="pan"><h3>Файлы</h3>${[['Тело договора · подписано ЭЦП',dl(c.d)],...sps.map(s=>['Спецификация № '+s.no+' · '+s.src,dl(s.d)])].map(x=>`<div class="kv"><span>${esc(x[0])}</span><b class="mono">${x[1]}</b></div>`).join('')}</div></div>`};
+
+SC.specs=()=>{const list=SPECS.filter(s=>inEnt(CN(s.con)));
+ return `<div class="hd"><div><h2>Спецификации</h2><p>Спецификация — приложение к договору: наименования так, как их пишет заказчик, количество и цена. Прайса нет — строки заносятся вручную из присланного документа. От спецификации идут заказы, а по каждой строке видно, сколько заказано, отгружено и осталось.</p></div><div class="btns"><button class="bt p" onclick="card('newspec','C1')">+ Спецификация</button></div></div>
+ <div class="tw"><table class="t"><tr><th>Спецификация</th><th>Договор · заказчик</th><th>Дата</th><th class="r">Строк</th><th class="r">Сумма</th><th>Отгружено</th><th class="r">В заказах</th><th class="r">Осталось заказать</th><th>Источник</th></tr><tbody>
+ ${list.map(s=>{const c=CN(s.con);const ordq=s.lines.reduce((a,l)=>a+l.ord*l.p,0);const lf=s.lines.reduce((a,l)=>a+left(l)*l.p,0);return `<tr onclick="openSpec('${s.id}')"><td>${specL(s.id)}</td><td>${conL(c.id)}<span class="sub">${esc(CL(c.cl).short)} · ${esc(EN(c.ent).short)}</span></td><td class="mono">${dd(s.d)}</td><td class="r">${s.lines.length}</td><td class="r">${fmt(specSum(s))}</td><td><div class="bar" style="width:90px"><i class="g" style="--w:${pct(specShip(s),specSum(s))}%"></i></div><span class="sub">${pct(specShip(s),specSum(s))} %</span></td><td class="r">${fmt(ordq)}</td><td class="r ${lf?'':'pos'}">${fmt(lf)}</td><td class="mini">${esc(s.src)}</td></tr>`}).join('')}</tbody></table></div>`};
+
+SC.spec=()=>{const s=SP(curSpec);const c=CN(s.con);
+ return `<div class="hd"><div><div class="crumb"><a onclick="go('specs')">Спецификации</a> › <b>№ ${esc(s.no)}</b></div><h2>Спецификация № ${esc(s.no)}</h2><p>К договору ${conL(c.id)} · ${esc(CL(c.cl).short)} · поставщик ${entTag(c.ent)} · от ${dl(s.d)} · ${esc(s.src)}. Наименования — как у заказчика; сопоставление с нашей номенклатурой делается при подборе заказа.</p></div>
+ <div class="btns"><button class="bt" onclick="act('spec-edit')">Редактировать</button><button class="bt p" onclick="card('neworder','${s.id}')">Создать заказ по спецификации</button></div></div>
+ <div class="wid"><div><small>Сумма спецификации</small><b>${tg(specSum(s))}</b><span>${s.lines.length} ${plural(s.lines.length,['позиция','позиции','позиций'])}</span></div><div><small>Отгружено</small><b class="g">${tg(specShip(s))}</b><span>${pct(specShip(s),specSum(s))} %</span></div><div><small>В текущих заказах</small><b class="a">${tg(s.lines.reduce((a,l)=>a+l.ord*l.p,0))}</b><span>ещё не отгружено</span></div><div><small>Осталось заказать</small><b class="w">${tg(s.lines.reduce((a,l)=>a+left(l)*l.p,0))}</b><span>до ${dl(c.to)}</span></div><div><small>Срок поставки</small><b>${c.dt} дн.</b><span>от даты каждого заказа</span></div></div>
+ <div class="tw"><table class="t"><tr><th class="r">№</th><th>Наименование у заказчика</th><th class="r">По спец.</th><th class="r">Цена</th><th class="r">Сумма</th><th class="r">Отгружено</th><th class="r">В заказах</th><th class="r">Осталось</th><th style="width:150px">Исполнение</th></tr><tbody>
+ ${s.lines.map((l,i)=>`<tr><td class="r mono">${i+1}</td><td><b>${esc(l.n)}</b><span class="sub">у нас: ${findCands(l.n).map(x=>esc(x.n)).join(' · ')||'нет аналога в каталоге'}</span></td><td class="r">${l.q}</td><td class="r">${fmt(l.p)}</td><td class="r">${fmt(l.q*l.p)}</td><td class="r">${l.ship}</td><td class="r">${l.ord||'—'}</td><td class="r ${left(l)?'':'pos'}"><b>${left(l)}</b></td><td><div class="seg3"><i class="s1" style="--w:${pct(l.ship,l.q)}%"></i><i class="s2" style="--o:${pct(l.ship,l.q)}%;--w:${pct(l.ord,l.q)}%"></i></div></td></tr>`).join('')}
+ <tr class="total"><td></td><td>Итого</td><td class="r">${s.lines.reduce((a,l)=>a+l.q,0)}</td><td></td><td class="r">${fmt(specSum(s))}</td><td class="r">${s.lines.reduce((a,l)=>a+l.ship,0)}</td><td class="r">${s.lines.reduce((a,l)=>a+l.ord,0)}</td><td class="r">${s.lines.reduce((a,l)=>a+left(l),0)}</td><td></td></tr></tbody></table></div>
+ <div class="legend"><span><i class="t3"></i>отгружено</span><span><i class="t1"></i>в заказах</span><span class="mini">серое — ещё не заказано</span></div>
+ <div class="g2" style="margin-top:10px"><div class="pan"><h3>Заказы по этой спецификации</h3>${ORDERS.filter(o=>o.sp===s.id).map(o=>`<div class="kv"><span>${ordL(o.id)} · ${dd(o.d)} · ${o.lines.map(l=>'№'+(l.li+1)+' × '+l.q).join(', ')}</span><b>${stageTag(o.st)}</b></div>`).join('')||'<p class="mini">Заказов нет.</p>'}</div>
+ ${said('«К договору подкидывают спецификации. Прайса нет — спецификацию забиваем вручную. Вы мне присылаете заказ на подшипник номер один, три и четыре — не все десять по договору, а три».')}</div>`};
+
+SC.clients=()=>`<div class="hd"><div><h2>Заказчики и их склады</h2><p>У заказчика несколько складов: одна позиция заказа едет в Караганду, другая — в Жезказган, третья — в Балхаш. Склады заказчика хранятся в карточке и выбираются в каждой строке заказа.</p></div><div class="btns"><button class="bt p" onclick="act('client-new')">+ Заказчик</button></div></div>
+ <div class="tw"><table class="t"><tr><th>Заказчик</th><th>Отрасль</th><th>Склады заказчика · куда везём</th><th class="r">Договоров</th><th class="r">Отгружено</th><th class="r">Долг</th><th>Менеджер</th></tr><tbody>${CLIENTS.map(k=>{const cs=CONS.filter(c=>c.cl===k.id);const debt=REAL.filter(r=>r.cl===k.id).reduce((a,r)=>a+r.sum-r.paid,0);return `<tr onclick="card('cl','${k.id}')"><td><b>${esc(k.n)}</b><span class="sub">БИН ${k.bin}</span></td><td class="mini">${esc(k.ind)}</td><td>${k.pts.map(p=>`<span class="tag">${esc(p)}</span>`).join(' ')}</td><td class="r">${cs.length}</td><td class="r">${fmt(cs.reduce((a,c)=>a+c.ship,0))}</td><td class="r ${debt?'neg':''}">${fmt(debt)}</td><td>${esc(k.mgr)}</td></tr>`}).join('')}</tbody></table></div>`;
+/* ====== ЗАКАЗЫ ====== */
+let ordF='act';
+SC.orders=()=>{const F={act:o=>!['real','pay','paid'].includes(o.st),late:o=>ordLate(o),done:o=>['real','pay','paid'].includes(o.st),all:o=>true};const list=ORDERS.filter(o=>inEnt(ordCon(o))&&F[ordF](o));
+ return `<div class="hd"><div><h2>Заказы в исполнении</h2><p>Заказ — это часть спецификации, которую заказчик попросил сейчас: не все десять по договору, а три, пять и один, и каждая позиция — на свой склад заказчика. У заказа срок поставки из договора, этап исполнения и ответственный.</p></div>
+ <div class="btns"><button class="bt" onclick="go('funnel')">Канбан</button><button class="bt p" onclick="card('neworder','SP1')">+ Заказ по спецификации</button></div></div>
+ <div class="ptabs">${[['act','В исполнении'],['late','Просрочена поставка'],['done','Отгружены'],['all','Все']].map(x=>`<button class="ptab ${ordF===x[0]?'on':''}" onclick="ordF='${x[0]}';render()">${x[1]} · ${ORDERS.filter(o=>inEnt(ordCon(o))&&F[x[0]](o)).length}</button>`).join('')}</div>
+ <div class="tw"><table class="t"><tr><th>Заказ</th><th>Заказчик · договор</th><th>Позиции и куда</th><th class="r">Сумма</th><th>Дата</th><th>Срок поставки</th><th>Этап</th></tr><tbody>
+ ${list.map(o=>{const s=SP(o.sp),c=ordCon(o);const dl_=daysBetween(TODAY,ordDue(o));return `<tr onclick="openOrd('${o.id}')"><td>${ordL(o.id)}<span class="sub">${esc(o.ext)}</span></td><td><b>${esc(CL(c.cl).short)}</b><span class="sub">${esc(c.no)} · ${esc(EN(c.ent).short)}</span></td><td class="mini">${o.lines.map(l=>`${esc(s.lines[l.li].n.replace('Подшипник ',''))} × ${l.q} → ${esc(l.pt.split(' · ')[0])}`).join('<br>')}</td><td class="r">${fmt(ordSum(o))}</td><td class="mono">${dd(o.d)}</td><td class="mono ${ordLate(o)?'neg':dl_<8&&!['real','pay','paid','sent'].includes(o.st)?'warnt':''}">${dd(ordDue(o))}${['real','pay','paid','sent'].includes(o.st)?'':ordLate(o)?' · просрочен '+(-dl_)+' дн.':' · через '+dl_+' дн.'}</td><td>${stageTag(o.st)}${o.note?`<span class="sub">${esc(o.note)}</span>`:''}</td></tr>`}).join('')}</tbody></table></div>`};
+
+SC.order=()=>{const o=OR(curOrd);const s=SP(o.sp);const c=ordCon(o);const i=FUN.findIndex(f=>f.k===o.st);const r=o.rn?REAL.find(x=>x.no===o.rn):null;const pk=PICK[o.id];
+ return `<div class="hd"><div><div class="crumb"><a onclick="go('orders')">Заказы</a> › <b>${esc(o.no)}</b></div><h2>Заказ ${esc(o.no)} ${stageTag(o.st)}</h2><p>${esc(CL(c.cl).n)} · ${esc(o.ext)} · по спецификации ${specL(s.id)} к договору ${conL(c.id)} · поставщик ${entTag(c.ent)} · заказ от ${dl(o.d)}, поставить до ${dl(ordDue(o))}${ordLate(o)?' — <b class="neg">просрочен</b>':''}.</p></div>
+ <div class="btns">${o.st==='pick'?`<button class="bt p" onclick="curOrd='${o.id}';go('pick')">Подбор по складам</button>`:''}${i<FUN.length-1&&o.st!=='pick'?`<button class="bt p" onclick="moveStage('${o.id}','${FUN[i+1].k}')">→ ${esc(FUN[i+1].n)}</button>`:''}<button class="bt" onclick="act('print-list','${o.id}')">Лист сборки</button></div></div>
+ <div class="steps">${FUN.map((f,j)=>`<div class="stp ${j<i?'done':j===i?'on':''}" style="--sc:${f.c}"><i>${j<i?'✓':j+1}</i><span>${esc(f.n)}</span></div>`).join('')}</div>
+ <div class="tw"><table class="t"><tr><th>Строка спец.</th><th>Наименование у заказчика</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th>Куда</th><th>Подобрано у нас</th></tr><tbody>
+ ${o.lines.map((l,j)=>{const sl=s.lines[l.li];const p=pk?pk[j]:null;const got=p?Object.entries(p.alloc).flatMap(([nid,a])=>ENT.filter(e=>a[e.id]).map(e=>`${esc(CT(nid).n)} × ${a[e.id]} · ${esc(EN(e.id).short)}`)):[];return `<tr><td class="mono">№ ${l.li+1}</td><td><b>${esc(sl.n)}</b></td><td class="r">${l.q}</td><td class="r">${fmt(sl.p)}</td><td class="r">${fmt(sl.p*l.q)}</td><td>${esc(l.pt)}</td><td class="mini">${p?got.join('<br>')+(p.buy?`<br><span class="warnt">в закуп × ${p.buy}</span>`:''):o.st==='pick'?'—':findCands(sl.n).slice(0,1).map(x=>esc(x.n)).join('')+' · подобрано'}</td></tr>`}).join('')}
+ <tr class="total"><td></td><td>Итого</td><td class="r">${o.lines.reduce((a,l)=>a+l.q,0)}</td><td></td><td class="r">${fmt(ordSum(o))}</td><td></td><td></td></tr></tbody></table></div>
+ <div class="g3" style="margin-top:12px"><div class="pan"><h3>Документы</h3><div class="kv"><span>Заявка заказчика</span><b>${esc(o.ext)}</b></div><div class="kv"><span>Лист сборки</span><b>${i>=1?'напечатан':'после подбора'}</b></div><div class="kv"><span>Межфирменные</span><b>${MOVES.filter(m=>m.ord===o.id).map(m=>m.no).join(', ')||'не нужны'}</b></div><div class="kv"><span>Реализация · накладная</span><b>${r?r.no+' · '+dd(r.d):'после отправки'}</b></div><div class="kv"><span>ЭСФ</span><b>${r?r.esf:'—'}</b></div></div>
+ <div class="pan"><h3>Сроки</h3><div class="kv"><span>Заказ</span><b>${dl(o.d)}</b></div><div class="kv"><span>Поставить до · ${c.dt} дн.</span><b class="${ordLate(o)?'neg':''}">${dl(ordDue(o))}</b></div>${r?`<div class="kv"><span>Оплатить до · ${c.pt} дн.</span><b class="${realDue(r)<TODAY&&r.paid<r.sum?'neg':''}">${dl(realDue(r))}</b></div><div class="kv"><span>Оплачено</span><b>${fmt(r.paid)} из ${fmt(r.sum)}</b></div>`:''}</div>
+ <div class="pan"><h3>История</h3><div class="tl">${[['создан из спецификации',o.d],...(i>=1?[['подбор завершён, отправлен в работу',addDays(o.d,1)]]:[]),...(i>=2?[['лист сборки у склада',addDays(o.d,2)]]:[]),...(i>=4?[['отправлено заказчику',addDays(o.d,5)]]:[]),...(r?[['реализация '+r.no+' проведена в 1С',r.d]]:[])].map(x=>`<div class="tli on"><span class="who">${dl(x[1])}</span><b>${esc(x[0])}</b></div>`).join('')}</div></div></div>`};
+
+/* ====== ПОДБОР ====== */
+const pickId=()=>PICK[curOrd]?curOrd:'ZK1';
+function setAlloc(j,nid,e,v){const id=pickId();const p=PICK[id][j];const max=CT(nid).st[e];v=Math.max(0,Math.min(max,parseInt(v)||0));p.alloc[nid][e]=v;const need=OR(id).lines[j].q;p.buy=Math.max(0,need-pickedQ(p));render()}
+function setBuy(j,v){PICK[pickId()][j].buy=Math.max(0,parseInt(v)||0);render()}
+SC.pick=()=>{const id=pickId();const o=OR(id);const s=SP(o.sp);const c=ordCon(o);const pk=PICK[id];
+ const inter=[];pk.forEach(p=>Object.entries(p.alloc).forEach(([nid,a])=>ENT.forEach(e=>{if(a[e.id]&&e.id!==c.ent)inter.push([e.id,nid,a[e.id]])})));
+ const done=o.st!=='pick';
+ return `<div class="hd"><div><div class="crumb"><a onclick="openOrd('${id}')">${esc(o.no)}</a> › <b>подбор</b></div><h2>Подбор по складам · ${esc(o.no)}</h2><p>Наименование в заказе — как у заказчика: «3638 ГОСТ». На складе оно может лежать как 22338 CC/W33 или 3638 другого завода. Система ищет по каталогу и аналогам ГОСТ ↔ ISO и показывает остатки трёх складов трёх юрлиц. Решение, что брать, — за человеком, как вы и сказали. Чего нет — уходит в закуп.</p></div>
+ <div class="btns"><button class="bt" onclick="act('print-list','${id}')">Печать листа сборки</button><button class="bt p" ${done?'disabled':''} onclick="sendToWork()">${done?'Отправлено в работу':'Отправить в работу'}</button></div></div>
+ ${pk.map((p,j)=>{const l=o.lines[j];const sl=s.lines[l.li];const got=pickedQ(p);const ok=got+p.buy>=l.q;return `<div class="pan pickln">
+  <div class="pkh"><div><small class="mono">строка № ${l.li+1} спецификации ${esc(s.no)}</small><h3>${esc(sl.n)}</h3><span class="mini">нужно <b>${l.q} шт</b> → ${esc(l.pt)} · цена по спецификации ${fmt(sl.p)} ₸</span></div>
+  <div class="pkst"><div><small>подобрано</small><b class="${got>=l.q?'pos':''}">${got}</b></div><div><small>в закуп</small><b class="${p.buy?'warnt':''}"><input class="qin" type="number" min="0" value="${p.buy}" onchange="setBuy(${j},this.value)" ${done?'disabled':''}></b></div><div><small>итого</small><b class="${ok?'pos':'neg'}">${got+p.buy} / ${l.q}</b></div></div></div>
+  <div class="srch2"><span>⌕</span><input value="${esc(sl.n.replace('Подшипник ','').replace(/ ГОСТ.*$/,''))}" readonly><em>найдено ${p.cand.length} · по наименованию и аналогам</em></div>
+  <table class="t pk"><tr><th>Наша позиция (1С)</th><th>Аналоги</th><th>Размер</th>${ENT.map(e=>`<th class="c">${esc(e.short)}<span class="sub">${esc(e.wh.split(' · ')[0])}</span></th>`).join('')}<th class="r">Себест.</th></tr>
+  ${p.cand.map(nid=>{const ct=CT(nid);return `<tr><td>${catL(nid)}<span class="sub">${esc(ct.brand)}</span></td><td class="mini mono">${esc(ct.an)}</td><td class="mini mono">${esc(ct.dim)}</td>${ENT.map(e=>`<td class="c"><div class="cell ${ct.st[e.id]?'':'zero'}"><span>есть ${ct.st[e.id]}</span>${ct.st[e.id]?`<input class="qin" type="number" min="0" max="${ct.st[e.id]}" value="${p.alloc[nid][e.id]}" onchange="setAlloc(${j},'${nid}','${e.id}',this.value)" ${done?'disabled':''}>`:'<i>—</i>'}</div></td>`).join('')}<td class="r">${fmt(ct.c)}</td></tr>`}).join('')}</table>
+  <label class="remember"><input type="checkbox" ${j===0?'checked':''} onchange="act('remember')"> запомнить: «${esc(sl.n.replace('Подшипник ',''))}» у ${esc(CL(c.cl).short)} = ${p.cand[0]?esc(CT(p.cand[0]).n):'—'} и аналоги — предлагать первым в следующий раз</label></div>`}).join('')}
+ <div class="g3"><div class="pan"><h3>С каких складов</h3>${ENT.map(e=>{const n=pk.reduce((a,p)=>a+Object.values(p.alloc).reduce((b,x)=>b+x[e.id],0),0);return `<div class="kv"><span>${entTag(e.id)} ${esc(e.wh)}</span><b>${n} шт</b></div>`}).join('')}</div>
+ <div class="pan"><h3>Межфирменные реализации в 1С</h3>${inter.length?inter.map(x=>`<div class="kv"><span>${entTag(x[0])} → ${entTag(c.ent)} · ${esc(CT(x[1]).n)}</span><b>${x[2]} шт</b></div>`).join('')+`<p class="mini" style="margin-top:6px">Поставщик по договору — ${esc(EN(c.ent).short)}. Товар с чужого склада сначала продаётся между нашими юрлицами — документ уйдёт в обе базы 1С.</p>`:'<p class="mini">Всё с склада поставщика по договору — межфирменные не нужны.</p>'}</div>
+ <div class="pan"><h3>В закуп</h3>${pk.map((p,j)=>p.buy?`<div class="kv"><span>${esc(s.lines[o.lines[j].li].n.replace('Подшипник ',''))}</span><b class="warnt">${p.buy} шт</b></div>`:'').join('')||'<p class="mini">Дефицита нет.</p>'}<p class="mini" style="margin-top:6px">Строки закупа уходят снабжению вместе с заказом и сроком поставки.</p></div></div>
+ ${said('«Наименование идёт по спецификации, а нам нужно наименование на складе. Методом подбора — три склада, три юрлица. 3638 он у нас может быть на складе 22338. Это ручной подбор — автоматику пока применять не будем, чисто человеческий фактор».')}`};
+function sendToWork(){const id=pickId();const o=OR(id);if(o.st!=='pick')return;const bad=PICK[id].some((p,j)=>pickedQ(p)+p.buy<o.lines[j].q);if(bad){toast('Не все строки закрыты: подберите со складов или поставьте в закуп.');return}o.st='work';render();const buy=PICK[id].reduce((a,p)=>a+p.buy,0);toast(`Заказ ${esc(o.no)} отправлен в работу: листы сборки — складам, межфирменные реализации — в 1С черновиками${buy?', '+buy+' шт — снабжению в закуп':''}. Карточка переехала в «В работе · печать».`)}
+
+/* ====== ВОРОНКА ====== */
+let dragId=null;
+function moveStage(id,k){const o=OR(id);if(!o)return;if(o.st==='pick'&&k!=='pick'){toast('Сначала подбор по складам — без него не понятно, что собирать.');curOrd=id;go('pick');return}o.st=k;render();toast(`${esc(o.no)} → «${esc(FN(k).n)}». ${k==='real'?'Реализация уйдёт в 1С базы поставщика по договору.':k==='sent'?'Заказчику — уведомление об отгрузке.':k==='paid'?'Оплата сверится с поступлением из 1С.':''}`)}
+SC.funnel=()=>{const list=ORDERS.filter(o=>inEnt(ordCon(o)));
+ return `<div class="hd"><div><h2>Воронка исполнения</h2><p>Вы описали этапы: подбор, в работу и печать, начало сборки, ожидание отгрузки, отправка, реализация с номером накладной. Добавили «ждём оплату» — срок из договора. Карточки перетаскиваются между этапами мышкой или на телефоне кнопкой.</p></div><div class="btns"><button class="bt" onclick="go('orders')">Списком</button></div></div>
+ <div class="kanban">${FUN.map(f=>{const cs=list.filter(o=>o.st===f.k);return `<div class="kcol" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="this.classList.remove('over');moveStage(dragId,'${f.k}')"><div class="khead" style="--sc:${f.c}"><b>${esc(f.n)}</b><span>${cs.length} · ${mln(cs.reduce((a,o)=>a+ordSum(o),0))}</span></div>
+ ${cs.map(o=>{const c=ordCon(o);return `<div class="kcard ${ordLate(o)?'late':''}" draggable="true" ondragstart="dragId='${o.id}'" onclick="openOrd('${o.id}')"><b class="mono">${esc(o.no)}</b><span>${esc(CL(c.cl).short)} ${entTag(c.ent)}</span><em>${fmt(ordSum(o))} ₸ · ${o.lines.length} ${plural(o.lines.length,['позиция','позиции','позиций'])}</em><small>${o.rn?esc(o.rn)+' · ':''}${['real','pay','paid'].includes(o.st)&&o.rn?'оплата до '+dd(realDue(REAL.find(r=>r.no===o.rn))):'срок '+dd(ordDue(o))}${ordLate(o)?' · просрочен':''}</small></div>`}).join('')||'<div class="mini" style="padding:8px">—</div>'}</div>`}).join('')}</div>
+ ${said('«Стадии исполнения: начало, сборка товара, ожидание отгрузки, отправка товаров». «Воронка — реализации, накладной. Скажем, назовём номер».','Платон: «Называется так — так и сделаем». Визуально — канбан, как вы просили.')}`};
+/* ====== СКЛАДЫ ====== */
+SC.stock=()=>{const res=nid=>Object.values(PICK).flat().reduce((a,p)=>a+(p.alloc[nid]?Object.values(p.alloc[nid]).reduce((b,x)=>b+x,0):0),0);
+ const ents=ENT.filter(e=>curEnt==='all'||e.id===curEnt);
+ return `<div class="hd"><div><h2>Остатки трёх складов</h2><p>Номенклатура и остатки приходят из трёх баз 1С — по складу каждого юрлица. Резерв — то, что уже подобрано под заказы. Нажмите на позицию — увидите аналоги, движения и под какие заказы она зарезервирована. Выборка из ${fmt(1842+1127+964)} позиций трёх баз.</p></div><div class="btns"><button class="bt" onclick="act('xls')">⇩ Excel</button><button class="bt p" onclick="act('add-wh')">+ Склад</button></div></div>
+ <div class="wid">${ents.map(e=>`<div><small>${esc(e.short)}</small><b style="font-size:17px">${mln(CAT.reduce((a,c)=>a+c.st[e.id]*c.c,0))}</b><span>${esc(e.wh)} · ${CAT.filter(c=>c.st[e.id]).length} позиций в выборке</span></div>`).join('')}<div><small>Зарезервировано</small><b class="a" style="font-size:17px">${CAT.reduce((a,c)=>a+res(c.id),0)} шт</b><span>под заказы в подборе</span></div><div><small>Обмен с 1С</small><b class="g" style="font-size:17px">07:30</b><span>остатки обновляются каждые 15 минут</span></div></div>
+ <div class="tw"><table class="t"><tr><th>Позиция</th><th>Аналоги (поиск)</th><th>Размер</th>${ents.map(e=>`<th class="r">${esc(e.short)}</th>`).join('')}<th class="r">Всего</th><th class="r">Резерв</th><th class="r">Себестоимость</th></tr><tbody>
+ ${CAT.map(c=>{const tot=ents.reduce((a,e)=>a+c.st[e.id],0);const r=res(c.id);return `<tr onclick="card('cat','${c.id}')"><td>${catL(c.id)}<span class="sub">${esc(c.brand)} · ${c.id}</span></td><td class="mini mono">${esc(c.an)}</td><td class="mini mono">${esc(c.dim)}</td>${ents.map(e=>`<td class="r ${c.st[e.id]?'':'mini'}">${c.st[e.id]||'—'}</td>`).join('')}<td class="r"><b>${tot}</b></td><td class="r ${r?'warnt':''}">${r||'—'}</td><td class="r">${fmt(c.c)}</td></tr>`}).join('')}</tbody></table></div>
+ ${said('«Количество на складе он должен показывать: имеется, не имеется, в закуп. Сколько штук надо там на складе, чтоб он подбирал».','Платон: «Три склада — сделаем кнопку, чтобы вы в любой момент могли открыть дополнительный склад самостоятельно».')}`};
+
+let catQ='3638';
+function catSearch(v){catQ=v;const el=document.getElementById('catres');if(el)el.innerHTML=catRows()}
+const catRows=()=>{const q=catQ.trim();const list=q?findCands(q).concat(CAT.filter(c=>c.n.toLowerCase().includes(q.toLowerCase())&&!findCands(q).includes(c))):CAT;return list.length?list.map(c=>`<tr onclick="card('cat','${c.id}')"><td>${catL(c.id)}</td><td class="mono mini">${esc(c.an)}</td><td class="mono mini">${esc(c.dim)}</td>${ENT.map(e=>`<td class="r">${c.st[e.id]||'—'}</td>`).join('')}<td class="r"><b>${stTot(c)}</b></td></tr>`).join(''):`<tr><td colspan="7" class="mini">Ничего не найдено по «${esc(q)}» — проверьте обозначение или добавьте аналог.</td></tr>`};
+SC.catalog=()=>`<div class="hd"><div><h2>Номенклатура и аналоги</h2><p>Один и тот же подшипник называется по-разному: 3638 по ГОСТ, 22338 по ISO, 22338 CC/W33 у SKF, 22338 MB у FAG. Поиск идёт по нашему наименованию и по таблице аналогов — наберите обозначение из спецификации заказчика.</p></div><div class="btns"><button class="bt p" onclick="act('an-add')">+ Аналог</button></div></div>
+ <div class="pan"><div class="srch2 big"><span>⌕</span><input value="${esc(catQ)}" oninput="catSearch(this.value)" placeholder="3638, 23144, 180312, 7222…"><em>ищет по наименованию и аналогам ГОСТ ↔ ISO</em></div>
+ <div class="ptabs" style="margin-top:8px">${['3638','23144','3053740','180312','7222А','32620'].map(x=>`<button class="ptab" onclick="catQ='${x}';render()">${x}</button>`).join('')}</div>
+ <div class="tw"><table class="t"><thead><tr><th>Позиция</th><th>Аналоги</th><th>Размер d×D×B</th>${ENT.map(e=>`<th class="r">${esc(e.short)}</th>`).join('')}<th class="r">Всего</th></tr></thead><tbody id="catres">${catRows()}</tbody></table></div></div>
+ <div class="g3"><div class="pan"><h3>Откуда аналоги</h3><p>Таблица соответствий ГОСТ ↔ ISO ↔ бренды загружается один раз из вашего справочника или Excel, дальше пополняется при подборе кнопкой «запомнить».</p></div><div class="pan"><h3>Размер как проверка</h3><p>У аналогов одинаковые внутренний и наружный диаметр и ширина — размер показан рядом, чтобы не ошибиться при ручном подборе.</p></div><div class="pan"><h3>Новая позиция</h3><p>Заводится в 1С — через 15 минут появляется в системе. Двойного ввода нет.</p></div></div>`;
+
+SC.moves=()=>`<div class="hd"><div><h2>Перемещения и межфирменные реализации</h2><p>Вы сказали: «Чтобы в 1С передавалась реализация — что между нашими компаниями произошла реализация сделки». Когда товар для договора одного юрлица лежит на складе другого, система создаёт межфирменную реализацию: продажа из базы одного юрлица и поступление в базу другого. Бухгалтер проводит — документ уходит в обе базы 1С.</p></div><div class="btns"><button class="bt p" onclick="act('mf-post')">Провести черновики в 1С</button></div></div>
+ <div class="tw"><table class="t"><tr><th>Документ</th><th>Дата</th><th>Откуда → куда</th><th>Позиции</th><th>Под заказ</th><th>Зачем</th><th>Статус</th></tr><tbody>${MOVES.map(m=>`<tr onclick="${m.ord?`openOrd('${m.ord}')`:''}"><td class="mono"><b>${m.no}</b></td><td class="mono">${dd(m.d)}</td><td>${entTag(m.from)} → ${entTag(m.to)}</td><td class="mini">${m.items.map(x=>esc(CT(x[0]).n)+' × '+x[1]).join('<br>')}</td><td>${m.ord?ordL(m.ord):'—'}</td><td class="mini">${esc(m.why)}</td><td><span class="tag ${MST[m.st][1]}">${MST[m.st][0]}</span></td></tr>`).join('')}</tbody></table></div>
+ <div class="g3" style="margin-top:12px"><div class="pan"><h3>1 · Подбор</h3><p>Менеджер берёт 2 шт со склада СтальОпоры под договор КарБеаринга — система видит, что юрлица разные.</p></div><div class="pan"><h3>2 · Черновик</h3><p>При отправке заказа в работу создаётся межфирменная реализация СтальОпора → КарБеаринг по себестоимости или вашей внутренней цене.</p></div><div class="pan"><h3>3 · В 1С</h3><p>Бухгалтер проводит: «Реализация» в базе СтальОпоры и «Поступление» в базе КарБеаринга. Затем обычная реализация заказчику из базы КарБеаринга.</p></div></div>`;
+
+SC.purchase=()=>`<div class="hd"><div><h2>Закуп · дефицит</h2><p>Всё, чего не хватило при подборе, и всё, что опустилось ниже минимума, — одним списком для снабжения. У строки — под какой заказ, к какому сроку поставки заказчику и у какого поставщика берём.</p></div><div class="btns"><button class="bt p" onclick="act('buy-send')">Заявка поставщику</button></div></div>
+ <div class="wid"><div><small>Строк в закуп</small><b class="a">${BUY.length}</b><span>под заказы ${BUY.filter(b=>b.for).length} · под минимум ${BUY.filter(b=>!b.for).length}</span></div><div><small>Сумма закупа</small><b>${mln(BUY.reduce((a,b)=>a+b.q*b.price,0))}</b><span>по последним ценам</span></div><div><small>Заказано</small><b class="i">${BUY.filter(b=>b.st==='ordered').length}</b><span>ждём поступления</span></div><div><small>Горит</small><b class="r">1</b><span>ЗК-2026/0828-02 ждёт 24140</span></div></div>
+ <div class="tw"><table class="t"><tr><th>Позиция</th><th class="r">Кол-во</th><th>Под что</th><th>Поставщик</th><th>Ожидаем</th><th class="r">Сумма</th><th>Статус</th></tr><tbody>${BUY.map(b=>`<tr><td><b>${esc(b.n)}</b></td><td class="r">${b.q}</td><td>${b.for?ordL(b.for)+'<span class="sub">'+esc(b.why)+'</span>':'<span class="mini">'+esc(b.why)+'</span>'}</td><td class="mini">${esc(b.sup)}</td><td class="mono">${b.eta==='—'?'—':dd(b.eta)}</td><td class="r">${fmt(b.q*b.price)}</td><td><span class="tag ${BST[b.st][1]}">${BST[b.st][0]}</span></td></tr>`).join('')}</tbody></table></div>`;
+
+/* ====== ДЕНЬГИ ====== */
+SC.realiz=()=>{const list=REAL.filter(inEnt);
+ return `<div class="hd"><div><h2>Реализации и накладные</h2><p>После отправки заказ становится реализацией: номер накладной, юрлицо, заказчик, сумма. Документ создаётся в системе и уходит в базу 1С нужного юрлица, ЭСФ выписывается из 1С. Отсюда же считается срок оплаты по договору.</p></div><div class="btns"><button class="bt p" onclick="act('real-new')">+ Реализация по заказу</button></div></div>
+ <div class="tw"><table class="t"><tr><th>Накладная</th><th>Дата</th><th>Юрлицо</th><th>Заказчик</th><th>Заказ</th><th class="r">Сумма</th><th>1С · ЭСФ</th><th>Оплатить до</th><th class="r">Оплачено</th></tr><tbody>${list.map(r=>`<tr onclick="card('real','${r.no}')"><td class="mono"><b>${r.no}</b></td><td class="mono">${dd(r.d)}</td><td>${entTag(r.ent)}</td><td>${esc(CL(r.cl).short)}</td><td>${r.ord?ordL(r.ord):'<span class="mini">до запуска</span>'}</td><td class="r">${fmt(r.sum)}</td><td class="mini">проведена · ЭСФ ${esc(r.esf)}</td><td class="mono ${r.paid<r.sum&&realDue(r)<TODAY?'neg':''}">${dd(realDue(r))}</td><td class="r ${r.paid>=r.sum?'pos':''}">${fmt(r.paid)}</td></tr>`).join('')}</tbody></table></div>`};
+
+SC.receiv=()=>{const list=REAL.filter(r=>inEnt(r)&&r.paid<r.sum);const b={ok:0,soon:0,over:0};list.forEach(r=>{const d=daysBetween(TODAY,realDue(r));const v=r.sum-r.paid;if(d<0)b.over+=v;else if(d<=30)b.soon+=v;else b.ok+=v});
+ return `<div class="hd"><div><h2>Оплаты и дебиторка</h2><p>Срок оплаты — из договора: 30, 45 или 60 дней от реализации. Поступления денег приходят из 1С каждой базы и закрывают накладные. Просрочка — красным, и попадает в утренний отчёт.</p></div><div class="btns"><button class="bt" onclick="act('xls')">⇩ Акт сверки</button><button class="bt p" onclick="act('remind')">Напомнить заказчику</button></div></div>
+ <div class="wid"><div><small>Ждём оплату</small><b class="a">${mln(b.ok+b.soon+b.over)}</b><span>${list.length} ${plural(list.length,['накладная','накладные','накладных'])}</span></div><div><small>Срок не наступил</small><b class="g">${mln(b.ok)}</b><span>больше 30 дней</span></div><div><small>В ближайшие 30 дней</small><b class="w">${mln(b.soon)}</b><span>планируем поступление</span></div><div><small>Просрочено</small><b class="r">${mln(b.over)}</b><span>звонок и письмо заказчику</span></div><div><small>Поступило в сентябре</small><b>${mln(3120000)}</b><span>из 1С · три базы</span></div></div>
+ <div class="tw"><table class="t"><tr><th>Накладная</th><th>Заказчик</th><th>Договор</th><th class="r">Сумма</th><th>Реализация</th><th>Срок оплаты</th><th>Осталось</th></tr><tbody>${list.map(r=>{const d=daysBetween(TODAY,realDue(r));const o=r.ord?OR(r.ord):null;return `<tr onclick="card('real','${r.no}')"><td class="mono"><b>${r.no}</b></td><td><b>${esc(CL(r.cl).short)}</b></td><td>${o?conL(ordCon(o).id):'—'}</td><td class="r">${fmt(r.sum-r.paid)}</td><td class="mono">${dd(r.d)}</td><td class="mono">${dl(realDue(r))}</td><td class="${d<0?'neg':d<=30?'warnt':'pos'}"><b>${d<0?'просрочено '+(-d)+' дн.':d+' дн.'}</b></td></tr>`}).join('')}</tbody></table></div>
+ <div class="g2" style="margin-top:12px"><div class="pan"><h3>По заказчикам</h3>${CLIENTS.map(k=>{const v=list.filter(r=>r.cl===k.id).reduce((a,r)=>a+r.sum-r.paid,0);return v?barRow(esc(k.short),v,6000000,list.some(r=>r.cl===k.id&&realDue(r)<TODAY)?'r':'',fmt(v)):''}).join('')}</div><div class="pan"><h3>Как закрывается</h3><p>Платёж заказчика проводится бухгалтером в 1С нужного юрлица → через 15 минут приходит в систему → закрывает накладные по договору от старой к новой. Частичная оплата — остаток виден в строке.</p></div></div>`};
+/* ====== ОТЧЁТЫ ====== */
+SC.analytics=()=>{const mx=Math.max(...MONTHS.map(m=>m[1]));const byCl=CLIENTS.map(k=>[k.short,CONS.filter(c=>c.cl===k.id&&c.st!=='done').reduce((a,c)=>a+c.ship,0)]).sort((a,b)=>b[1]-a[1]);
+ const byEnt=ENT.map(e=>[e,CONS.filter(c=>c.ent===e.id&&c.st!=='done').reduce((a,c)=>a+c.ship,0)]);
+ return `<div class="hd"><div><h2>Аналитика поставок</h2><p>Отгрузки по месяцам, заказчикам и юрлицам, поставки в срок, маржа по позициям — цена из спецификации против себестоимости из 1С. Каждая цифра — формула над договорами, заказами и реализациями, без ручного свода.</p></div><div class="btns"><button class="bt" onclick="act('xls')">⇩ Excel</button></div></div>
+ <div class="wid"><div><small>Отгружено за 6 месяцев</small><b class="a">${String(MONTHS.reduce((a,m)=>a+m[1],0).toFixed(1)).replace('.',',')} млн</b><span>три юрлица</span></div><div><small>Поставки в срок</small><b class="g">87 %</b><span>13 из 15 заказов за квартал</span></div><div><small>Средний срок исполнения</small><b>11 дней</b><span>от заказа до отгрузки · по договорам 21–45</span></div><div><small>Валовая маржа</small><b>31 %</b><span>спецификация − себестоимость 1С</span></div><div><small>Не заказано по спецификациям</small><b class="w">${mln(SPECS.reduce((a,s)=>a+s.lines.reduce((b,l)=>b+left(l)*l.p,0),0))}</b><span>деньги, которые ещё можно отгрузить</span></div></div>
+ <div class="g2"><div class="pan"><h3>Отгрузки по месяцам, млн ₸</h3><div class="cols">${MONTHS.map(m=>`<div class="col"><div class="cb" style="height:${pct(m[1],mx)}%"><span>${String(m[1]).replace('.',',')}</span></div><small>${m[0]}</small></div>`).join('')}</div></div>
+ <div class="pan"><h3>По заказчикам · действующие договоры</h3>${byCl.map(x=>barRow(esc(x[0]),x[1],byCl[0][1],'',mln(x[1]))).join('')}<h3 style="margin-top:12px">По юрлицам</h3>${byEnt.map(x=>barRow(entTag(x[0].id),x[1],Math.max(...byEnt.map(y=>y[1])),'',mln(x[1]))).join('')}</div></div>
+ <div class="pan"><h3>Маржа по позициям спецификации № 4503085694</h3><div class="tw"><table class="t"><tr><th>Позиция у заказчика</th><th>Чем закрываем</th><th class="r">Цена</th><th class="r">Себестоимость</th><th class="r">Маржа</th></tr><tbody>${SP('SP1').lines.map(l=>{const c=findCands(l.n)[0];return c?`<tr><td>${esc(l.n)}</td><td>${catL(c.id)}</td><td class="r">${fmt(l.p)}</td><td class="r">${fmt(c.c)}</td><td class="r ${pct(l.p-c.c,l.p)<25?'warnt':'pos'}"><b>${pct(l.p-c.c,l.p)} %</b></td></tr>`:''}).join('')}</tbody></table></div></div>`};
+
+SC.managers=()=>`<div class="hd"><div><h2>Менеджеры · план-факт</h2><p>По каждому менеджеру: план отгрузок на квартал, факт по реализациям, договоры и заказы в работе, просрочки поставки и дебиторка его заказчиков.</p></div><div class="btns"><button class="bt p" onclick="act('plan-set')">Задать план</button></div></div>
+ <div class="tw"><table class="t"><tr><th>Менеджер</th><th class="r">План · квартал</th><th class="r">Факт</th><th style="width:170px"></th><th class="r">Договоров</th><th class="r">Заказов в работе</th><th class="r">Просрочено поставок</th><th class="r">Дебиторка</th></tr><tbody>${MGRS.map(m=>`<tr><td><b>${esc(m.n)}</b></td><td class="r">${fmt(m.plan)}</td><td class="r">${fmt(m.fact)}</td><td><div class="bar"><i class="${pct(m.fact,m.plan)>=80?'g':'w'}" style="--w:${pct(m.fact,m.plan)}%"></i></div><span class="sub">${pct(m.fact,m.plan)} %</span></td><td class="r">${m.cons}</td><td class="r">${m.ord}</td><td class="r ${m.late?'neg':''}">${m.late||'—'}</td><td class="r">${fmt(m.rec)}</td></tr>`).join('')}</tbody></table></div>
+ <div class="g3" style="margin-top:12px"><div class="pan"><h3>Формула факта</h3><p>Сумма реализаций менеджера за период по данным 1С — без ручного отчёта.</p></div><div class="pan"><h3>Просрочка</h3><p>Заказы, у которых дата заказа + срок поставки по договору прошла, а отгрузки нет.</p></div><div class="pan"><h3>Дебиторка</h3><p>Неоплаченные накладные заказчиков менеджера; просроченные — отдельно.</p></div></div>`;
+
+SC.daily=()=>`<div class="hd"><div><h2>Ежедневный отчёт · 08:00</h2><p>Каждое утро система собирает, что прогорело за вчера и что горит сегодня, и присылает в Telegram или на почту: руководителю — всё, менеджеру — по своим договорам, снабжению — дефицит, бухгалтерии — оплаты и 1С. Раз в месяц — итог месяца теми же формулами.</p></div><div class="btns"><button class="bt" onclick="act('daily-cfg')">Кому и что</button><button class="bt p" onclick="act('daily-send')">Отправить сейчас</button></div></div>
+ <div class="g2"><div class="phone"><div class="pbar"><b>Обойма · отчёт</b><span>пн 28.09 · 08:00</span></div><div class="pin"><div class="pcard"><small>Вчера</small><div class="kv"><span>Отгружено</span><b>1 заказ · 0,29 млн</b></div><div class="kv"><span>Поступило денег</span><b>0</b></div><div class="kv"><span>Новых заказов</span><b>1 · Сарыарка ГМК</b></div></div>
+ <div class="pcard"><small>Горит</small>${ALERTS.filter(a=>a.lv==='r').map(a=>`<div class="li r"><i>!</i><span><b>${esc(a.t)}</b><br>${esc(a.x)}</span></div>`).join('')}</div>
+ <div class="pcard"><small>На этой неделе</small>${ALERTS.filter(a=>a.lv==='w').slice(0,3).map(a=>`<div class="li w"><i>!</i><span>${esc(a.x)}</span></div>`).join('')}</div>
+ <div class="pcard"><small>Цифры</small><div class="kv"><span>В исполнении</span><b>${ORDERS.filter(o=>['pick','work','build','wait','sent'].includes(o.st)).length} заказов</b></div><div class="kv"><span>Дебиторка · просрочено</span><b class="neg">1,47 млн</b></div><div class="kv"><span>Не заказано по спецификациям</span><b>${mln(SPECS.reduce((a,s)=>a+s.lines.reduce((b,l)=>b+left(l)*l.p,0),0))}</b></div></div></div></div>
+ <div><div class="pan"><h3>Что входит</h3>${['Непоставка: просроченные и «горящие» заказы','Неоплата: просроченные накладные и ближайшие сроки','Дефицит: что не хватает под заказы и что в закупе','Договоры: лимит больше 90 %, окончание срока, неотгруженные спецификации','Обмен с 1С: ошибки и задержки'].map(x=>`<div class="li"><i>✓</i><span>${x}</span></div>`).join('')}</div>
+ ${said('«И тебе она конкретно ежемесячно, ежедневно будет давать отчётность по тем событиям, что вот здесь прогорели, здесь непоставка или ещё что-то».','Платон: «Это всё сводится к формулам». Отчёт собирается из тех же правил, что «Что горит».')}</div></div>`;
+
+/* ====== 1С ====== */
+SC.sync=()=>`<div class="hd"><div><h2>Обмен с тремя базами 1С</h2><p>У каждого юрлица своя база 1С:Бухгалтерии на сервере в офисе. Система подключается к каждой по стандартному протоколу обмена 1С. Сначала — к тестовой копии одной базы вместе с вашим бухгалтером, после проверки — к боевым базам.</p></div><div class="btns"><button class="bt" onclick="act('sync-log')">Журнал целиком</button><button class="bt p" onclick="act('sync-now')">Обменяться сейчас</button></div></div>
+ <div class="g3">${ONEC.map(b=>`<div class="pan"><h3>${entTag(b.ent)} ${esc(EN(b.ent).base)}</h3><div class="kv"><span>Версия</span><b>${esc(b.ver)}</b></div><div class="kv"><span>Последний обмен</span><b>${b.last}</b></div><div class="kv"><span>Номенклатура</span><b>${fmt(b.items)} позиций</b></div><div class="kv"><span>Остатки</span><b>${esc(b.stock)}</b></div><div class="kv"><span>Документы</span><b>${esc(b.docs)}</b></div><div class="kv"><span>Ошибки</span><b class="${b.err?'neg':'pos'}">${b.err||'нет'}</b></div></div>`).join('')}</div>
+ <div class="pan"><h3>Журнал обмена</h3><div class="tw"><table class="t"><tr><th>Когда</th><th>База</th><th>Направление</th><th>Что</th><th>Статус</th></tr><tbody>${SYNCLOG.map(x=>`<tr><td class="mono">${x[0]}</td><td>${x[1].split('→').map(e=>entTag(e)).join(' → ')}</td><td class="mono">${esc(x[2])}</td><td class="mini">${esc(x[3])}</td><td><span class="tag ${x[4]}">${x[4]==='g'?'ок':'внимание'}</span></td></tr>`).join('')}</tbody></table></div></div>
+ <div class="hint"><b>Порядок подключения.</b> 1 — ваш бухгалтер делает тестовую копию одной базы. 2 — настраиваем обмен и проверяем на тестовой: номенклатура, остатки, реализации, межфирменные. 3 — переносим на три боевые базы. Все три базы — стандартная 1С:Бухгалтерия без доработок, поэтому схема одна.</div>`;
+
+SC.mapping=()=>`<div class="hd"><div><h2>Что и куда передаётся</h2><p>Правило простое: справочники и деньги живут в 1С, договоры, спецификации, заказы и исполнение — в системе. Документы, которые бухгалтерия должна провести, система готовит и отдаёт в нужную базу.</p></div></div>
+ <div class="tw"><table class="t"><tr><th>Данные</th><th class="c">Направление</th><th>Когда</th><th>Кто проверяет</th></tr><tbody>${[
+ ['Номенклатура · наименования, артикулы, единицы','1С → система','каждые 15 минут','—'],
+ ['Остатки по складам трёх юрлиц','1С → система','каждые 15 минут','—'],
+ ['Контрагенты · заказчики с БИН','1С → система','раз в час, новые — сразу','менеджер привязывает к договору'],
+ ['Поступления денег от заказчиков','1С → система','каждые 15 минут','закрывают накладные автоматически'],
+ ['Реализация товаров · накладная заказчику','система → 1С базы поставщика','при переводе заказа в «Реализация»','бухгалтер проводит'],
+ ['Межфирменная реализация и поступление','система → 1С обеих баз','при отправке заказа в работу · черновик','бухгалтер проводит'],
+ ['Перемещение между складами одного юрлица','система → 1С','при сборке','кладовщик'],
+ ['ЭСФ','выписывается в 1С','после проведения реализации','бухгалтер'],
+ ['Договоры, спецификации, заказы, подбор, этапы','только в системе','—','—']
+ ].map(r=>`<tr><td><b>${esc(r[0])}</b></td><td class="c mono">${esc(r[1])}</td><td class="mini">${esc(r[2])}</td><td class="mini">${esc(r[3])}</td></tr>`).join('')}</tbody></table></div>
+ ${said('«Нам надо так сделать, чтобы в 1С передавалась реализация — что между нашими компаниями произошла реализация сделки».','Платон: «Синхронизацию с 1С надо сразу закладывать — портал, все воронки и все склады внутри».')}`;
+
+/* ====== СИСТЕМА ====== */
+SC.calendar=()=>{const days=Array.from({length:14},(_,i)=>addDays(TODAY,i));const far=CAL.filter(e=>e.d>days[13]);
+ return `<div class="hd"><div><h2>Календарь</h2><p>Ваш рабочий календарь: встречи и звонки плюс сроки, которые система ставит сама — поставка по заказу, оплата по накладной, поступление от поставщика, окончание договора. Открывается с телефона.</p></div><div class="btns"><button class="bt p" onclick="act('cal-new')">+ Встреча</button></div></div>
+ <div class="calgrid">${days.map(d=>{const ev=CAL.filter(e=>e.d===d);return `<div class="cday ${d===TODAY?'today':''} ${['сб','вс'].includes(dayOf(d))?'we':''}"><small>${dayOf(d)} ${dd(d)}</small>${ev.map(e=>`<div class="cev k-${e.k}">${e.t?`<b>${e.t}</b> `:''}${esc(e.n)}</div>`).join('')}</div>`}).join('')}</div>
+ <div class="pan"><h3>Дальше</h3>${far.map(e=>`<div class="kv"><span><span class="cdot k-${e.k}"></span>${esc(e.n)}</span><b class="mono">${dl(e.d)}</b></div>`).join('')}<div class="legend" style="margin-top:8px"><span><span class="cdot k-meet"></span>встреча</span><span><span class="cdot k-task"></span>задача</span><span><span class="cdot k-dl"></span>срок поставки · договора</span><span><span class="cdot k-pay"></span>срок оплаты</span></div></div>`};
+
+SC.mobile=()=>`<div class="hd"><div><h2>Мобильная версия</h2><p>Вы спросили: «На мобилку как мы потом перейдём?» — переходить не нужно: система сразу адаптирована под телефон. Руководитель видит, что горит; менеджер — заказ и подбор; кладовщик — лист сборки и отметку «собрано»; логист — отгрузку и фото накладной.</p></div></div>
+ <div class="g3"><div class="phone"><div class="pbar"><b>Обойма</b><span>Вадим · руководитель</span></div><div class="pin"><div class="pcard"><small>Горит сегодня</small>${ALERTS.slice(0,3).map(a=>`<div class="li ${a.lv}"><i>!</i><span><b>${esc(a.t)}</b><br>${esc(a.x.split(':')[0])}</span></div>`).join('')}</div><div class="pcard"><small>Деньги</small><div class="kv"><span>Дебиторка</span><b>6,75 млн</b></div><div class="kv"><span>Просрочено</span><b class="neg">1,47 млн</b></div></div></div></div>
+ <div class="phone"><div class="pbar"><b>Обойма · склад №2</b><span>Сергей · лист сборки</span></div><div class="pin"><div class="pcard"><small>ЗК-2026/0928-01 · Сарыарка ГМК</small>${[['3638 ГПЗ-4','2 шт','ячейка B-14',true],['3053744 Н ЕПК','1 шт','ячейка C-03',false]].map(x=>`<div class="chk"><span><b>${x[0]}</b><em>${x[1]} · ${x[2]}</em></span><button class="bt ${x[3]?'p':''}" onclick="act('picked')">${x[3]?'✓ собрано':'собрать'}</button></div>`).join('')}<p class="mini" style="margin-top:6px">После сборки — межфирменная реализация СтальОпора → КарБеаринг уходит бухгалтеру.</p></div><div class="pcard"><small>Куда</small><span>Караганда · Жезказган · Балхаш — три места доставки в одном заказе</span></div></div></div>
+ <div class="phone"><div class="pbar"><b>Обойма · логистика</b><span>Бахыт</span></div><div class="pin"><div class="pcard"><small>Ожидают отгрузки</small><div class="kv"><span>ЗК-2026/0924-01 · Нұра Руда</span><b>Темиртау</b></div><button class="bt p" style="width:100%;margin-top:6px" onclick="act('shipped')">Отправлено · фото накладной</button></div><div class="pcard"><small>В пути</small><div class="kv"><span>ЗК-2026/0921-02 · Темір Прокат</span><b>с 26.09</b></div><button class="bt" style="width:100%;margin-top:6px" onclick="act('delivered')">Заказчик получил</button></div></div></div></div>`;
+
+SC.roles=()=>`<div class="hd"><div><h2>Роли и права</h2><p>32 сотрудника, почти все работают в системе. У каждой роли — свои разделы: кладовщик не видит цены и договоры, бухгалтерия не правит спецификации, менеджер видит своих заказчиков. Переключите роль в правом верхнем углу.</p></div></div>
+ <div class="tw"><table class="t roles"><tr><th>Раздел</th>${Object.keys(ROLES).map(k=>`<th class="c">${esc(k)}</th>`).join('')}</tr><tbody>${SEC.map(s=>s.sub.map((x,i)=>`<tr><td>${i===0?`<b>${esc(s.n)}</b> · `:''}${esc(x[1])}</td>${Object.values(ROLES).map(r=>`<td class="c">${r.s.includes(x[0])?'<span class="dot on"></span>':'<span class="dot"></span>'}</td>`).join('')}</tr>`).join('')).join('')}</tbody></table></div>`;
+
+SC.launch=()=>`<div class="hd"><div><h2>Запуск без переноса из Bitrix</h2><p>Договорились на встрече: интеграцию с Bitrix не делаем — это дольше, чем своя система. Перенос данных тоже не нужен: текущие сделки дожимаете в Bitrix до конца ноября, договоры следующего года заводите уже здесь. Ядро поднимаем первым, дальше 3–5 версий по вашим правкам — и в бой.</p></div></div>
+ <div class="tl">${[['Старт','Документы и доступы','Реквизиты, договор с подписанием ЭЦП на нашей платформе, предоплата. Админский доступ к вашему Bitrix — посмотреть текущую логику. Контакт бухгалтера.','on'],['Неделя 1–2','Ядро','Договоры и спецификации, заказы по складам заказчика, подбор по трём складам с поиском по аналогам, воронка исполнения, роли, мобильная версия. Показ по Zoom — вы говорите «это классно, это не надо».',''],['Параллельно','1С · тестовая база','Бухгалтер делает тестовую копию одной базы. Обмен номенклатурой и остатками, реализации и межфирменные — проверяем на тесте.',''],['Неделя 3–6','Версии 2–5','Реализации и дебиторка, закуп, отчёты и утренний отчёт, календарь. Подключение трёх боевых баз 1С. Правки по вашим замечаниям после каждой версии.',''],['Конец ноября','В бой','Новые договоры и спецификации — в системе. Bitrix закрываете, когда дожмёте текущие сделки. Код и права на код — ваши, система на вашем сервере.',''],['3 месяца после','Поддержка','Отладка под реальной нагрузкой — на связи в режиме реального времени. Дальше доработки по часам.','']].map(x=>`<div class="tli ${x[3]}"><span class="who">${esc(x[0])}</span><b>${esc(x[1])}</b><p>${esc(x[2])}</p></div>`).join('')}</div>
+ <div class="g3" style="margin-top:12px"><div class="pan"><h3>Не делаем</h3><div class="li no"><i>—</i><span>Интеграцию с Bitrix</span></div><div class="li no"><i>—</i><span>Перенос сделок из Bitrix</span></div><div class="li no"><i>—</i><span>Автоматическое сопоставление наименований — пока ручной подбор, по вашему решению</span></div></div>
+ <div class="pan"><h3>Что нужно от вас</h3><div class="li"><i>1</i><span>Реквизиты для договора</span></div><div class="li"><i>2</i><span>Админский доступ к Bitrix · только просмотр</span></div><div class="li"><i>3</i><span>Тестовая копия одной базы 1С через бухгалтера</span></div><div class="li"><i>4</i><span>Пример договора, спецификации и заявки заказчика</span></div></div>
+ ${said('«Не надо будет перенос данных делать — если сейчас начнём, это будет конец ноября, мы уже дожмём по Bitrix, а следующий год будем заносить сюда».')}</div>`;
+/* ====== КАРТОЧКИ И ФОРМЫ ====== */
+const CARD={};
+CARD.con=id=>{const c=CN(id);return [`Договор ${esc(c.no)} <span class="tag ${CST[c.st][1]}">${CST[c.st][0]}</span>`,`${esc(CL(c.cl).n)} · поставщик ${esc(EN(c.ent).n)} · ${dl(c.d)} — ${dl(c.to)}`,
+ `<div class="kv"><span>Сумма договора</span><b>${tg(c.lim)}</b></div><div class="kv"><span>Спецификации</span><b>${tg(c.spec)}</b></div><div class="kv"><span>Отгружено</span><b>${tg(c.ship)}</b></div><div class="kv"><span>Оплачено</span><b>${tg(c.paid)}</b></div><div class="kv"><span>Срок поставки · оплаты</span><b>${c.dt} · ${c.pt} дн.</b></div>`]};
+CARD.spec=id=>{const s=SP(id);return [`Спецификация № ${esc(s.no)}`,`к договору ${esc(CN(s.con).no)} · ${dl(s.d)}`,s.lines.map((l,i)=>`<div class="kv"><span>${i+1}. ${esc(l.n)}</span><b>${l.q} × ${fmt(l.p)} · осталось ${left(l)}</b></div>`).join('')]};
+CARD.ord=id=>{const o=OR(id);const s=SP(o.sp);return [`Заказ ${esc(o.no)} ${stageTag(o.st)}`,`${esc(CL(ordCon(o).cl).short)} · ${esc(o.ext)} · срок ${dl(ordDue(o))}`,o.lines.map(l=>`<div class="kv"><span>${esc(s.lines[l.li].n)} → ${esc(l.pt)}</span><b>${l.q} шт</b></div>`).join('')]};
+CARD.cat=id=>{const c=CT(id);const ords=Object.entries(PICK).filter(([k,v])=>v.some(p=>p.alloc[id]&&Object.values(p.alloc[id]).some(x=>x))).map(([k])=>k);return [esc(c.n),`${esc(c.brand)} · ${esc(c.dim)} мм · ${c.id} · из 1С`,
+ `<div class="wid" style="grid-template-columns:repeat(4,1fr)">${ENT.map(e=>`<div><small>${esc(e.short)}</small><b>${c.st[e.id]}</b></div>`).join('')}<div><small>Всего</small><b class="a">${stTot(c)}</b></div></div>
+ <div class="kv"><span>Аналоги · по ним ищет подбор</span><b class="mono">${esc(c.an)}</b></div><div class="kv"><span>Себестоимость · 1С</span><b>${tg(c.c)}</b></div><div class="kv"><span>Резерв под заказы</span><b>${ords.map(o=>OR(o).no).join(', ')||'—'}</b></div>
+ <h4 style="margin:12px 0 6px">Под какие строки спецификаций подходит</h4>${SPECS.flatMap(s=>s.lines.filter(l=>findCands(l.n).includes(c)).map(l=>`<div class="kv"><span>№ ${esc(s.no)} · ${esc(l.n)}</span><b>осталось ${left(l)}</b></div>`)).join('')||'<p class="mini">Нет в действующих спецификациях.</p>'}`]};
+CARD.cl=id=>{const k=CL(id);return [esc(k.n),`${esc(k.ind)} · БИН ${k.bin} · менеджер ${esc(k.mgr)}`,
+ `<h4 style="margin:0 0 6px">Склады заказчика · куда везём</h4>${k.pts.map(p=>`<div class="kv"><span>${esc(p)}</span><b>${ORDERS.filter(o=>ordCon(o).cl===id&&o.lines.some(l=>l.pt===p)).length} заказов</b></div>`).join('')}
+ <h4 style="margin:12px 0 6px">Договоры</h4>${CONS.filter(c=>c.cl===id).map(c=>`<div class="kv"><span>${esc(c.no)} · ${esc(EN(c.ent).short)}</span><b>${mln(c.lim)} · ${CST[c.st][0]}</b></div>`).join('')}
+ <div class="btns" style="margin-top:10px"><button class="bt" onclick="closeM();act('pt-add')">+ Склад заказчика</button></div>`]};
+CARD.real=no=>{const r=REAL.find(x=>x.no===no);return [`Накладная ${esc(r.no)}`,`${dl(r.d)} · ${esc(EN(r.ent).n)} → ${esc(CL(r.cl).n)}`,
+ `<div class="kv"><span>Сумма</span><b>${tg(r.sum)}</b></div><div class="kv"><span>Оплатить до</span><b class="${r.paid<r.sum&&realDue(r)<TODAY?'neg':''}">${dl(realDue(r))}</b></div><div class="kv"><span>Оплачено</span><b>${tg(r.paid)}${r.pd?' · '+dl(r.pd):''}</b></div><div class="kv"><span>1С</span><b>проведена в ${esc(EN(r.ent).base)}</b></div><div class="kv"><span>ЭСФ</span><b>${esc(r.esf)}</b></div>${r.ord?`<div class="btns" style="margin-top:10px"><button class="bt p" onclick="closeM();openOrd('${r.ord}')">Заказ</button></div>`:''}`]};
+/* формы */
+CARD.newcon=()=>[`Новый договор`,`как вы показали на встрече: заказчик, поставщик — одно из трёх юрлиц, сроки и сумма`,
+ `<div class="form"><label>Заказчик<select id="f_cl">${CLIENTS.map(k=>`<option value="${k.id}">${esc(k.n)}</option>`).join('')}</select></label>
+ <label>Поставщик · наше юрлицо<select id="f_ent">${ENT.map(e=>`<option value="${e.id}">${esc(e.n)}</option>`).join('')}</select></label>
+ <label>Номер договора<input id="f_no" value="ДГ-2026/041"></label><label>Сумма договора, ₸<input id="f_lim" type="number" value="10000000"></label>
+ <label>Срок поставки, дней от заказа<input id="f_dt" type="number" value="39"></label><label>Срок оплаты, дней от реализации<input id="f_pt" type="number" value="60"></label>
+ <label class="wide">Тело договора<span class="file">перетащите PDF или выберите файл</span></label></div>
+ <div class="btns" style="margin-top:12px"><button class="bt" onclick="closeM()">Отмена</button><button class="bt p" onclick="saveCon()">Создать договор</button></div>`];
+function saveCon(){const v=id=>document.getElementById(id).value;const id='C'+(CONS.length+1);CONS.unshift({id,no:v('f_no'),cl:v('f_cl'),ent:v('f_ent'),d:TODAY,to:'2027-09-27',lim:+v('f_lim')||0,spec:0,ship:0,paid:0,dt:+v('f_dt')||39,pt:+v('f_pt')||60,mgr:'Ерлан',st:'active'});closeM();curCon=id;go('contract');toast(`Договор ${esc(v('f_no'))} создан. Следующий шаг — спецификация: «+ Спецификация».`)}
+let nsRows=3;
+CARD.newspec=cid=>{const c=CN(cid)||CN('C1');return [`Спецификация к договору ${esc(c.no)}`,`${esc(CL(c.cl).short)} · прайса нет — строки заносятся вручную из присланной спецификации`,
+ `<div class="form"><label>Номер спецификации<input id="s_no" value="4503091207"></label><label>Дата<input id="s_d" type="date" value="${TODAY}"></label></div>
+ <table class="t fl"><tr><th>№</th><th>Наименование у заказчика</th><th class="r">Кол-во</th><th class="r">Цена, ₸</th></tr>${Array.from({length:nsRows},(_,i)=>`<tr><td class="mono">${i+1}</td><td><input class="ns_n" value="${['Подшипник 3638 ГОСТ 5721-75','Подшипник 7222А ГОСТ 27365-87','Подшипник 180312 ГОСТ 8882-75','',''][i]||''}"></td><td><input class="ns_q qin" type="number" value="${[10,6,40][i]||''}"></td><td><input class="ns_p" type="number" value="${[612000,96000,14500][i]||''}"></td></tr>`).join('')}</table>
+ <div class="btns" style="justify-content:flex-start;margin-top:8px"><button class="bt" onclick="nsRows++;card('newspec','${c.id}')">+ строка</button><span class="mini">или загрузите Excel заказчика — колонки сопоставятся</span></div>
+ <div class="btns" style="margin-top:12px"><button class="bt" onclick="closeM()">Отмена</button><button class="bt p" onclick="saveSpec('${c.id}')">Сохранить спецификацию</button></div>`]};
+function saveSpec(cid){const n=[...document.querySelectorAll('.ns_n')].map(x=>x.value),q=[...document.querySelectorAll('.ns_q')].map(x=>+x.value),p=[...document.querySelectorAll('.ns_p')].map(x=>+x.value);const lines=n.map((x,i)=>({n:x,q:q[i]||0,p:p[i]||0,ship:0,ord:0})).filter(l=>l.n&&l.q);if(!lines.length){toast('Добавьте хотя бы одну строку.');return}const id='SP'+(SPECS.length+1);const s={id,no:document.getElementById('s_no').value,con:cid,d:TODAY,src:'заполнили вручную',lines};SPECS.push(s);const c=CN(cid);c.spec+=specSum(s);if(c.spec>c.lim*0.9)c.st='limit';nsRows=3;closeM();curSpec=id;go('spec');toast(`Спецификация № ${esc(s.no)} на ${tg(specSum(s))} добавлена к договору ${esc(c.no)}. Свободно по договору ${tg(c.lim-c.spec)}.`)}
+CARD.neworder=sid=>{const s=SP(sid)||SP('SP1');const c=CN(s.con);const k=CL(c.cl);return [`Заказ по спецификации № ${esc(s.no)}`,`${esc(k.short)} · поставщик ${esc(EN(c.ent).short)} · срок поставки ${c.dt} дней — до ${dl(addDays(TODAY,c.dt))}`,
+ `<div class="form"><label>Номер заявки заказчика<input id="o_ext" value="заявка № 7700-118"></label><label>Дата заказа<input type="date" value="${TODAY}"></label></div>
+ <table class="t fl"><tr><th>Строка спецификации</th><th class="r">Осталось</th><th class="r">Заказ</th><th>Склад заказчика · куда</th></tr>${s.lines.map((l,i)=>`<tr><td><b>${esc(l.n)}</b></td><td class="r">${left(l)}</td><td><input class="no_q qin" type="number" min="0" max="${left(l)}" value="${i===0&&left(l)?Math.min(2,left(l)):0}" ${left(l)?'':'disabled'}></td><td><select class="no_pt">${k.pts.map(p=>`<option>${esc(p)}</option>`).join('')}</select></td></tr>`).join('')}</table>
+ <p class="mini" style="margin-top:6px">Можно заказать не всё: система следит, чтобы по строке не заказали больше, чем осталось по спецификации.</p>
+ <div class="btns" style="margin-top:12px"><button class="bt" onclick="closeM()">Отмена</button><button class="bt p" onclick="saveOrder('${s.id}')">Сохранить и перейти к подбору</button></div>`]};
+function saveOrder(sid){const s=SP(sid);const q=[...document.querySelectorAll('.no_q')].map(x=>+x.value||0),pt=[...document.querySelectorAll('.no_pt')].map(x=>x.value);const lines=[];let over=false;s.lines.forEach((l,i)=>{if(q[i]>left(l))over=true;if(q[i]>0)lines.push({li:i,q:q[i],pt:pt[i]})});if(over){toast('По строке заказано больше, чем осталось по спецификации.');return}if(!lines.length){toast('Укажите количество хотя бы по одной строке.');return}
+ const id='ZK'+(ORDERS.length+1);const no='ЗК-2026/'+TODAY.slice(5,7)+TODAY.slice(8)+'-0'+(ORDERS.filter(o=>o.d===TODAY).length+1);ORDERS.unshift({id,no,ext:document.getElementById('o_ext').value,sp:sid,d:TODAY,st:'pick',lines});lines.forEach(l=>s.lines[l.li].ord+=l.q);
+ PICK[id]=lines.map(l=>{const cand=findCands(s.lines[l.li].n).map(c=>c.id);const alloc={};cand.forEach(n=>alloc[n]={E1:0,E2:0,E3:0});return {cand,alloc,buy:l.q}});closeM();curOrd=id;go('pick');toast(`Заказ ${esc(no)} создан. Подберите позиции со складов — по умолчанию всё стоит в закупе.`)}
+
+function card(k,id){const f=CARD[k];if(!f)return;let r;try{r=f(id)}catch(e){toast('Карточка не найдена: '+esc(k)+' · '+esc(id));return}const [t,s,b]=r;openM(t,s,b)}
+
+/* ====== ДЕЙСТВИЯ ====== */
+function act(k,a){const M={
+ 'rules':'Правила «что горит» настраиваются: пороги дней, процент лимита, кому уходит сигнал.',
+ 'xls':'Выгрузка текущей таблицы в Excel.',
+ 'doc-body':'Тело договора открывается в просмотре — PDF, подписанный ЭЦП.',
+ 'no-spec':'К договору ещё нет спецификаций — добавьте первую.',
+ 'spec-edit':'Спецификация редактируется, пока по ней нет отгрузок; после — через дополнительное соглашение.',
+ 'client-new':'Новый заказчик: из 1С по БИН — реквизиты подтянутся сами. Добавьте склады заказчика.',
+ 'pt-add':'Новый склад заказчика: город, адрес, контакт приёмщика — появится в выборе при заказе.',
+ 'print-list':()=>`Лист сборки по заказу ${esc(OR(a).no)}: по каждому складу — позиции, количество, ячейка. Уходит на печать и в телефон кладовщика.`,
+ 'remember':'Сопоставление запомнено: в следующий раз эта позиция будет первой в подборе. Автоматически система ничего не выбирает.',
+ 'add-wh':'Новый склад: юрлицо, адрес, база 1С. Появится в остатках и в подборе — без программиста.',
+ 'an-add':'Новый аналог: обозначение ГОСТ, ISO или бренда — поиск начнёт его находить сразу.',
+ 'mf-post':'Черновики МФ-0113 и МФ-0114 отправлены в базы СтальОпоры, ГорМашСнаба и КарБеаринга. Бухгалтер проводит.',
+ 'buy-send':'Заявка поставщику сформирована: позиции, количество, желаемый срок. Отправляется письмом или в WhatsApp.',
+ 'real-new':'Реализация создаётся из заказа на этапе «Отправлено» — позиции и цены берутся из спецификации.',
+ 'remind':'Письмо заказчику со списком неоплаченных накладных и актом сверки.',
+ 'plan-set':'План отгрузок на квартал по менеджеру — факт считается из реализаций 1С.',
+ 'daily-cfg':'Кому и что: руководитель — всё, менеджер — свои договоры, снабжение — дефицит, бухгалтерия — оплаты и 1С.',
+ 'daily-send':'Отчёт отправлен в Telegram и на почту.',
+ 'sync-log':'Полный журнал обмена по трём базам — с фильтром по документу.',
+ 'sync-now':'Обмен с тремя базами 1С запущен. Остатки и оплаты обновятся через минуту.',
+ 'cal-new':'Новая встреча: дата, время, с кем, привязка к заказчику или договору.',
+ 'picked':'Позиция отмечена собранной. Когда соберут всё — заказ уйдёт в «Ожидание отгрузки».',
+ 'shipped':'Отгрузка подтверждена, фото накладной приложено. Заказ — в «Отправлено».',
+ 'delivered':'Заказчик получил. Заказ готов к реализации в 1С.'
+ };const m=M[k];if(!m){toast('Действие в демо: '+esc(k));return}toast(typeof m==='function'?m():m)}
+
+function searchDemo(v){if(!v)return;const q=v.toLowerCase().trim();
+ const c=CONS.find(x=>x.no.toLowerCase().includes(q));if(c){openCon(c.id);return}
+ const s=SPECS.find(x=>x.no.toLowerCase().includes(q));if(s){openSpec(s.id);return}
+ const o=ORDERS.find(x=>x.no.toLowerCase().includes(q));if(o){openOrd(o.id);return}
+ const r=REAL.find(x=>x.no.toLowerCase().includes(q));if(r){card('real',r.no);return}
+ const k=CLIENTS.find(x=>x.n.toLowerCase().includes(q));if(k){card('cl',k.id);return}
+ const f=findCands(q);if(f.length){catQ=v;go('catalog');return}
+ toast(`Поиск «${esc(v)}»: по договорам, спецификациям, заказам, накладным, заказчикам и номенклатуре с аналогами. Попробуйте «3638», «4503085694», «Сарыарка», «РН-000781».`)}
+
+/* ====== ИНФРАСТРУКТУРА: модули сверху, экраны слева, цепочка документа ====== */
+
+
+/* ====== ПО ВСТРЕЧЕ 05.11: ВОРОНКИ ИЗ BITRIX ВАДИМА — ТЕНДЕРЫ, РЭС, ДОГОВОР ИЗ ШАБЛОНА, ИСПОЛНЕНИЕ ПО НАКЛАДНЫМ, СНАБЖЕНИЕ, РАСХОДЫ, ОБЩЕНИЕ, СОГЛАСОВАНИЕ ПО СМС ====== */
+const LST=[['new','Новый лид','#8a97a6'],['proc','В обработке данных','#1f5f8b'],['calc','Расчёт РЭС','#b07a00'],['appr','На согласовании','#6b4f8f'],['bid','Торги / в работе','#c4612b'],['docs','Отыграли · ждём документы','#2e7d4f'],['won','Договор создан','#1d6b3a'],['lost','Проиграли / отложено','#9a3b3b']];
+const LSN=k=>(LST.find(s=>s[0]===k)||['','—'])[1];
+let LEADS=[
+ {id:'L-2041',seg:'B2G',src:'Тендер · goszakup.gov.kz',no:'ОИ-1187334',url:'goszakup.gov.kz/ru/announce/index/1187334',cl:'K1',t:'Подшипники для ОФ Балхаш, 2 кв. 2027',sum:5091000,d:'2026-11-03',due:'2026-11-12',place:'Балхаш · склад фабрики',stg:'calc',mgr:'Ерлан',res:'R1'},
+ {id:'L-2040',seg:'B2G',src:'Тендер · Самрук-Казына',no:'СК-77412',url:'zakup.sk.kz/#/ext(popup:item/77412)',cl:'K2',t:'Узлы для шахты «Казахстанская»',sum:3420000,d:'2026-11-02',due:'2026-11-09',place:'Шахтинск · склад шахты',stg:'appr',mgr:'Ерлан',res:'R2'},
+ {id:'L-2038',seg:'B2B',src:'Холодный звонок',no:'—',url:'',cl:'K4',t:'Подшипники прокатного стана, внеплановый ремонт',sum:1860000,d:'2026-10-30',due:'2026-11-15',place:'Темиртау · склад РМЦ',stg:'bid',mgr:'Асель',res:'R3'},
+ {id:'L-2036',seg:'B2G',src:'Тендер · goszakup.gov.kz',no:'ОИ-1179020',url:'goszakup.gov.kz/ru/announce/index/1179020',cl:'K3',t:'Ремкомплекты конвейеров карьера',sum:6000000,d:'2026-10-24',due:'2026-11-01',place:'Темиртау · склад карьера',stg:'docs',mgr:'Асель',res:'R4'},
+ {id:'L-2044',seg:'B2B',src:'Входящая заявка · почта',no:'—',url:'',cl:'K5',t:'Срочная замена подшипников дробилки',sum:0,d:'2026-11-05',due:'—',place:'Балхаш · склад',stg:'new',mgr:'Ерлан',res:null},
+ {id:'L-2043',seg:'B2G',src:'Тендер · goszakup.gov.kz',no:'ОИ-1190551',url:'goszakup.gov.kz/ru/announce/index/1190551',cl:'K1',t:'Подшипники для рудника Жезказган',sum:2740000,d:'2026-11-04',due:'2026-11-14',place:'Жезказган · склад рудника',stg:'proc',mgr:'Ерлан',res:null},
+ {id:'L-2031',seg:'B2G',src:'Тендер · goszakup.gov.kz',no:'ОИ-1170112',url:'',cl:'K2',t:'Подшипники редукторов, 1 кв.',sum:2210000,d:'2026-10-12',due:'2026-10-20',place:'Шахтинск',stg:'lost',mgr:'Асель',res:null,why:'Проиграли: цена конкурента 1 980 000 ₸, ниже нашего минимума'}
+];
+const LD=id=>LEADS.find(l=>l.id===id)||LEADS[0];
+let curLead='L-2041';
+/* РЭС: n — наименование как в объявлении; q — кол-во; start — стартовая цена за ед.; buy — закупочная; m — ограничение по маржинальности, % (не менее) */
+let RES={
+ R1:{ok:false,rows:[['Подшипник 46416 ГОСТ 831',12,80000,21000,100],['Подшипник 3638 ГОСТ 5721',8,214000,118000,50],['Подшипник 22340 CC/W33',4,388000,231000,40],['Корпус SNL 524-620',6,96000,61000,30],['Втулка закрепительная H 3140',10,21000,12400,30]]},
+ R2:{ok:false,rows:[['Подшипник 3530 ГОСТ',10,142000,86000,40],['Подшипник 32222 ГОСТ',20,48000,27500,35],['Узел ступичный 7Ж-12',6,180000,121000,30]]},
+ R3:{ok:true,rows:[['Подшипник 4053744 (прокатный)',2,620000,402000,30],['Подшипник 77752',4,118000,74000,30]]},
+ R4:{ok:true,rows:[['Ремкомплект ролика конвейера 108',60,62000,38000,35],['Подшипник 180306',240,6200,2900,50]]}
+};
+const MINM=20;
+const rPrice=r=>Math.round(r[3]*(1+r[4]/100));       /* цена для биржи — ниже не опускаемся */
+const rSum=res=>res.rows.reduce((a,r)=>a+r[1]*r[2],0);
+const rMin=res=>res.rows.reduce((a,r)=>a+r[1]*rPrice(r),0);
+const rBuy=res=>res.rows.reduce((a,r)=>a+r[1]*r[3],0);
+
+SC.leads=()=>{const L=LEADS;
+ return `<div class="hd"><div><h2>Лиды · тендеры B2G и холодные B2B</h2><p>Исток всего процесса — как в вашем Bitrix: менеджер заводит лид, собирает данные объявления, считает РЭС, руководитель утверждает ограничение по марже, торги, документы — и договор создаётся из лида сам. Перетаскивайте карточки.</p></div><div class="btns"><button class="bt" onclick="xlsLeads()">Excel</button><button class="bt p" onclick="newLead()">+ Лид</button></div></div>
+ <div class="pills" style="margin-bottom:10px">${['B2G · тендерные площадки','B2B · холодные звонки и заявки'].map(x=>`<span class="tag">${x}</span>`).join(' ')}</div>
+ <div class="kanban">${LST.map(([k,n,c])=>{const x=L.filter(l=>l.stg===k);return `<div class="kcol" style="--sc:${c}" ondragover="event.preventDefault()" ondrop="dropLead(event,'${k}')"><div class="khead"><b>${n}</b><span>${x.length} · ${mln(x.reduce((a,l)=>a+l.sum,0))}</span></div>${x.map(l=>`<div class="kcard" draggable="true" ondragstart="event.dataTransfer.setData('t','${l.id}')" onclick="openLead('${l.id}')"><b>${esc(l.t)}</b><span><span class="tag">${l.seg}</span>${esc(CL(l.cl).short)}</span><em>${l.sum?tg(l.sum):'сумма не указана'}</em><small>${esc(l.src)}${l.no!=='—'?' · '+l.no:''} · до ${l.due.includes("-")?dd(l.due):l.due}</small></div>`).join('')}</div>`}).join('')}</div>
+ ${said('«Нужно с истока сразу точить: лиды, обработка данных, РЭС, согласование, торги, документы — а потом договор.»','Этапы повторяют вашу воронку в Bitrix. Bitrix после переноса не нужен.')}`};
+function dropLead(e,k){const l=LD(e.dataTransfer.getData('t'));if(!l)return;
+ if(['appr','bid','docs','won'].includes(k)&&!l.res){toast('Сначала РЭС: без расчёта лид не уйдёт на согласование.');return}
+ if(['bid','docs','won'].includes(k)&&!RES[l.res].ok){toast('РЭС не утверждён руководителем — торговаться нельзя.');return}
+ if(k==='won'){makeCon(l.id);return}
+ l.stg=k;render();toast(`${l.id} → <b>${LSN(k)}</b>${k==='appr'?'. Руководителю ушло на согласование ограничение по марже.':''}`)}
+function openLead(id){curLead=id;go('lead')}
+function newLead(){const id='L-'+(2045+LEADS.length-7);LEADS.unshift({id,seg:'B2G',src:'Тендер · goszakup.gov.kz',no:'ОИ-',url:'',cl:'K1',t:'Новый тендер',sum:0,d:'2026-11-05',due:'—',place:'—',stg:'new',mgr:'Ерлан',res:null});curLead=id;go('lead');toast(`Лид ${id} создан. Заполните данные объявления и загрузите позиции РЭС из Excel.`)}
+
+SC.lead=()=>{const l=LD(curLead),c=CL(l.cl),R=l.res?RES[l.res]:null;const si=LST.findIndex(s=>s[0]===l.stg);
+ return `<div class="crumb"><a onclick="go('leads')">Лиды</a> › <b>${l.id}</b></div><div class="hd"><div><h2>${esc(l.t)}</h2><p>${l.seg} · ${esc(c.n)} · менеджер ${l.mgr} · создан ${dd(l.d)}</p></div><div class="btns">${R?'':`<button class="bt p" onclick="importRes()">Загрузить РЭС из Excel</button>`}${R&&!R.ok?`<button class="bt p" onclick="apprRes()">Утвердить ограничение</button>`:''}${l.stg==='docs'?`<button class="bt p" onclick="makeCon('${l.id}')">Создать договор</button>`:''}</div></div>
+ <div class="lstp">${LST.slice(0,7).map(([k,n],i)=>`<a class="${i<si?'ok':i===si?'cur':''}" onclick="LD(curLead).stg='${k}';render()">${n}</a>`).join('')}</div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Данные объявления</h3><p class="mini">Менеджер собирает их на этапе «В обработке данных» — как сейчас в Bitrix, только с проверкой обязательных полей.</p>
+   <div class="form">${[['Площадка / источник',l.src],['Номер объявления',l.no],['Ссылка',l.url||'—'],['Сумма объявления',l.sum?tg(l.sum):'—'],['Место поставки',l.place],['Срок подачи',l.due.includes("-")?dl(l.due):l.due],['Дата оплаты по условиям','60 дней с реализации'],['Запрос новых предложений','нет']].map(x=>`<label>${x[0]}<input value="${esc(x[1])}"></label>`).join('')}</div></div>
+  ${R?`<div class="pan"><h3>РЭС · расчёт по позициям</h3><p class="mini">Наименование, количество и стартовая цена — из объявления (импорт Excel). Закупочная — из склада и прошлых закупов. Ограничение по маржинальности — не менее ${MINM}%. Цена для биржи — минимум, ниже которого менеджер не опускается на торгах.</p>
+   <div class="tw"><table class="t"><thead><tr><th>Наименование</th><th class="r">Кол-во</th><th class="r">Стартовая</th><th class="r">Закупочная</th><th class="r">Ограничение, %</th><th class="r">Цена для биржи</th><th class="r">Сумма старт</th><th class="r">Сумма минимум</th></tr></thead><tbody>
+   ${R.rows.map((r,i)=>`<tr><td>${esc(r[0])}</td><td class="r">${r[1]}</td><td class="r">${tg(r[2])}</td><td class="r">${tg(r[3])}</td><td class="r"><input class="qin" type="number" value="${r[4]}" ${R.ok?'disabled':''} onchange="setM(${i},this.value)"></td><td class="r"><b>${tg(rPrice(r))}</b></td><td class="r">${tg(r[1]*r[2])}</td><td class="r">${tg(r[1]*rPrice(r))}</td></tr>`).join('')}
+   <tr class="total"><td>Итого</td><td></td><td></td><td class="r">${tg(rBuy(R))}</td><td></td><td></td><td class="r">${tg(rSum(R))}</td><td class="r">${tg(rMin(R))}</td></tr></tbody></table></div>
+   <div class="kv"><span>Можно опуститься на торгах</span><b>до ${tg(rMin(R))} · −${pct(rSum(R)-rMin(R),rSum(R))}% от старта</b></div><div class="kv"><span>Маржа на минимуме</span><b>${tg(rMin(R)-rBuy(R))} · ${pct(rMin(R)-rBuy(R),rBuy(R))}%</b></div>
+   <div class="kv"><span>Статус</span><b>${R.ok?'утверждено руководителем':'ждёт утверждения'}</b></div></div>`:`<div class="pan"><h3>РЭС</h3><p class="mini">Позиций пока нет. Загрузите Excel из объявления — колонки «Наименование», «Кол-во», «Стартовая цена».</p></div>`}
+ </div><div>
+  <div class="pan"><h3>Задачи по лиду</h3>${[['Собрать документы объявления',true],['Запросить цены у 2 поставщиков',!!R],['Утвердить ограничение по марже',R&&R.ok],['Подать заявку на площадке',l.stg==='bid'||l.stg==='docs'],['Получить договор от заказчика',l.stg==='won']].map(t=>`<div class="kv"><span>${t[0]}</span><b>${t[1]?'✓':'—'}</b></div>`).join('')}</div>
+  <div class="pan"><h3>Лента лида</h3>${[['05.11 09:40','Ерлан','Загрузил РЭС из Excel, 5 позиций'],['04.11 17:10','Система','Срок подачи через 7 дней — напоминание'],['03.11 11:02','Ерлан','Создал лид из объявления '+l.no]].map(f=>`<div class="kv"><span><code>${f[0]}</code> ${f[1]}</span><b class="wrap">${f[2]}</b></div>`).join('')}</div>
+ </div></div>
+ ${said('«Цена для биржи — когда он будет торговаться, не менее… ниже не должен отпускать. Ограничение по маржинальности не менее 20%.»','Цена для биржи считается сама: закупочная × (1 + ограничение). Ограничение утверждает руководитель, после этого менеджер не может его поменять.')}`};
+function setM(i,v){const R=RES[LD(curLead).res];v=+v;if(v<MINM){toast(`Ограничение не может быть ниже ${MINM}%.`);v=MINM}R.rows[i][4]=v;render()}
+function importRes(){const l=LD(curLead);const id='R'+(Object.keys(RES).length+1);RES[id]={ok:false,rows:[['Подшипник 6316 ГОСТ',16,38000,19800,40],['Подшипник 22320 CC/W33',6,164000,97000,30],['Подшипник 3620 ГОСТ',8,96000,52000,35]]};l.res=id;l.sum=rSum(RES[id]);if(l.stg==='new'||l.stg==='proc')l.stg='calc';render();toast('РЭС загружен из Excel: 3 позиции. Закупочные цены подтянулись со склада и последних закупов.')}
+function apprRes(){const l=LD(curLead);RES[l.res].ok=true;if(['calc','appr'].includes(l.stg))l.stg='bid';render();toast('Ограничение утверждено. Менеджер видит цену для биржи и не может опуститься ниже.')}
+function makeCon(id){const l=LD(id);if(!l.res||!RES[l.res].ok){toast('Договор создаётся после утверждённого РЭС.');return}l.stg='won';const n='C'+(CONS.length+1);if(!CN(n)){CONS.unshift({id:n,no:'ДГ-2026/0'+(40+CONS.length),cl:l.cl,ent:'E1',d:'2026-11-05',to:'2027-12-31',lim:rSum(RES[l.res]),spec:0,ship:0,paid:0,dt:39,pt:60,mgr:l.mgr,st:'active'})}curCon=n;go('docgen');toast(`Договор ${CN(n).no} собран из лида ${id}: заказчик, РЭС, суммы и сроки подставлены. Осталось проверить и отправить на согласование.`)}
+function xlsLeads(){const h=`<html><head><meta charset="utf-8"></head><body><table border="1"><tr><th>Лид</th><th>Сегмент</th><th>Источник</th><th>№ объявления</th><th>Заказчик</th><th>Сумма</th><th>Этап</th></tr>${LEADS.map(l=>`<tr><td>${l.id}</td><td>${l.seg}</td><td>${esc(l.src)}</td><td>${l.no}</td><td>${esc(CL(l.cl).n)}</td><td>${l.sum}</td><td>${LSN(l.stg)}</td></tr>`).join('')}</table></body></html>`;try{const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Лиды.xls';document.body.appendChild(a);a.click();a.remove()}catch(e){}toast('Файл <b>Лиды.xls</b> скачан.')}
+
+/* ===== Договор из шаблона ===== */
+SC.docgen=()=>{const c=CN(curCon)||CONS[0],k=CL(c.cl),e=EN(c.ent);const l=LEADS.find(x=>x.cl===c.cl&&x.stg==='won');const R=l&&l.res?RES[l.res]:null;
+ return `<div class="crumb"><a onclick="go('contracts')">Договоры</a> › <b>${c.no}</b></div><div class="hd"><div><h2>Договор из шаблона · ${c.no}</h2><p>Шаблон под заказчика выбирается автоматически; реквизиты, позиции из РЭС, суммы, сроки поставки и оплаты подставляются из лида. Нетиповые пункты правятся прямо здесь.</p></div><div class="btns"><button class="bt" onclick="toast('Договор скачан в .docx.')">.docx</button><button class="bt" onclick="go('edo')">На согласование по СМС</button><button class="bt p" onclick="go('contract')">Открыть карточку</button></div></div>
+ <div class="g21"><div class="pan docv"><div class="dvh"><b>ДОГОВОР ПОСТАВКИ № ${c.no}</b><span>г. Караганда · ${dl(c.d)}</span></div>
+  <p><b>${esc(e.n)}</b> (Поставщик) и <b>${esc(k.n)}</b>, БИН ${k.bin} (Покупатель) заключили договор о нижеследующем.</p>
+  <p>1. Поставщик поставляет товар по спецификациям к Договору. Срок поставки — <span class="var">${c.dt} дней</span> с даты заказа. Место поставки — <span class="var">${esc((l&&l.place)||k.pts[0])}</span>.</p>
+  <p>2. Сумма Договора — <span class="var">${tg(c.lim)}</span> с НДС. Оплата — <span class="var">${c.pt} дней</span> с даты реализации.</p>
+  ${R?`<table class="t sm"><thead><tr><th>Наименование</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead><tbody>${R.rows.map(r=>`<tr><td>${esc(r[0])}</td><td class="r">${r[1]}</td><td class="r">${tg(r[2])}</td><td class="r">${tg(r[1]*r[2])}</td></tr>`).join('')}</tbody></table>`:''}
+  <p class="mini">3–9. Типовые условия: приёмка, неустойка 0,1% в день, форс-мажор, споры — из шаблона «${esc(k.short)}».</p></div>
+ <div class="pan"><h3>Подставлено автоматически</h3>${[['Поставщик (наше юрлицо)',e.short],['Покупатель и БИН',k.short],['Позиции','из РЭС лида'],['Сумма',tg(c.lim)],['Срок поставки',c.dt+' дн.'],['Срок оплаты',c.pt+' дн.'],['Шаблон','нетиповой · '+k.short]].map(x=>`<div class="kv"><span>${x[0]}</span><b>${esc(x[1])}</b></div>`).join('')}<p class="mini">Дальше по договору: спецификации → заказы → исполнение по накладным.</p></div></div>`};
+
+/* ===== Исполнение по накладным ===== */
+const EST=[['res','Резерв'],['pick','Сборка товара'],['wait','Ожидание отгрузки'],['road','В пути'],['done','Получено заказчиком']];
+let INV=[
+ {id:'НК-1182',ord:'ZK1',reg:'Жезказган',pt:'склад рудника',sum:1284000,st:'pick',cost:[['Логистика · Караганда → Жезказган',86000]]},
+ {id:'НК-1183',ord:'ZK1',reg:'Балхаш',pt:'склад фабрики',sum:962000,st:'res',cost:[]},
+ {id:'НК-1184',ord:'ZK1',reg:'Караганда',pt:'центральный склад',sum:2140000,st:'wait',cost:[['Погрузка, манипулятор',24000]]},
+ {id:'НК-1176',ord:'ZK2',reg:'Шахтинск',pt:'склад шахты',sum:740000,st:'road',cost:[['Логистика · Караганда → Шахтинск',38000]]},
+ {id:'НК-1171',ord:'ZK3',reg:'Темиртау',pt:'склад карьера',sum:1530000,st:'done',cost:[['Логистика',31000],['Входной контроль заказчика, командировка',42000]]}
+];
+SC.exec=()=>`<div class="hd"><div><h2>Исполнение по накладным</h2><p>Один заказ — много накладных: на каждый регион заказчика своя (Жезказган, Балхаш, Караганда). По каждой видно стадию и расходы. Перетащите карточку на следующую стадию.</p></div></div>
+ <div class="kanban">${EST.map(([k,n],i)=>{const x=INV.filter(v=>v.st===k);return `<div class="kcol" style="--sc:${['#8a97a6','#b07a00','#c4612b','#1f5f8b','#2e7d4f'][i]}" ondragover="event.preventDefault()" ondrop="const v=INV.find(z=>z.id===event.dataTransfer.getData('t'));v.st='${k}';render();toast(v.id+' → ${n}')"><div class="khead"><b>${n}</b><span>${x.length} · ${mln(x.reduce((a,v)=>a+v.sum,0))}</span></div>${x.map(v=>`<div class="kcard" draggable="true" ondragstart="event.dataTransfer.setData('t','${v.id}')" onclick="openInv('${v.id}')"><b>${v.id} · ${v.reg}</b><span>${esc(v.pt)} · заказ ${v.ord}</span><em>${tg(v.sum)}</em><small>расходы ${tg(v.cost.reduce((a,c)=>a+c[1],0))}</small></div>`).join('')}</div>`}).join('')}</div>
+ ${said('«Исполнение — куча накладных, на каждый регион: Жезказган, Балхаш… резерв, сборка товара, ожидание отгрузки.»')}`;
+function openInv(id){const v=INV.find(x=>x.id===id);openM('Накладная '+id,v.reg+' · '+v.pt+' · заказ '+v.ord,`<div class="kv"><span>Сумма</span><b>${tg(v.sum)}</b></div><div class="kv"><span>Стадия</span><b>${EST.find(s=>s[0]===v.st)[1]}</b></div>
+ <div class="pan" style="margin-top:12px"><h3>Расходы по накладной</h3>${v.cost.map(c=>`<div class="kv"><span>${esc(c[0])}</span><b>${tg(c[1])}</b></div>`).join('')||'<p class="mini">Пока нет.</p>'}<div class="form" style="margin-top:8px"><label>Статья<select id="cst"><option>Логистика</option><option>Погрузка</option><option>Входной контроль</option><option>Командировка</option><option>Неустойка</option></select></label><label>Сумма<input id="csm" value="25000"></label></div><button class="bt p" onclick="addCost('${id}')">+ Расход</button></div>`)}
+function addCost(id){const v=INV.find(x=>x.id===id);v.cost.push([document.getElementById('cst').value,+document.getElementById('csm').value||0]);openInv(id);toast('Расход привязан к накладной и договору — себестоимость договора пересчитана.')}
+
+/* ===== Расходы по договору ===== */
+SC.costs=()=>{const c=CN(curCon)||CONS[0];const all=INV.flatMap(v=>v.cost.map(x=>[v.id,v.reg,...x]));const tot=all.reduce((a,x)=>a+x[3],0);const marg=Math.round(c.ship*0.31);
+ return `<div class="hd"><div><h2>Расходы по договору ${c.no}</h2><p>Каждый расход — логистика, погрузка, входной контроль, командировки, неустойки — привязан к накладной и договору. Видно, сколько реально заработали на договоре.</p></div><div class="btns"><button class="bt" onclick="toast('Расходы выгружены в Excel.')">Excel</button></div></div>
+ <div class="g21"><div class="tw"><table class="t"><thead><tr><th>Накладная</th><th>Регион</th><th>Статья</th><th class="r">Сумма</th></tr></thead><tbody>${all.map(x=>`<tr onclick="openInv('${x[0]}')"><td class="mono">${x[0]}</td><td>${x[1]}</td><td>${esc(x[2])}</td><td class="r">${tg(x[3])}</td></tr>`).join('')}<tr class="total"><td colspan="3">Итого расходов</td><td class="r">${tg(tot)}</td></tr></tbody></table></div>
+ <div class="pan"><h3>Экономика договора</h3><div class="kv"><span>Отгружено</span><b>${tg(c.ship)}</b></div><div class="kv"><span>Валовая маржа по РЭС</span><b>${tg(marg)}</b></div><div class="kv"><span>Накладные расходы</span><b>− ${tg(tot)}</b></div><div class="kv"><span>Итог по договору</span><b>${tg(marg-tot)}</b></div></div></div>
+ ${said('«Какие накладные расходы были по данному договору — логистика, входной контроль — чтобы подтягивались к договору.»')}`};
+
+/* ===== Снабжение: дефицит → сравнение → закуп ===== */
+let SUP=[
+ {id:'ЗП-311',n:'Подшипник 22340 CC/W33',q:4,ord:'ZK1',st:'cmp',offers:[['ТОО «ПромПодшипник»',236000,'7 дн.'],['ИП Ли · Алматы',229000,'12 дн.'],['SKF дистрибьютор',248000,'5 дн.']],win:null},
+ {id:'ЗП-312',n:'Подшипник 3638 ГОСТ 5721',q:6,ord:'ZK1',st:'bill',offers:[['ТОО «ПромПодшипник»',118000,'7 дн.'],['ТОО «Вектор-Подшипник»',121000,'4 дн.']],win:0},
+ {id:'ЗП-309',n:'Корпус SNL 524-620',q:6,ord:'ZK2',st:'pickup',offers:[['ТОО «КазМашИмпорт»',61000,'10 дн.']],win:0},
+ {id:'ЗП-305',n:'Втулка H 3140',q:10,ord:'ZK3',st:'done',offers:[['ТОО «ПромПодшипник»',12400,'3 дн.']],win:0}
+];
+const SST=[['need','Дефицит'],['cmp','Сравнительная таблица'],['bill','Счёт поставщика'],['pickup','Забор груза'],['done','Заказ освоен']];
+SC.supply=()=>`<div class="hd"><div><h2>Снабжение: дефицит → сравнение → закуп</h2><p>Чего не хватило при подборе — сразу заявка в снабжение (не в Excel в конце дня). Снабженец собирает сравнительную таблицу поставщиков, выбирает, получает счёт, забирает груз. Когда товар пришёл — отделу договоров автоматически задача «заказ освоен», можно запускать исполнение.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Заявка</th><th>Позиция</th><th class="r">Кол-во</th><th>Под заказ</th>${SST.map(s=>`<th>${s[1]}</th>`).join('')}</tr></thead><tbody>${SUP.map(s=>{const i=SST.findIndex(x=>x[0]===s.st);return `<tr onclick="openSup('${s.id}')"><td class="mono">${s.id}</td><td>${esc(s.n)}</td><td class="r">${s.q}</td><td>${s.ord}</td>${SST.map((x,j)=>`<td>${j<i?'✓':j===i?'<b>●</b>':''}</td>`).join('')}</tr>`}).join('')}</tbody></table></div>
+ ${said('«Отдел снабжения собирает сравнительную таблицу, распределяет закуп, получает счёт, забор груза — и задача в отдел договоров, что заказ освоен.»')}`;
+function openSup(id){const s=SUP.find(x=>x.id===id);openM('Заявка '+id,esc(s.n)+' × '+s.q+' · под заказ '+s.ord,`<h3>Сравнительная таблица</h3><table class="t sm"><thead><tr><th>Поставщик</th><th class="r">Цена</th><th class="r">Сумма</th><th>Срок</th><th></th></tr></thead><tbody>${s.offers.map((o,i)=>`<tr><td>${esc(o[0])}</td><td class="r">${tg(o[1])}</td><td class="r">${tg(o[1]*s.q)}</td><td>${o[2]}</td><td>${s.win===i?'<b>выбран</b>':s.st==='cmp'?`<button class="bt sm" onclick="pickSup('${id}',${i})">Выбрать</button>`:''}</td></tr>`).join('')}</tbody></table>
+ <div class="btns" style="justify-content:flex-start;margin-top:10px">${s.st==='bill'?`<button class="bt p" onclick="supNext('${id}','pickup','Счёт оплачен, назначен забор груза.')">Счёт оплачен</button>`:''}${s.st==='pickup'?`<button class="bt p" onclick="supNext('${id}','done','Груз принят на склад. Отделу договоров ушла задача «заказ ${s.ord} освоен».')">Груз принят</button>`:''}</div>`)}
+function pickSup(id,i){const s=SUP.find(x=>x.id===id);s.win=i;s.st='bill';openSup(id);render();toast('Поставщик выбран, запрошен счёт.')}
+function supNext(id,st,m){SUP.find(x=>x.id===id).st=st;closeM();render();toast(m)}
+
+/* ===== Общение: мессенджер, лента, задачи ===== */
+let CHAT=[['Ерлан','09:12','Заказчик просит перенести отгрузку Балхаш на пятницу'],['Бахыт','09:20','Ок, машина будет в пятницу 08:00'],['Вадим','09:31','Согласовал. Айгуль, по 22340 что с ценой?'],['Айгуль','09:40','Сравнила трёх поставщиков, лучший — ИП Ли, 229 000, но 12 дней']];
+SC.chat=()=>`<div class="hd"><div><h2>Мессенджер</h2><p>Внутренние чаты как в Bitrix: общий, по отделам и по каждому договору. Сообщение можно превратить в задачу.</p></div></div>
+ <div class="g12"><div class="pan">${['# общий','# договор ДГ-2026/014','# снабжение','# склад'].map((c,i)=>`<div class="kv"><span>${c}</span><b>${[0,4,2,0][i]||''}</b></div>`).join('')}</div>
+ <div class="pan"><h3># договор ДГ-2026/014</h3>${CHAT.map(m=>`<div class="kv"><span><b>${m[0]}</b> <code>${m[1]}</code></span><b class="wrap" style="font-weight:400">${esc(m[2])}</b></div>`).join('')}<div class="form" style="margin-top:8px"><label class="wide">Сообщение<input id="cmsg" value="Беру в работу"></label></div><div class="btns" style="justify-content:flex-start"><button class="bt p" onclick="CHAT.push(['Вадим','${'10:05'}',document.getElementById('cmsg').value]);render()">Отправить</button><button class="bt" onclick="TASKS2.unshift(['Перенести отгрузку Балхаш на пятницу','Бахыт','08.11','new']);toast('Задача создана из сообщения.')">→ Задача</button></div></div></div>`;
+SC.feed=()=>`<div class="hd"><div><h2>Лента</h2><p>Всё, что происходит: новые лиды, утверждённые РЭС, созданные договоры, отгрузки, оплаты, закупы.</p></div></div>
+ <div class="pan">${[['10:02','Система','Лид L-2044 из входящей почты'],['09:41','Вадим','Утвердил РЭС по L-2040, минимум 2 940 000 ₸'],['09:20','Бахыт','НК-1176 в пути на Шахтинск'],['08:55','Айгуль','ЗП-312: выбран поставщик ТОО «ПромПодшипник»'],['вчера','Наталья','Оплата 1 120 000 ₸ по ДГ-2026/021 из 1С']].map(f=>`<div class="kv"><span><code>${f[0]}</code> <b>${f[1]}</b></span><b class="wrap" style="font-weight:400">${f[2]}</b></div>`).join('')}</div>`;
+let TASKS2=[['Подать заявку по ОИ-1190551','Ерлан','12.11','new'],['Сравнительная таблица по 22340','Айгуль','06.11','work'],['Подписать договор ДГ-2026/041','Вадим','07.11','check'],['Акт сверки с Сарыарка ГМК','Наталья','10.11','work'],['Отгрузка НК-1184','Бахыт','06.11','done']];
+SC.tasks=()=>{const ST=[['new','Новые'],['work','В работе'],['check','На проверке'],['done','Готово']];return `<div class="hd"><div><h2>Задачи</h2><p>Внутренние задачи: из лида, договора, заказа, сообщения или вручную. Срок, ответственный, проверка.</p></div><div class="btns"><button class="bt p" onclick="TASKS2.unshift(['Новая задача','Ерлан','10.11','new']);render()">+ Задача</button></div></div>
+ <div class="kanban">${ST.map(([k,n],i)=>`<div class="kcol" style="--sc:${['#8a97a6','#b07a00','#6b4f8f','#2e7d4f'][i]}" ondragover="event.preventDefault()" ondrop="TASKS2[+event.dataTransfer.getData('t')][3]='${k}';render()"><div class="khead"><b>${n}</b><span>${TASKS2.filter(t=>t[3]===k).length}</span></div>${TASKS2.map((t,j)=>t[3]===k?`<div class="kcard" draggable="true" ondragstart="event.dataTransfer.setData('t','${j}')"><b>${esc(t[0])}</b><small>${t[1]} · до ${t[2]}</small></div>`:'').join('')}</div>`).join('')}</div>`};
+
+/* ===== Согласование по SMS / WhatsApp (опция) ===== */
+let EDO=[{d:'Договор ДГ-2026/041 · Сарыарка ГМК',who:'Коммерческий директор',st:'wait'},{d:'Претензия · неустойка по НК-1171',who:'Коммерческий директор',st:'ok'},{d:'Спецификация 4503085694',who:'Заказчик · Сарыарка ГМК',st:'ok'}];
+SC.edo=()=>`<div class="hd"><div><h2>Согласование по СМС / WhatsApp · опция</h2><p>Документ уходит на согласование: коммерческому директору или заказчику приходит ссылка в WhatsApp/СМС, он смотрит документ и подтверждает кодом. Подтверждение, время и номер сохраняются в договоре. Неустойки и претензии привязываются к договору и накладной и проходят те же стадии.</p></div><div class="btns"><span class="tag w">дополнительно · 300 000 ₸</span></div></div>
+ <div class="g21"><div class="tw"><table class="t"><thead><tr><th>Документ</th><th>Кто согласует</th><th>Статус</th><th></th></tr></thead><tbody>${EDO.map((e,i)=>`<tr><td>${esc(e.d)}</td><td>${e.who}</td><td>${e.st==='ok'?'<span class="tag g">подтверждено кодом</span>':'<span class="tag w">ждёт</span>'}</td><td>${e.st!=='ok'?`<button class="bt sm p" onclick="EDO[${i}].st='ok';render();toast('Код из СМС введён — документ согласован, отметка в договоре.')">Ввести код (демо)</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+ <div class="pan"><h3>Как выглядит у директора</h3><div class="phone"><div class="kv"><span>WhatsApp · Pllato</span><b>10:14</b></div><p class="mini">Договор ДГ-2026/041 на 5 091 000 ₸ ждёт вашего согласования. Открыть: pllato.kz/s/7Kq2</p><div class="kv"><span>Код подтверждения</span><b>4 8 2 9</b></div></div></div></div>
+ ${said('«Чтобы каждый документ был согласован, подтверждён смской — коммерческий директор посмотрел, кликнул, согласовал; неустойка тоже к договору.»','Делается как дополнительный модуль за 300 000 ₸ — по желанию, после ядра.')}`;
+
+function renderRoles(){const r=document.getElementById('roles');if(!r)return;
+ r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Руководитель';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
+ const s=document.getElementById('rsel');if(s)s.value=role;document.getElementById('me').textContent=ROLES[role].av;if(!allowed(cur))cur=ROLES[role].s[0];build();
+ toast(`Вы вошли как «${role}» · ${ROLES[role].n}. Показаны только разделы этой роли.`);}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль: ${role}. Разделов: ${ROLES[role].s.length}. ${ROLES[role].note}.`)}
+const ownerOf=k=>SECOF[k];
+function buildRail(){const on=ownerOf(cur);document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<a class="mod ${s.k===on?'on':''}" onclick="go('${s.sub.filter(x=>allowed(x[0]))[0][0]}')">${esc(s.n)}</a>`).join('');}
+function buildSub(){const on=ownerOf(cur),s=SEC.find(x=>x.k===on);if(!s)return;document.getElementById('sub').innerHTML=`<h4>${esc(s.n)}</h4>`+s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}</a>`).join('')+`<div class="shint"><b>${esc(role)}</b><br>${esc(ROLES[role].note)}</div>`;}
+const CHAIN=[['Договоры','contracts',()=>CONS.filter(c=>c.st!=='done'&&inEnt(c)).length,['contracts','contract','clients']],['Спецификации','specs',()=>SPECS.filter(s=>inEnt(CN(s.con))).length,['specs','spec']],['Заказы','orders',()=>ORDERS.filter(o=>!['real','pay','paid'].includes(o.st)&&inEnt(ordCon(o))).length,['orders','order']],['Подбор','pick',()=>ORDERS.filter(o=>o.st==='pick'&&inEnt(ordCon(o))).length,['pick']],['Сборка и отгрузка','funnel',()=>ORDERS.filter(o=>['work','build','wait','sent'].includes(o.st)&&inEnt(ordCon(o))).length,['funnel','moves']],['Реализации · 1С','realiz',()=>REAL.filter(r=>inEnt(r)).length,['realiz','sync','mapping']],['Оплата','receiv',()=>REAL.filter(r=>inEnt(r)&&r.paid<r.sum).length,['receiv']]];
+function buildChain(){const el=document.getElementById('chain');if(!el)return;el.innerHTML=CHAIN.map((c,i)=>`<a class="ch ${c[3].includes(cur)?'on':''} ${allowed(c[1])?'':'dis'}" onclick="go('${c[1]}')"><b>${c[2]()}</b><span>${c[0]}</span></a>${i<CHAIN.length-1?'<i>›</i>':''}`).join('');}
+function buildEnt(){const el=document.getElementById('entsw');if(!el)return;el.innerHTML=[['all','Все юрлица'],...ENT.map(e=>[e.id,e.short])].map(x=>`<button class="${curEnt===x[0]?'on':''}" onclick="curEnt='${x[0]}';build()">${esc(x[1])}</button>`).join('');}
+function build(){buildRail();buildSub();buildChain();buildEnt();render()}
+function render(){const f=SC[cur]||SC.dash;document.getElementById('ttl').textContent=SUBN[cur]||'Обойма';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildChain();const a=document.getElementById('addBtn');if(a)a.style.display=allowed('contracts')?'':'none';try{history.replaceState(null,'','?s='+cur+(cur==='order'?'&o='+curOrd:cur==='contract'?'&c='+curCon:''))}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль в правом верхнем углу.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show');document.querySelector('.modal').scrollTop=0}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();toast(theme==='dark'?'Тёмная тема.':'Светлая тема.')}
+
+/* ====== СЦЕНАРИЙ ПОКАЗА ====== */
+const TOUR=[
+ ['leads','0 · Исток: лиды из тендеров (B2G) и холодных звонков (B2B) — как ваша воронка в Bitrix.'],
+ ['lead','0 · Карточка лида: данные объявления и РЭС — стартовая, закупочная, ограничение по марже не менее 20%, цена для биржи.'],
+ ['docgen','0 · Отыграли — договор собирается из лида по шаблону заказчика.'],
+ ['exec','0 · Исполнение: накладные по регионам — резерв, сборка, ожидание отгрузки, в пути.'],
+ ['supply','0 · Снабжение: дефицит → сравнительная таблица → счёт → забор груза → «заказ освоен».'],
+ ['costs','0 · Расходы по договору: логистика, входной контроль, неустойки — итог по договору.'],
+ ['dash','1 · Панель руководителя: все договоры трёх юрлиц — сумма, спецификации, отгружено, оплачено, что осталось. Цепочка сверху — где сейчас документы.'],
+ ['contracts','2 · Договоры: заказчик, наше юрлицо-поставщик, срок поставки 39 дней, срок оплаты 60, сумма. Лимит почти исчерпан — жёлтым.'],
+ ['contract','3 · Карточка договора: как расходуется сумма — спецификации, отгрузки, оплаты. Спецификации, заказы, накладные и файлы в одном месте.'],
+ ['spec','4 · Спецификация 4503085694: наименования как у заказчика, заносятся вручную. По каждой строке — отгружено, в заказах, осталось.'],
+ ['orders','5 · Заказы: не все десять, а три, пять и один — и каждая позиция на свой склад заказчика: Караганда, Жезказган, Балхаш.'],
+ ['pick','6 · Подбор: «3638 ГОСТ» на складе лежит как 22338 CC/W33 или 3638 другого завода. Поиск по аналогам, остатки трёх складов, выбирает человек, дефицит — в закуп.'],
+ ['moves','7 · Товар со склада другого юрлица — межфирменная реализация в обе базы 1С, как вы просили.'],
+ ['funnel','8 · Воронка исполнения: подбор → в работу → сборка → ожидание отгрузки → отправлено → реализация → оплата. Канбан, карточки перетаскиваются.'],
+ ['stock','9 · Остатки трёх складов из трёх баз 1С и резерв под заказы. Новый склад — кнопкой.'],
+ ['purchase','10 · Закуп: всё, чего не хватило при подборе, и что ниже минимума, — под какой заказ и к какому сроку.'],
+ ['realiz','11 · Реализации: накладная уходит в базу 1С поставщика, ЭСФ — из 1С.'],
+ ['receiv','12 · Дебиторка по срокам договоров: не наступил, ближайшие 30 дней, просрочено.'],
+ ['alerts','13 · Что горит: непоставка, неоплата, лимит договора, дефицит, ошибки 1С — формулы, а не ручной свод.'],
+ ['daily','14 · Ежедневный отчёт в 08:00 в Telegram или на почту — каждому свой.'],
+ ['sync','15 · Обмен с тремя базами 1С: сначала тестовая копия с вашим бухгалтером, потом боевые.'],
+ ['mobile','16 · Мобильная версия сразу: руководитель, склад, логист.'],
+ ['launch','17 · Запуск без интеграции и переноса из Bitrix: дожимаете сделки до конца ноября, следующий год — здесь.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){stopTour();toast('Сценарий показа закончен. Всё кликается: договоры, спецификации, заказы, подбор, склады, накладные.');return}const [k,m]=TOUR[ti];if(!allowed(k)){step();return}cur=k;if(k==='contract')curCon='C1';if(k==='spec')curSpec='SP1';if(k==='pick')curOrd='ZK1';build();toast(m);setTimeout(step,ti===0?6200:7200);}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});let q='',o='',c='';try{const u=new URLSearchParams(location.search);q=u.get('s')||'';o=u.get('o')||'';c=u.get('c')||''}catch(e){}if(o&&OR(o))curOrd=o;if(c&&CN(c))curCon=c;if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+
+</script>
+</body>
+</html>
