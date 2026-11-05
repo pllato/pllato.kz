@@ -1416,6 +1416,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
     <!-- Встречи на сегодня: одной строкой, чтобы не заходить в календарь -->
     <div class="cal-widget" id="calWidget"></div>
+    <div class="cal-widget" id="calTomorrowWidget"></div>
 
     <div class="project-search-row">
       <div class="project-search-wrap">
@@ -9315,7 +9316,7 @@ function calCanSee(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_shared
 // Право хранится в apps: calendarAccess воркер портала не сохраняет.
 function calCanSeeWidget(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_ios_widget); }
 function calDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function calCacheKey(){ return `pllato_today_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
+function calCacheKey(){ return `pllato_two_day_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
 function calReadCache(){
   try{
     const c=JSON.parse(localStorage.getItem(calCacheKey())||'null');
@@ -9364,6 +9365,7 @@ async function calFetchToday(){
   if(!token) throw new Error('нет сессии App');
   const today=new Date();
   const shift=n=>{ const d=new Date(today); d.setDate(d.getDate()+n); return calDayKey(d); };
+  const days=new Set([shift(0),shift(1)]);
   const events=[];
   const dealsById=new Map();
   const pipeBook={};
@@ -9395,7 +9397,7 @@ async function calFetchToday(){
         const raw=deal?.customFields?.firstZoomAt;
         if(!raw) continue;
         const when=new Date(raw);
-        if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+        if(isNaN(when)||!days.has(calDayKey(when))) continue;
         const book=pipeBook[deal.pipelineId]||null;
         events.push({ at:when.getTime(), end:when.getTime()+60*60000,
           title:'Zoom: '+(deal.title||'сделка'), src:'первый Zoom', kind:'meet',
@@ -9418,7 +9420,7 @@ async function calFetchToday(){
     for(const task of (data.items||[])){
       const isMeet=task.mark==='zoom_meeting';
       const when=new Date((isMeet?(task.startDatePlan||task.deadline):task.deadline)||'');
-      if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+      if(isNaN(when)||!days.has(calDayKey(when))) continue;
       const end=task.endDatePlan?new Date(task.endDatePlan):null;
       const dealId=calLinkedDealId(task);
       const deal=dealId?dealsById.get(String(dealId)):null;
@@ -9477,30 +9479,32 @@ function calPositionList(box,events,now,previous){
   list.scrollTop=Math.max(0,list.scrollTop+row.getBoundingClientRect().top-list.getBoundingClientRect().top);
   box.dataset.scrollDay=day;
 }
-function renderTodayCalendar(){
-  const box=document.getElementById('calWidget');
+function renderCalendarDay(id,label,offset){
+  const box=document.getElementById(id);
+  const day=new Date(); day.setDate(day.getDate()+offset);
+  const items=CAL_EVENTS===null?null:CAL_EVENTS.filter(e=>calDayKey(new Date(e.at))===calDayKey(day));
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
   const open='<div class="cw-actions">'+(calCanSeeWidget()
       ? '<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
       : '')
     +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a></div>';
-  if(CAL_EVENTS===null){
+  if(items===null){
     box.className='cal-widget on empty';
-    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>'+open;
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>'+open;
     return;
   }
   const now=Date.now();
   const oldList=box.querySelector('.cw-list');
   const previous=oldList?{top:oldList.scrollTop}:null;
   // Статус строки считаем по встречам: дедлайн задачи — не «идёт сейчас».
-  const meetList=CAL_EVENTS.filter(e=>e.kind!=='task');
-  const base=meetList.length?meetList:CAL_EVENTS;
+  const meetList=items.filter(e=>e.kind!=='task');
+  const base=meetList.length?meetList:items;
   const running=base.find(e=>e.at<=now&&e.end>now);   // встреча идёт прямо сейчас
   const upcoming=base.filter(e=>e.at>now);            // ещё не начались
-  if(!CAL_EVENTS.length){
+  if(!items.length){
     box.className='cal-widget on empty';
-    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня встреч нет</span>'
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+' встреч нет</span>'
       +'<span class="cw-sub">календарь свободен</span></div><div class="cw-list"></div>'+open;
     return;
   }
@@ -9510,7 +9514,7 @@ function renderTodayCalendar(){
     : (nextItem?`ближайшая в ${calTimeLabel(nextItem.at)}`:'все прошли');
   // Показываем всё, что есть на сегодня в календаре: список прокручивается,
   // ничего не прячем за «и ещё N».
-  const chips=CAL_EVENTS.map((item,i)=>{
+  const chips=items.map((item,i)=>{
     const isNow=item.at<=now&&item.end>now;
     const isNext=!isNow&&item===nextItem;
     const isPast=item.end<=now;
@@ -9522,15 +9526,20 @@ function renderTodayCalendar(){
   }).join('');
   const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
   const tword=n=>n%10===1&&n%100!==11?'дело':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'дела':'дел');
-  const meets=CAL_EVENTS.filter(e=>e.kind!=='task').length;
-  const tasks=CAL_EVENTS.length-meets;
+  const meets=items.filter(e=>e.kind!=='task').length;
+  const tasks=items.length-meets;
   const counts=[meets?`${meets} ${word(meets)}`:'',tasks?`${tasks} ${tword(tasks)}`:''].filter(Boolean).join(' · ');
   box.className='cal-widget on';
-  box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 Сегодня</span>
+  box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 ${label}</span>
       <span class="cw-sub">${counts} · ${status}</span></div>
     <div class="cw-list">${chips}</div>${open}`;
-  calBindTips(box);
-  calPositionList(box,CAL_EVENTS,now,previous);
+  calBindTips(box,items);
+  calPositionList(box,items,now,previous);
+}
+
+function renderTodayCalendar(){
+  renderCalendarDay('calWidget','Сегодня',0);
+  renderCalendarDay('calTomorrowWidget','Завтра',1);
 }
 
 /* Карточка встречи при наведении: полное название, воронка, стадия и сумма —
@@ -9572,7 +9581,7 @@ function calShowTip(chip,item){
   tip.style.left=left+'px';
   tip.style.top=top+'px';
 }
-function calBindTips(box){
+function calBindTips(box,items){
   box.querySelectorAll('a.cw-zoom').forEach(link=>{
     const url=new URL(link.href),room=url.searchParams.get('room');
     if(url.hostname!=='pllato.kz'||!/^crm-[a-f0-9-]{36}$/.test(room||''))return;
@@ -9587,7 +9596,7 @@ function calBindTips(box){
     };
   });
   box.querySelectorAll('.cw-chip[data-cw]').forEach(chip=>{
-    const item=(CAL_EVENTS||[])[Number(chip.dataset.cw)];
+    const item=(items||[])[Number(chip.dataset.cw)];
     if(!item) return;
     chip.addEventListener('mouseenter',()=>calShowTip(chip,item));
     chip.addEventListener('focus',()=>calShowTip(chip,item));
