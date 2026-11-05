@@ -66,6 +66,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/skinline-crm.js"></
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/skinline-crm.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f's{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,6,5))
+js=''.join(open(os.path.join(D,f's{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,6,7,5))
 open(ROOT+'/app/skinline-crm.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))

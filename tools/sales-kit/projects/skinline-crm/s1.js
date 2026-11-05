@@ -10,21 +10,21 @@ const bar=(w,c)=>`<div class="bar"><i class="${c||''}" style="--w:${Math.max(2,M
 const tz=(n,q,a)=>`<div class="said"><b>ТЗ · раздел ${n}</b><i>${q}</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
 const crumbs=(...a)=>`<div class="crumbl">${a.map((x,i)=>i<a.length-1?`<a onclick="${x[1]}">${esc(x[0])}</a>`:`<b>${esc(x[0])}</b>`).join(' <i>›</i> ')}</div>`;
 const SEC=[
- {k:'an',n:'Аналитика',sub:[['dash','План-факт'],['pnl','P&L'],['liq','Ликвидность и дивиденды'],['mkt','Маркетинг: CAC и ROI']]},
- {k:'sale',n:'Продажи',sub:[['funnel','Воронка'],['deal','Сделка и калькулятор'],['clients','Контрагенты и лимиты'],['inbox','Звонки и WhatsApp']]},
- {k:'fin',n:'Финансы',sub:[['debts','Дебиторка'],['bank','Банк-клиент'],['opex','Расходы (OPEX)'],['mexp','Расход с телефона']]},
+ {k:'an',n:'Аналитика',sub:[['dash','План-факт'],['triggers','Подсказки и триггеры'],['pnl','P&L'],['liq','Ликвидность и дивиденды'],['mkt','Маркетинг: CAC и ROI']]},
+ {k:'sale',n:'Продажи',sub:[['funnel','Воронка'],['deal','Сделка и калькулятор'],['clients','Контрагенты и лимиты'],['cpcheck','Новый контрагент · проверка БИН'],['inbox','WhatsApp']]},
+ {k:'fin',n:'Финансы',sub:[['debts','Дебиторка'],['fx','Курсовые разницы'],['bank','Банк-клиент'],['opex','Расходы (OPEX)'],['mexp','Расход с телефона']]},
  {k:'ops',n:'Склад и доставка',sub:[['stock','Остатки и резервы 1С'],['cdek','Доставка СДЭК'],['docs','Документы']]},
  {k:'fm',n:'Финмодель',sub:[['close','Закрытие месяца'],['stat','Статистика · P&L и баланс'],['forecast','Прогноз и риски'],['channels','Сводная по каналам'],['staff','Штатное расписание'],['payroll','Зарплата'],['fixed','Постоянные расходы'],['opexsum','Сводка переменных'],['deposit','Депозит доставки'],['divs','Дивиденды'],['calc','Калькулятор']]},
- {k:'hr',n:'Команда',sub:[['kpi','KPI и зарплата'],['ai','ИИ-ассистент и вебхуки'],['launch','Состав и стоимость']]}
+ {k:'hr',n:'Команда',sub:[['kpi','KPI и зарплата'],['plan','План по неделям'],['ai','ИИ-ассистент и вебхуки'],['launch','Состав и стоимость']]}
 ];
 const SECOF={},SUBN={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
 const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
 const ROLES={
  'Учредитель':{av:'УЧ',n:'Учредитель',note:'P&L, ликвидность, дивиденды, план-факт, всё',s:ALL.slice()},
- 'Коммерческий директор':{av:'КД',n:'Коммерческий директор',note:'Воронка, каналы, дебиторка, KPI команды, маркетинг',s:['dash','mkt','funnel','deal','clients','inbox','debts','stock','cdek','docs','kpi']},
- 'Ведущий менеджер':{av:'АЖ',n:'Айгерим Жумабаева · Алматы',note:'Свои сделки, калькулятор, звонки, WhatsApp, документы, свой KPI',s:['calc','funnel','deal','clients','inbox','stock','cdek','docs','kpi','mexp']},
- 'Менеджер регионов':{av:'ДК',n:'Даурен Кенжебаев · Караганда',note:'Свои сделки и расходы в поездках',s:['funnel','deal','clients','inbox','mexp','kpi']},
- 'Бухгалтер':{av:'НС',n:'Наталья Сон',note:'Банк-клиент, дебиторка, расходы к выплате, P&L, документы, закрытие месяца',s:['close','stat','staff','payroll','fixed','opexsum','deposit','divs','bank','debts','opex','pnl','liq','docs']}
+ 'Коммерческий директор':{av:'КД',n:'Коммерческий директор',note:'Воронка, каналы, дебиторка, KPI команды, маркетинг',s:['triggers','plan','cpcheck','fx','dash','mkt','funnel','deal','clients','inbox','debts','stock','cdek','docs','kpi']},
+ 'Ведущий менеджер':{av:'АЖ',n:'Айгерим Жумабаева · Алматы',note:'Свои сделки, калькулятор, звонки, WhatsApp, документы, свой KPI',s:['triggers','plan','cpcheck','calc','funnel','deal','clients','inbox','stock','cdek','docs','kpi','mexp']},
+ 'Менеджер регионов':{av:'ДК',n:'Даурен Кенжебаев · Караганда',note:'Свои сделки и расходы в поездках',s:['triggers','plan','funnel','deal','clients','inbox','mexp','kpi']},
+ 'Бухгалтер':{av:'НС',n:'Наталья Сон',note:'Банк-клиент, дебиторка, расходы к выплате, P&L, документы, закрытие месяца',s:['fx','close','stat','staff','payroll','fixed','opexsum','deposit','divs','bank','debts','opex','pnl','liq','docs']}
 };
 let role='Учредитель',cur='dash';
 /* Номенклатура */
