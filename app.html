@@ -485,24 +485,16 @@ body {
   #cwTip{display:none}
 }
 
-/* Calendar has the same footprint before and after its requests finish. */
-.cal-widget.on{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1.5fr) auto;min-height:142px;box-sizing:border-box}
-.cal-widget .cw-head{white-space:normal;flex-wrap:wrap;align-content:center;min-width:0}
+/* Two compact day cards; lists scroll independently. */
+.cal-days{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.cal-widget.on{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 118px;gap:10px;min-width:0;box-sizing:border-box}
+.cal-widget .cw-head{white-space:normal;flex-wrap:wrap;min-width:0}
 .cal-widget .cw-list{height:118px;max-height:118px;overflow-y:auto;align-content:flex-start;flex:none}
 .cal-widget .cw-entry{width:100%}
-.cw-actions{display:flex;gap:8px;align-items:center}
-.cal-widget .cw-actions .cw-open{margin:0}
-@media(max-width:1100px){
- .cal-widget.on{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:44px 118px}
- .cal-widget .cw-list{grid-column:1/-1;grid-row:2}
- .cw-actions{grid-column:2;grid-row:1}
-}
 @media(max-width:720px){
- .cal-widget.on{grid-template-columns:minmax(0,1fr);grid-template-rows:52px 144px 44px;gap:8px}
- .cal-widget .cw-head{align-content:start;overflow:hidden}
- .cal-widget .cw-list{height:144px;max-height:144px;overflow-y:auto;grid-column:1;grid-row:2}
- .cw-actions{grid-column:1;grid-row:3;min-width:0}
- .cal-widget .cw-actions .cw-open{width:auto;flex:1;min-width:0;font-size:11px;padding:9px 6px}
+ .cal-days{grid-template-columns:minmax(0,1fr);gap:0}
+ .cal-widget.on{grid-template-rows:auto 144px}
+ .cal-widget .cw-list{height:144px;max-height:144px;overflow-y:auto}
 }
 
 /* ===== Рабочие пространства: Pllato и Pixel English ===== */
@@ -1414,9 +1406,11 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       <p>Все инструменты для работы команды Pllato в одном месте.</p>
     </div>
 
-    <!-- Встречи на сегодня: одной строкой, чтобы не заходить в календарь -->
-    <div class="cal-widget" id="calWidget"></div>
-    <div class="cal-widget" id="calTomorrowWidget"></div>
+    <!-- Сегодня слева, завтра справа. -->
+    <div class="cal-days">
+      <div class="cal-widget" id="calWidget"></div>
+      <div class="cal-widget" id="calTomorrowWidget"></div>
+    </div>
 
     <div class="project-search-row">
       <div class="project-search-wrap">
@@ -9485,13 +9479,9 @@ function renderCalendarDay(id,label,offset){
   const items=CAL_EVENTS===null?null:CAL_EVENTS.filter(e=>calDayKey(new Date(e.at))===calDayKey(day));
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
-  const open='<div class="cw-actions">'+(calCanSeeWidget()
-      ? '<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
-      : '')
-    +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a></div>';
   if(items===null){
     box.className='cal-widget on empty';
-    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>'+open;
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>';
     return;
   }
   const now=Date.now();
@@ -9505,7 +9495,7 @@ function renderCalendarDay(id,label,offset){
   if(!items.length){
     box.className='cal-widget on empty';
     box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+' встреч нет</span>'
-      +'<span class="cw-sub">календарь свободен</span></div><div class="cw-list"></div>'+open;
+      +'<span class="cw-sub">календарь свободен</span></div><div class="cw-list"></div>';
     return;
   }
   const nextItem=upcoming[0];
@@ -9532,7 +9522,7 @@ function renderCalendarDay(id,label,offset){
   box.className='cal-widget on';
   box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 ${label}</span>
       <span class="cw-sub">${counts} · ${status}</span></div>
-    <div class="cw-list">${chips}</div>${open}`;
+    <div class="cw-list">${chips}</div>`;
   calBindTips(box,items);
   calPositionList(box,items,now,previous);
 }
