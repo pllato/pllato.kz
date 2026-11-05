@@ -7874,6 +7874,21 @@ function financeChartSvg(kind,series){
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
+function financeChartShortcut(event){
+  if(event.defaultPrevented || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey)return;
+  if(event.code!=='KeyF' && !['f','а'].includes(String(event.key||'').toLowerCase()))return;
+  if(event.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
+  if(document.querySelector('.money-ovl.show,dialog[open]:not(.fc-fullscreen)'))return;
+  const fullscreen=document.querySelector('.fc-fullscreen');
+  if(fullscreen){event.preventDefault();fullscreen.close();return;}
+  const card=document.querySelector('.fc-grid > .fc-card:hover') || document.activeElement?.closest?.('.fc-grid > .fc-card');
+  const button=card?.querySelector('.fc-expand');
+  if(!button)return;
+  const bounds=card.getBoundingClientRect();
+  if(bounds.width<=0 || bounds.height<=0 || bounds.bottom<=0 || bounds.top>=window.innerHeight)return;
+  event.preventDefault();openChartFullscreen(button);
+}
+document.addEventListener('keydown',financeChartShortcut);
 function openChartFullscreen(button,{mobileView='current',miniPosition=null}={}){
   const source=button.closest('.fc-card');
   if(!source || document.querySelector('.fc-fullscreen')) return;
@@ -7887,6 +7902,8 @@ function openChartFullscreen(button,{mobileView='current',miniPosition=null}={})
   const close=document.createElement('button');
   close.type='button';close.className='fc-access fc-close';close.textContent='Свернуть ✕';
   close.setAttribute('aria-label','Закрыть полноэкранный график');
+  close.title='Свернуть график · F / А';
+  close.setAttribute('aria-keyshortcuts','f а');
   close.onclick=()=>dialog.close();
   const head=card.querySelector('.fc-card-head');
   head.appendChild(close);
@@ -8047,7 +8064,7 @@ function namespaceFullscreenTaskIds(root){
   root.querySelectorAll('[for]').forEach(node=>{node.htmlFor+='-fullscreen';});
 }
 function chartFullscreenButton(){
-  return '<button type="button" class="fc-access fc-expand" aria-label="Развернуть график на весь экран" onclick="openChartFullscreen(this)" title="Развернуть график на весь экран">⛶ На весь экран</button>';
+  return '<button type="button" class="fc-access fc-expand" aria-label="Развернуть график на весь экран" onclick="openChartFullscreen(this)" title="Развернуть график · F / А" aria-keyshortcuts="f а">⛶ На весь экран</button>';
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
