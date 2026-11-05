@@ -7881,12 +7881,9 @@ function financeChartShortcut(event){
   if(document.querySelector('.money-ovl.show,dialog[open]:not(.fc-fullscreen)'))return;
   const fullscreen=document.querySelector('.fc-fullscreen');
   if(fullscreen){event.preventDefault();fullscreen.close();return;}
-  const card=document.querySelector('.fc-grid > .fc-card:hover') || document.activeElement?.closest?.('.fc-grid > .fc-card');
-  const button=card?.querySelector('.fc-expand');
-  if(!button)return;
-  const bounds=card.getBoundingClientRect();
-  if(bounds.width<=0 || bounds.height<=0 || bounds.bottom<=0 || bounds.top>=window.innerHeight)return;
-  event.preventDefault();openChartFullscreen(button);
+  const toggle=document.querySelector('.fc-toggle');
+  if(!toggle || !toggle.getClientRects().length)return;
+  event.preventDefault();toggleFinanceCharts();
 }
 document.addEventListener('keydown',financeChartShortcut);
 function openChartFullscreen(button,{mobileView='current',miniPosition=null}={}){
@@ -8064,7 +8061,7 @@ function namespaceFullscreenTaskIds(root){
   root.querySelectorAll('[for]').forEach(node=>{node.htmlFor+='-fullscreen';});
 }
 function chartFullscreenButton(){
-  return '<button type="button" class="fc-access fc-expand" aria-label="Развернуть график на весь экран" onclick="openChartFullscreen(this)" title="Развернуть график · F / А" aria-keyshortcuts="f а">⛶ На весь экран</button>';
+  return '<button type="button" class="fc-access fc-expand" aria-label="Развернуть график на весь экран" onclick="openChartFullscreen(this)" title="Развернуть график на весь экран">⛶ На весь экран</button>';
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
@@ -8558,7 +8555,7 @@ function toggleFinanceCharts(){
 function financeChartsHeader(){
   const meta=financeChartPeriodMeta();
   const periods=Object.entries(FINANCE_CHART_PERIOD_META).map(([key,item])=>`<button type="button" class="${key===FINANCE_CHART_PERIOD?'active':''}" onclick="setFinanceChartPeriod('${key}')" aria-pressed="${key===FINANCE_CHART_PERIOD}">${item.label}</button>`).join('');
-  const toggle=financeChartsPinnedOpen()?'':`<button class="fc-toggle" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
+  const toggle=financeChartsPinnedOpen()?'':`<button class="fc-toggle" title="Развернуть / свернуть графики · F / А" aria-keyshortcuts="f а" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
   return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
 }
 // Capture immediately before replacing DOM, after pending requests finish.
