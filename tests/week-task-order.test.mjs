@@ -22,3 +22,10 @@ test('protects permissions, preserves data, puts new tasks after ordered rows',(
  assert.equal(c.financeTaskReorderItems([{id:'a'},{id:'b',readonly:true}],'a',1).length,0);
  assert.equal(c.financeTaskReorderItems(tasks,'a',3).length,0);
 });
+test('dragging inserts at a distant row and cannot cross groups',()=>{
+ const tasks=[{id:'a',starred:true},{id:'b',starred:true},{id:'c',starred:true},{id:'d'}];
+ assert.deepEqual(ids(c.financeTaskReorderItems(tasks,'a',1,'c')),['b','c','a']);
+ assert.deepEqual(ids(c.financeTaskReorderItems(tasks,'c',1,'a')),['c','a','b']);
+ assert.equal(c.financeTaskReorderItems(tasks,'a',1,'d').length,0);
+ assert.equal(c.financeTaskReorderItems(tasks,'a',1,'a').length,0);
+});
