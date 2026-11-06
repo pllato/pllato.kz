@@ -6487,9 +6487,21 @@ function refreshFavsUi(){
  // naturally by the browser if the remaining list is shorter. Never restore a stale offset after the network response.
  window.scrollTo({left:scrollX,top:scrollY,behavior:'instant'});
 }
+// New demos start starred; explicit manual choices always win.
+function defaultDemoDevelopment(data,cards){
+ const selected=new Set(data.development||[]);
+ // Older API versions do not expose opt-outs: wait for the compatible response.
+ if(!Array.isArray(data.developmentDisabled))return selected;
+ const disabled=new Set(data.developmentDisabled);
+ for(const card of cards){
+  const {appId,created}=card.dataset;
+  if(appId && /^\d{4}-\d{2}-\d{2}$/.test(created||'') && created>='2026-11-06' && !disabled.has(appId))selected.add(appId);
+ }
+ return selected;
+}
 async function syncFavsFromServer(){
  if(!session?.user)return;if(FAVS_SYNC_PROMISE)return FAVS_SYNC_PROMISE;
- FAVS_SYNC_PROMISE=(async()=>{try{const generation=PROJECT_LIST_GENERATION;const data=await apiFetch('/portal-project-lists');FAVS=new Set(data.favorites||[]);const next=new Set(data.development||[]);for(const id of DEVELOPMENT_PENDING){if(DEVELOPMENT.has(id))next.add(id);else next.delete(id);}if(generation===PROJECT_LIST_GENERATION)DEVELOPMENT=next;FAVS_SYNCED=true;refreshFavsUi();}catch(error){console.warn('shared project lists:',error);}finally{FAVS_SYNC_PROMISE=null;}})();
+ FAVS_SYNC_PROMISE=(async()=>{try{const generation=PROJECT_LIST_GENERATION;const data=await apiFetch('/portal-project-lists');FAVS=new Set(data.favorites||[]);const next=defaultDemoDevelopment(data,document.querySelectorAll('#clientDemoProjects > .tool-card[data-app-id]'));for(const id of DEVELOPMENT_PENDING){if(DEVELOPMENT.has(id))next.add(id);else next.delete(id);}if(generation===PROJECT_LIST_GENERATION)DEVELOPMENT=next;FAVS_SYNCED=true;refreshFavsUi();}catch(error){console.warn('shared project lists:',error);}finally{FAVS_SYNC_PROMISE=null;}})();
  return FAVS_SYNC_PROMISE;
 }
 async function toggleDevelopment(id){

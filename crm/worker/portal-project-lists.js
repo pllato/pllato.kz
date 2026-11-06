@@ -5,3 +5,9 @@ export function developmentChange(body){
  if(!body||typeof body.projectId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(body.projectId)||typeof body.enabled!=='boolean')return null;
  return {id:'development_'+body.projectId,projectId:body.projectId,enabled:body.enabled};
 }
+export function developmentLists(choices){
+ return {
+  development:choices.filter(row=>row.enabled===true).map(row=>row.projectId),
+  developmentDisabled:choices.filter(row=>row.enabled===false).map(row=>row.projectId),
+ };
+}

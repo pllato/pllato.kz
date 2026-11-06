@@ -6,7 +6,7 @@ import productionSources from './production-sources.json';
 import { normalizeCustomPaymentPlan } from './payment-plan.js';
 import {SOCIAL_COLLECTION,socialAccess,socialSeries,socialTotalSeries,handleSocialPublications} from './social-publications.js';
 import {fetchDemoChartSeries} from './demo-chart.js';
-import {paidProjectIds,developmentChange} from './portal-project-lists.js';
+import {paidProjectIds,developmentChange,developmentLists} from './portal-project-lists.js';
 import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
 import { PLAN_COLLECTION, handleFinancialPlanning } from './financial-planning.js';
 import { PAYOUT_COLLECTION, handleProjectPayouts } from './project-payouts.js';
@@ -8880,8 +8880,8 @@ export default {
         const finance=await d1GetDoc(env,PRIVATE_PROJECT_FINANCE_COLLECTION,PRIVATE_PROJECT_FINANCE_ID);
         await ensureD1Schema(env);
         const {results}=await requireStoreDb(env).prepare("SELECT data FROM store WHERE team_id=? AND collection=? AND id LIKE 'development_%'").bind(TEAM_ID,PRIVATE_PROJECT_FINANCE_COLLECTION).all();
-        const development=(results||[]).map(r=>JSON.parse(r.data)).filter(r=>r.enabled).map(r=>r.projectId);
-        return json(request,env,{favorites:paidProjectIds(finance),development});
+        const lists=developmentLists((results||[]).map(r=>JSON.parse(r.data)));
+        return json(request,env,{favorites:paidProjectIds(finance),...lists});
       }
 
       if (["GET", "PUT"].includes(request.method) && path === "/project-finance/managers") {
