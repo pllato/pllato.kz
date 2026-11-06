@@ -858,6 +858,9 @@ body {
 .fc-modal-list fieldset > label { margin:8px 0; }
 
 .search-hidden { display:none !important; }
+/* Keep the disclosure control available while searching for a payment card. */
+.finance-charts.search-active > :not(.fc-head),
+.finance-charts.search-active .fc-period-switch { display:none !important; }
 .fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .fc-head p { color: var(--text-3); font-size: 11.5px; }
@@ -10007,7 +10010,7 @@ function applyProjectFilters(){
   if(summary) summary.textContent=projectDateFilterIsActive()?`По выбранным датам: ${visibleCount} из ${availableCount}`:'';
   syncProjectDateFilterControls();
   document.getElementById('moneySum')?.classList.toggle('search-hidden',searchTokens.length>0);
-  document.getElementById('financeCharts')?.classList.toggle('search-hidden',searchTokens.length>0);
+  document.getElementById('financeCharts')?.classList.toggle('search-active',searchTokens.length>0);
   document.getElementById('leadAnalyticsSlot')?.classList.toggle('search-hidden',searchTokens.length>0);
   updateSectionVisibility();
   updateTabCounts();
