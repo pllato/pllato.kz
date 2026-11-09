@@ -1460,7 +1460,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       <!-- Все новые клиентские демо добавляем в эту сетку: они видны во «Все»,
            но не попадают во вкладку «Инструменты для продаж». -->
 
-      <div class="tool-card" data-app-id="gurme_esen" data-created="2026-11-07" data-updated="2026-11-07" data-crm-deal-id="deal_meta_1495763485706115" data-transcript-id="zoom:03848a77-b8ff-4c30-b879-a31c5b38931b">
+      <div class="tool-card" data-app-id="gurme_esen" data-contact-name="Есен" data-created="2026-11-07" data-updated="2026-11-07" data-crm-deal-id="deal_meta_1495763485706115" data-transcript-id="zoom:03848a77-b8ff-4c30-b879-a31c5b38931b">
         <div class="tool-icon" style="background:#3d4a2a;color:#d08a3c;font-size:11px;font-weight:900;letter-spacing:.04em">ГУР</div>
         <h3>Sayahat Gurme · консервное производство: сырьё, цех, склад, маркетплейсы, 1С (Есен) — Демо + КП</h3>
         <p>Встреча 07.11: питание длительного хранения (походное, военное), расширение цеха через 2 мес. Нужно: сырьё → цех по калькуляции из 1С → выход пакетов, ужарка и потери → склад ГП с адресами → магазины, консигнация; сканеры во всех блоках, приёмка видна бухгалтеру сразу; цены на Kaspi/Ozon/WB/сайт каждые 30 мин; Claude через MCP на ТВ. <b>Демо:</b> 20 экранов, 6 ролей (вымышленная «Сапар Гурме»). <b>КП:</b> 13 стр., 2 500 000 ₸ + 1С 800 000 ₸, 4–6 недель, 30/40/30. Встреча 08.11 в 11:00.</p>
@@ -7892,15 +7892,19 @@ async function loadFinanceWeekTasks(){
   FINANCE_WEEK_TASKS_LOADED=true;
 }
 function demoOrderTaskTitle(record){
-  const client=String(record.contactName||record.crmDealTitle||record.title||record.projectId||'').trim();
+  const name=String(record.contactName||'').trim();
+  const project=String(record.title||record.crmDealTitle||record.projectId||'').trim();
+  const client=name ? (project.startsWith(name)?project:`${name} — ${project}`) : String(record.crmDealTitle||project).trim();
   return `${client} — Связаться после демо`;
 }
 function financeDemoTaskText(task){
   const text=String(task.text||'');
-  if(task.source!=='demo-followup' || !text.startsWith('Связаться после демо — '))return text;
+  if(task.source!=='demo-followup')return text;
   const record=appDemoRecords().find(record=>record.projectId===task.sourceProjectId);
   // Only replace the original generated title; preserve manually edited tasks.
-  return record && text===`Связаться после демо — ${record.title}`?demoOrderTaskTitle(record):text;
+  if(!record)return text;
+  const defaults=[`Связаться после демо — ${record.title}`,`${record.title} — Связаться после демо`,`${record.crmDealTitle||record.title} — Связаться после демо`];
+  return defaults.includes(text)?demoOrderTaskTitle(record):text;
 }
 // Only newly published demos enter the sales follow-up queue; legacy catalog is not backfilled.
 function demoOrderFollowups(records,existing,now=Date.now()){
@@ -8474,7 +8478,7 @@ function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
   const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount" type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Ответственный менеджер<select id="financeTaskManager"${canSeeProjectMoney()?'':' disabled'}>${managerOptions(existing?.managerEmail||CURRENT?.email||'')}</select></label></div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?financeDemoTaskText(existing):'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Ответственный менеджер<select id="financeTaskManager"${canSeeProjectMoney()?'':' disabled'}>${managerOptions(existing?.managerEmail||CURRENT?.email||'')}</select></label></div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
   document.body.appendChild(ovl);
   const input=document.getElementById('financeWeekTaskText');
   ovl.querySelectorAll('input').forEach(field=>field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}}));
@@ -9325,7 +9329,7 @@ function openFinanceCommentEditor(kind,start,end,commentId=''){
   ovl.id='financeCommentOvl';
   ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новый'} комментарий</h3><span class="mm-x" onclick="document.getElementById('financeCommentOvl').remove()">✕</span></div><div class="mm-b fc-comment-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div></div><label for="fcCommentText">Что было сделано или что нужно сделать</label><textarea id="fcCommentText" maxlength="1000" placeholder="Напишите короткий комментарий к этому периоду…">${mEsc(existing?.text||'')}</textarea></div><div class="mm-f"><button onclick="document.getElementById('financeCommentOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceComment('${kind}',${Number(start)},${Number(end)},'${mEsc(commentId)}')">Сохранить</button></div></div>`;
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новый'} комментарий</h3><span class="mm-x" onclick="document.getElementById('financeCommentOvl').remove()">✕</span></div><div class="mm-b fc-comment-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div></div><label for="fcCommentText">Что было сделано или что нужно сделать</label><textarea id="fcCommentText" maxlength="1000" placeholder="Напишите короткий комментарий к этому периоду…">${mEsc(existing?financeDemoTaskText(existing):'')}</textarea></div><div class="mm-f"><button onclick="document.getElementById('financeCommentOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceComment('${kind}',${Number(start)},${Number(end)},'${mEsc(commentId)}')">Сохранить</button></div></div>`;
   document.body.appendChild(ovl);
   setTimeout(()=>ovl.querySelector('textarea')?.focus(),0);
 }
