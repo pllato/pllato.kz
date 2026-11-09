@@ -16,3 +16,12 @@ const zeroData={sources:[source('zero','Zero person','codex',0),source('active',
 const list=api.peopleList(zeroData,periods[1]);
 assert(!list.includes('Zero person'));assert(list.includes('Active person'));assert(list.includes('Unknown person'));
 assert.equal(api.people(zeroData).length,3); // Hide rows, never delete connections.
+// Employee details start collapsed; choice survives chart refreshes.
+assert(!/class="pa-people" open/.test(api.card(data,periods)));
+api.togglePeople(true);
+assert(/class="pa-people" open/.test(api.card(data,periods)));
+api.togglePeople(false);
+const withTasks=api.card(data,periods,{tasksHtml:'<section data-task-kind="production">Дела недели</section>'});
+assert(withTasks.includes('data-task-kind="production"'));
+assert(withTasks.indexOf('Дела недели')<withTasks.indexOf('class="pa-people"'));
+assert(!/class="pa-people" open/.test(withTasks));
