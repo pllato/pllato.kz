@@ -42,7 +42,7 @@ test('follow-up starts with the contact from the linked deal',()=>{
  const c=setup();
  const [task]=c.demoOrderFollowups([{...record,crmDealTitle:'Александр Разинков · оборудование'}],[],now);
  assert.equal(task.text,'Александр Разинков · оборудование — Связаться после демо');
- assert.equal(c.demoOrderTaskTitle({...record,contactName:'Руслан',crmDealTitle:'Компания'}),'Руслан — Связаться после демо');
+ assert.equal(c.demoOrderTaskTitle({...record,contactName:'Руслан',crmDealTitle:'Компания'}),'Руслан — Клиент — Связаться после демо');
  assert.equal(c.demoOrderTaskTitle(record),'Клиент — Связаться после демо');
 });
 test('legacy default labels update without changing custom tasks or stored state',()=>{
@@ -50,4 +50,14 @@ test('legacy default labels update without changing custom tasks or stored state
  assert.equal(c.financeDemoTaskText(task),'Клиент — Связаться после демо');
  assert.equal(task.text,'Связаться после демо — Клиент');
  for(const custom of [{...task,text:'Гаухар на пятницу. Связаться после демо'}, {...task,text:task.text+' завтра'}, {...task,source:'manual'}])assert.equal(c.financeDemoTaskText(custom),custom.text);
+});
+
+test('contact prefixes company and existing generated task in the editor',()=>{
+ const c=setup(),entry={...record,contactName:'Есен',title:'Sayahat Gurme (Есен) — Демо + КП'};
+ c.appDemoRecords=()=>[entry];
+ const expected='Есен — Sayahat Gurme (Есен) — Демо + КП — Связаться после демо';
+ assert.equal(c.demoOrderTaskTitle(entry),expected);
+ assert.equal(c.financeDemoTaskText({source:'demo-followup',sourceProjectId:'client',text:entry.title+' — Связаться после демо'}),expected);
+ assert.equal(c.financeDemoTaskText({source:'demo-followup',sourceProjectId:'client',text:'Есен перезвонить в пятницу'}),'Есен перезвонить в пятницу');
+ assert.ok(html.includes("mEsc(existing?financeDemoTaskText(existing):'')"));
 });
