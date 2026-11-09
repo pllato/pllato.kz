@@ -32,3 +32,33 @@
 .project-crm-row a { flex:none; color:var(--bronze-deep,#8c653e); text-decoration:none; font-weight:700; line-height:1.5; }
 .project-crm-row a:hover { text-decoration:underline; }
 .project-crm-row :is(a,summary):focus-visible { outline:2px solid var(--bronze-deep,#8c653e); outline-offset:3px; }
+
+/* Client overview: compact spacing, full titles and touch-safe actions. */
+.tool-card[data-group="Работа с клиентами"] { gap:6px 8px; padding:14px; align-self:start; }
+.tool-card[data-group="Работа с клиентами"] > .tool-icon { width:32px; height:32px; margin:0; font-size:12px!important; border-radius:9px; }
+.tool-card[data-group="Работа с клиентами"] > h3 { font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+.tool-card[data-group="Работа с клиентами"] .project-controls { gap:4px 8px; }
+.tool-card[data-group="Работа с клиентами"] .project-controls select { min-height:30px; padding:4px 6px; }
+.tool-card[data-group="Работа с клиентами"] .project-controls .done-toggle { min-height:24px; padding:3px 6px; }
+.tool-card[data-group="Работа с клиентами"] > .project-context { flex-basis:100%; margin:2px 0; padding:8px 0; font-size:12px; }
+.tool-card[data-group="Работа с клиентами"] .pc-contact > div { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; }
+.tool-card[data-group="Работа с клиентами"] .pc-contact small { flex-basis:100%; margin:0; font-size:10px; }
+.tool-card[data-group="Работа с клиентами"] .pc-contact b { font-size:13px; }
+.tool-card[data-group="Работа с клиентами"] .pc-contact a { margin:0; font-size:12px; white-space:nowrap; }
+.tool-card[data-group="Работа с клиентами"] .pc-tasks:not(:empty) { margin-top:7px; }
+.tool-card[data-group="Работа с клиентами"] .pc-task { margin-top:5px; gap:7px; }
+.tool-card[data-group="Работа с клиентами"] .pc-task small { margin-top:1px; font-size:10px; line-height:1.35; }
+.tool-card[data-group="Работа с клиентами"] .pc-tasks summary { margin-top:5px; }
+.tool-card[data-group="Работа с клиентами"] > .tool-cta { margin:0; min-height:28px; }
+.tool-card[data-group="Работа с клиентами"] > .tool-dd { padding-top:4px; }
+.tool-card[data-group="Работа с клиентами"] > .tool-dd > summary { padding:3px 0; font-size:12px; }
+/* Group all document/payment actions without moving DOM nodes or handlers. */
+.tool-card[data-group="Работа с клиентами"] > :is(.lnk-btn,.project-contract-button,.project-payouts-button) { order:1; }
+.tool-card[data-group="Работа с клиентами"] > .money-strip { order:2; padding-top:6px; }
+.tool-card[data-group="Работа с клиентами"] > .project-crm-links { order:3; padding-top:5px; }
+.tool-card[data-group="Работа с клиентами"] .project-meetings { padding:5px 0 0; font-size:11px; }
+.tool-card[data-group="Работа с клиентами"] .project-meetings button { margin:2px 0; padding:5px 8px; min-height:30px; }
+.tool-card[data-group="Работа с клиентами"] .project-meetings summary { padding:6px 0; }
+@media (pointer:coarse) {
+  .tool-card[data-group="Работа с клиентами"] :is(.project-controls select,.done-toggle,.lnk-btn,.project-contract-button,.project-payouts-button,.project-meetings button) { min-height:40px; }
+}
