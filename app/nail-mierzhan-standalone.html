@@ -1,0 +1,948 @@
+<!doctype html>
+<!--
+  Автономная версия демо «Лакмус Про · касса, опт, производство, кабинеты · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/nail-mierzhan.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Лакмус Про · касса, опт, производство, кабинеты · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%235a1a2b'/><path d='M30 44h40v34a8 8 0 0 1-8 8H38a8 8 0 0 1-8-8z' fill='%23c48b72'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@400;500;600;700;800&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#2b1118;--rail2:#1f0b11;--rail-h:#4a1c28;--rail-a:#e2b39c;
+ --brand:#7a2238;--brand2:#e2b39c;--brandl:#f6e6e3;--steel:#8a7b7e;
+ --bg:#f8f3f0;--card:#ffffff;--card2:#fbf7f5;--card3:#efe5e1;
+ --text:#26161b;--muted:#6b5a5f;--muted2:#9a888c;--line:#ebdfdb;--line2:#d6c5c0;
+ --acc:#b37661;--acc2:#e2b39c;--accl:#f8e8df;
+ --ok:#2f7a4f;--ok-l:#e3f1e8;--bad:#b8322e;--bad-l:#f9e3e1;--warn:#a5650d;--warn-l:#faeedb;
+ --info:#3d5f86;--info-l:#e6edf5;--violet:#6b5a5f;--violet-l:#f0eaea;
+ --r:10px;--sh:none;--sh2:0 16px 40px rgba(43,17,24,.25);
+}
+body.dark{
+ --bg:#160b0e;--card:#211216;--card2:#28161b;--card3:#331d23;--brand:#e2a3b1;
+ --text:#f2e6e8;--muted:#b7a2a7;--muted2:#806b70;--line:#33202a;--line2:#462c35;
+ --brandl:#3a1a24;--accl:#3a2219;--ok-l:#16281c;--bad-l:#2f1717;--warn-l:#2f2412;--info-l:#18243a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Golos Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#d8b25a}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'JetBrains Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'JetBrains Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'JetBrains Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#6e4620;border-color:#6e4620;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'JetBrains Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'JetBrains Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'JetBrains Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'JetBrains Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* ===== Жайык: тёмно-зелёный, янтарь, бумажный фон · Golos Text + JetBrains Mono ===== */
+body{background:var(--bg);color:var(--text)}
+.bad{color:var(--bad)!important}.ok{color:var(--ok)!important}
+.gate-l{background:var(--rail);background-image:radial-gradient(circle at 85% 20%,#d9a4411f,transparent 50%)}
+.gname{font-size:18px;font-weight:800;color:#fff;display:block;letter-spacing:.12em}.gsub{font:600 8px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#a9b0b6}
+.gate h1{font-size:36px;margin:16px 0 14px}.gate h1 em{color:#d9a441}.gate p{color:#c0c5ca}.gtag{margin-top:34px;border-color:#5a4a10;background:#2d2710;color:#f5c842}.gstat{border-top-color:#3a444e}.gstat b.a{color:#d9a441}
+.role .rav{background:var(--brand);color:#fff}
+/* каркас: верхние вкладки + левая колонка подразделов */
+.app{display:flex;flex-direction:column;height:100vh}
+.mast{display:flex;align-items:center;gap:18px;padding:0 18px;height:56px;background:var(--rail);flex:none}
+.brandm{display:flex;align-items:center;gap:10px;color:#fff}.brandm b{font-size:14px;font-weight:800;letter-spacing:.16em}
+#rail{display:flex;height:100%;overflow-x:auto}#rail::-webkit-scrollbar{height:0}
+#rail .ri{all:unset;display:flex;align-items:center;padding:0 14px;height:100%;cursor:pointer;font-size:12.8px;font-weight:600;color:#b3b9be;box-sizing:border-box;white-space:nowrap}
+#rail .ri span{font-size:12.8px;font-weight:inherit;line-height:1}
+#rail .ri:hover{color:#fff}#rail .ri.on{color:#23292f;background:var(--brand2)}
+.mast .top-r{margin-left:auto}.mast .srch{background:#323a42;border-color:#3a444e}.mast .srch input{color:#fff}.mast .ib,.mast .rsel{background:#323a42;border-color:#3a444e;color:#fff}.mast .rsel option{color:#000}.mast .me{background:var(--brand2);color:#23292f}
+.body2{flex:1;display:grid;grid-template-columns:210px 1fr;min-height:0}
+#sub{width:auto;border-right:1px solid var(--line);background:var(--card)}
+#sub a{gap:10px}#sub a code{font:600 9.4px 'JetBrains Mono',monospace;color:var(--muted2)}#sub a.on code{color:var(--brand)}
+.main{min-height:0}
+.bt.p{background:var(--brand);border-color:var(--brand)}.bt.p:hover{background:#2a3036;border-color:#2a3036}
+.bt.sm{padding:4px 8px;font-size:10.2px}.bt.full{width:100%;margin-top:7px}.bt[disabled]{opacity:.45;pointer-events:none}.btns.l{justify-content:flex-start;margin-top:12px}
+.sel{height:30px;border:1px solid var(--line2);border-radius:6px;background:var(--card);font-size:11.6px;padding:0 8px;color:var(--text)}input.sel{cursor:text}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden;background:var(--card)}.seg a{padding:6px 12px;font-size:11.2px;cursor:pointer;border-left:1px solid var(--line2);color:var(--text)}.seg a:first-child{border:0}.seg a.on{background:var(--brand);color:#fff}
+.live{display:inline-flex;align-items:center;gap:6px;font:500 9.8px 'JetBrains Mono',monospace;color:var(--ok);border:1px solid var(--line);padding:6px 9px;border-radius:6px;background:var(--card)}.live i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.dt{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted2);flex:none}.dt.r{background:var(--bad)}.dt.w{background:var(--warn)}.dt.g{background:var(--ok)}.dt.i{background:var(--info)}
+.tm{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:0}
+.kv span{color:var(--muted)}.kv b{color:var(--text)}.kv.tot{border-top:2px solid var(--text)!important}.kv.tot b{color:var(--brand);font-size:16px}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border:1px solid var(--line);border-left:5px solid var(--brand2);border-radius:var(--r);margin-bottom:12px}
+.strip>div{padding:12px 15px;border-left:1px solid var(--line)}.strip>div:first-child{border:0}.strip small{display:block;font:600 8.6px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}.strip b{display:block;font-size:20px;font-weight:800;margin:4px 0 2px;font-variant-numeric:tabular-nums}.strip span{font-size:10.4px;color:var(--muted)}.strip .bar{margin:4px 0}
+.alist a{display:grid;grid-template-columns:14px 1fr;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--text)}.alist a:last-child{border:0}.alist .dt{margin-top:4px;grid-row:span 2}.alist b{font-size:12px}.alist span{font-size:10.6px;color:var(--muted)}
+.trow{display:grid;grid-template-columns:12px 1fr;gap:1px 8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--text);font-size:11.6px}.trow .dt{margin-top:4px;grid-row:span 2}.trow span{font-size:10.4px;color:var(--muted)}
+.alert{background:var(--bad-l);border-left:4px solid var(--bad);padding:9px 12px;font-size:11.4px;margin:8px 0}
+table.t.sm td,table.t.sm th{padding:7px 9px}
+/* карта */
+.mapw{display:grid;grid-template-columns:1fr 340px;gap:12px}
+.map{position:relative;height:520px;background:#f7f5ec;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}.mbg2{position:absolute;inset:0;width:100%;height:100%}
+.pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.pin i{width:16px;height:16px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 2px 6px #0003}
+.pin span{font-size:10px;font-weight:700;background:#fff;color:#15212b;padding:1px 6px;border-radius:8px;margin-top:3px;box-shadow:0 1px 3px #0002}
+.pin.on i{width:22px;height:22px;outline:3px solid var(--brand2)}.pin.out i{background:var(--bad)}
+.rv{display:grid;grid-template-columns:24px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--text);cursor:default}
+.rv>b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;background:var(--card3)}.rv em{display:block;font-style:normal;font-weight:600;font-size:11.8px}.rv span{font-size:10.4px;color:var(--muted)}
+.rv.ord>b{background:var(--ok);color:#fff}.rv.ref>b{background:var(--bad);color:#fff}.rv.now{background:var(--accl);cursor:pointer}.rv.now>b{background:var(--brand2);color:#23292f}
+table.rt td{cursor:pointer;vertical-align:top}table.rt .today{background:var(--accl)}
+/* телефон */
+.phw{display:grid;grid-template-columns:310px 1fr;gap:18px;align-items:start}
+.phone3{background:var(--rail);border-radius:32px;padding:12px}.phs{background:var(--card);border-radius:22px;padding:14px;color:var(--text);min-height:520px}
+.phtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px}.phtop span{font-size:10px;color:var(--muted);text-align:right}
+.gpsok{display:flex;align-items:center;gap:7px;background:var(--ok-l);color:var(--ok);font-size:11.4px;font-weight:600;padding:8px 10px;border-radius:8px;margin-bottom:6px}.gpsok i{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.photo{border:1.5px dashed var(--line2);border-radius:8px;padding:14px;text-align:center;margin:8px 0;cursor:pointer}.photo b{display:block;font-size:12px}.photo small{font-size:9.8px;color:var(--muted)}.photo.ok{border-color:var(--ok);background:var(--ok-l)}.photo.ok b{color:var(--ok)}
+.ci2{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--line)}.ci2 b{font-size:11px;display:block}.ci2 small{font-size:9.6px;color:var(--muted)}
+.stepr{display:flex;align-items:center;gap:4px}.stepr button{width:28px;height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--card2);font-size:15px}.stepr span{min-width:22px;text-align:center;font-weight:700}
+.chipr{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.chipr.col{flex-direction:column}.chipr a{border:1px solid var(--line2);border-radius:14px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--text)}.chipr a.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.ta{width:100%;min-height:50px;border:1px solid var(--line2);border-radius:8px;padding:8px;font:inherit;font-size:11.4px;background:var(--card);color:var(--text);box-sizing:border-box}
+.dv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.dv em{display:block;font-style:normal;font-weight:600;font-size:11.8px}.dv span{font-size:10.2px;color:var(--muted)}.dv.done em{color:var(--muted)}
+/* канбан */
+.kanban{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}.kanban.k4{grid-template-columns:repeat(4,minmax(200px,1fr))}
+.kcol{background:var(--card3);border-radius:var(--r);padding:7px;min-height:300px}.kh{display:flex;justify-content:space-between;padding:3px 4px 8px;font-size:11.8px}.kh span{font:500 10px 'JetBrains Mono',monospace;color:var(--muted)}
+.kc{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:5px;padding:9px 10px;margin-bottom:6px;cursor:pointer;font-size:11.4px;color:var(--text)}.kc code{font-size:9px;color:var(--muted2)}.kc b{display:block;margin:2px 0}.kc span{display:block;font-size:10.4px;color:var(--muted)}.kc em{display:block;font-style:normal;font-weight:700;margin:5px 0;font-variant-numeric:tabular-nums}
+.kempty{font-size:10.4px;color:var(--muted2);text-align:center;padding:20px 0;border:1px dashed var(--line2);border-radius:5px}
+.qin{width:76px;height:28px;border:1px solid var(--line2);border-radius:5px;text-align:right;padding:0 7px;background:var(--card);color:var(--text);cursor:text}
+.phg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.phc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px}.phc b{display:block;font-size:12px;margin-top:8px}.phc span{font-size:10.2px;color:var(--muted)}
+.shelf{background:#3a3a36;padding:6px;border-radius:4px;display:grid;gap:5px}.shelf>div{display:flex;gap:3px;align-items:flex-end;height:42px;border-bottom:3px solid #8a8678}.shelf i{flex:1;border-radius:2px 2px 0 0}
+table.pnl tr.sum td{font-weight:700;background:var(--card2)}
+.kpig{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kph{display:flex;align-items:center;gap:4px;margin-bottom:6px}.kph b{flex:1;font-size:12.6px}.kph em{font-style:normal;font-weight:800;font-size:16px}.kp .kv small{color:var(--muted2)}
+table.perm th.c,table.perm td.c{text-align:center}.pm{display:inline-grid;place-items:center;width:22px;height:22px;border:1.5px solid var(--line2);border-radius:4px;cursor:pointer;color:#fff}.pm.on{background:var(--brand);border-color:var(--brand)}
+.pan.opt code{font:600 9px 'JetBrains Mono',monospace;color:var(--muted2)}.pan.opt.on{border:2px solid var(--brand)}.pan.opt.on code{color:var(--brand)}.ck{font-size:11.8px;padding:5px 0}.ck.no{color:var(--muted)}
+.flow4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.flow4>div{background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:10px;font-size:11.4px}.flow4 b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--brand);color:#fff;font-size:10px;margin-right:6px}
+@media(max-width:1200px){.kpig,.phg{grid-template-columns:repeat(2,1fr)}.strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:980px){
+ .mast{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}.brandm{order:1}.mast .top-r{order:2;margin-left:auto}#rail{order:3;width:100%;height:38px}.mast .srch{display:none}
+ .body2{grid-template-columns:1fr;grid-template-rows:auto 1fr}#sub{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:4px 0}#sub h4,#sub .shint{display:none}#sub a{white-space:nowrap;border-left:0;border-bottom:2px solid transparent}#sub a.on{border-bottom-color:var(--brand)}
+ .content{padding:12px 10px 24px}.strip{grid-template-columns:1fr 1fr}.strip>div{border-left:0;border-top:1px solid var(--line)}
+ .mapw,.phw,.flow4{grid-template-columns:1fr}.map{height:380px}
+ .gate{grid-template-columns:1fr;height:auto;min-height:100vh}.gate-l{padding:28px 20px}.gate h1{font-size:28px}.gstat{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){.hd{flex-direction:column}.btns{justify-content:flex-start}.kpig,.phg{grid-template-columns:1fr}.mast .rsel{max-width:140px}}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.gnt td.gc{padding:6px 2px}.gb{display:block;height:14px;border-radius:3px;background:linear-gradient(90deg,var(--brand) var(--f),var(--brandl) var(--f))}.gb.g{background:var(--ok)}.gb.r{background:linear-gradient(90deg,var(--warn) var(--f),var(--warn-l) var(--f))}
+.wchat{display:flex;flex-direction:column;gap:6px;margin:8px 0}.wm{max-width:78%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--card3)}.wm.out{align-self:flex-end;background:var(--brandl)}.wm small{display:block;font-size:9px;color:var(--muted2);text-align:right}
+.mzt{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}.phs h4{margin:12px 0 4px;font-size:12px}.phs .bt.full{margin-top:6px}
+.stepr{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}.stepr span{flex:1;min-width:90px;padding:7px 8px;font-size:11px;background:var(--card3);color:var(--muted);border-radius:4px}.stepr span.on{background:var(--brand);color:#fff}
+/* ТрейлерГо */
+.vbars{display:flex;align-items:flex-end;gap:5px;height:150px;padding-top:14px;border-bottom:1px solid var(--line2)}.vbars div{flex:1;position:relative;background:var(--brand);border-radius:3px 3px 0 0;min-width:6px}.vbars div.y{background:var(--acc2)}.vbars div em{position:absolute;top:-14px;left:0;right:0;text-align:center;font:600 9px 'JetBrains Mono',monospace;font-style:normal;color:var(--muted)}
+.vlab{display:flex;gap:5px;margin-top:4px}.vlab span{flex:1;text-align:center;font:500 9px 'JetBrains Mono',monospace;color:var(--muted2)}
+.hb{display:grid;grid-template-columns:120px 1fr 70px;gap:8px;align-items:center;font-size:11.6px;padding:4px 0}.hb i{display:block;height:12px;border-radius:2px;background:var(--brand)}.hb i.y{background:var(--acc2)}.hb b{text-align:right;font-variant-numeric:tabular-nums}
+.cams{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.cam{position:relative;aspect-ratio:16/10;background:#1c2126;border-radius:6px;overflow:hidden;cursor:pointer}.cam svg{position:absolute;inset:0;width:100%;height:100%}.cam b{position:absolute;left:8px;top:6px;font:600 10px 'JetBrains Mono',monospace;color:#fff}.cam small{position:absolute;right:8px;top:6px;font:600 9.5px 'JetBrains Mono',monospace;color:#ff6b5b}.cam span{position:absolute;left:8px;bottom:6px;font-size:10.5px;color:#e8eaec}
+.qr{display:grid;grid-template-columns:repeat(7,1fr);width:92px;height:92px;gap:2px;padding:6px;background:#fff;border:1px solid var(--line2);border-radius:6px}.qr i{background:#1b1f23}.qr i.w{background:#fff}
+.calopt{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}.calopt a{padding:7px 10px;font-size:11.6px;border:1px solid var(--line2);border-radius:4px;cursor:pointer;background:var(--card)}.calopt a.on{background:var(--rail);color:#fff;border-color:var(--rail)}
+.tlv{border-left:2px solid var(--line2);margin-left:6px;padding-left:14px}.tlv div{position:relative;padding:4px 0 10px;font-size:12px}.tlv div:before{content:'';position:absolute;left:-20px;top:7px;width:10px;height:10px;border-radius:50%;background:var(--c,var(--brand))}.tlv small{display:block;color:var(--muted);font-size:10.4px}
+.ocal td.cc{padding:5px 1px}.ocal td.cc i{display:block;height:16px;border-radius:2px}.ocal i.r{background:var(--brand)}.ocal i.l{background:var(--bad)}.ocal i.b{background:var(--acc2)}.ocal i.x{background:var(--card3)}
+.dgv{background:#fff;color:#1b1f23;border:1px solid var(--line2);border-radius:4px;padding:16px 18px;font:12px/1.55 'PT Serif',Georgia,serif}.dgv h4{text-align:center;margin:0 0 8px;font:700 13px 'Golos Text',sans-serif}.dgv .sg{margin-top:10px;padding:8px;border:1.5px dashed var(--ok);color:var(--ok);font:600 11px 'JetBrains Mono',monospace}
+.endp{font:500 11px 'JetBrains Mono',monospace}.endp b{display:inline-block;min-width:44px;color:var(--brand)}
+@media(max-width:980px){.cams{grid-template-columns:1fr}.hb{grid-template-columns:90px 1fr 60px}}
+.mlab{position:absolute;font:600 10.5px 'Golos Text',sans-serif;color:#8a6400;background:#fffbe9;padding:2px 7px;border-radius:3px;border:1px solid #f2d36b;white-space:nowrap}.mlab.g{color:#55606a;background:#f3f3f1;border-color:#d4d6d2}.mlab.r{color:#5f8aa3;background:transparent;border:0;font-style:italic}
+.fgmap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.fgz{background:var(--card3);border-radius:var(--r);padding:8px;display:grid;gap:6px}.fgz>b{font-size:11px;color:var(--muted)}
+.fgc{display:block;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:4px;padding:7px 8px;cursor:pointer;color:var(--text)}.fgc code{font:600 9.5px 'JetBrains Mono',monospace;color:var(--muted2)}.fgc span{display:block;font-size:11px;font-weight:600;margin:2px 0}.fgc em{font-style:normal;font:600 10px 'JetBrains Mono',monospace;color:var(--muted)}
+.fgc.on{border-left-color:var(--acc2);background:var(--accl)}.fgc.lo{border-left-color:var(--bad)}
+@media(max-width:980px){.fgmap{grid-template-columns:1fr 1fr}}
+/* ===== Лакмус Про: винный, нюд, розовое золото · Onest + Lora · левая колонка разделов + вкладки сверху ===== */
+body,button,input,select{font-family:'Onest','Golos Text',sans-serif}
+.hd h2,.pan h3,.gate h1,.lform h2{font-family:'Lora',Georgia,serif;letter-spacing:0}
+.gate-l{background:var(--rail);background-image:radial-gradient(circle at 85% 18%,#c48b7230,transparent 55%)}
+.gate h1 em{color:#e2b39c}.gtag{border-color:#6a3a2c;background:#3a1a20;color:#f0c8b3}.gstat b.a{color:#e2b39c}.gsub{color:#c9aeb0}
+.app{display:grid!important;grid-template-columns:212px 1fr;height:100vh}
+.app.hidden{display:none!important}
+.side{background:var(--rail);display:flex;flex-direction:column;min-height:0}
+.side .brandm{padding:16px 16px 18px;color:#fff;display:flex;align-items:center;gap:10px}.side .brandm b{display:block;font:800 14px 'Onest';letter-spacing:.2em}.side .brandm small{font:600 9px 'JetBrains Mono',monospace;letter-spacing:.3em;color:#e2b39c}
+.side #rail{display:flex;flex-direction:column;height:auto;overflow-y:auto;flex:1;padding:0 8px}
+.side #rail .ri{all:unset;display:flex;align-items:center;gap:8px;padding:10px 12px;margin:1px 0;border-radius:8px;cursor:pointer;color:#cdb8bb;font-size:13px;font-weight:600}
+.side #rail .ri:before{content:'';width:6px;height:6px;border-radius:50%;background:#6b3a45}
+.side #rail .ri:hover{background:#3a1a22;color:#fff}.side #rail .ri.on{background:#e2b39c;color:#2b1118}.side #rail .ri.on:before{background:#7a2238}
+.sidef{padding:12px}.sidef .rsel{width:100%;background:#3a1a22;border:1px solid #5a2c37;color:#fff;height:32px;border-radius:8px}.sidef .rsel option{color:#000}
+.col{display:flex;flex-direction:column;min-width:0;min-height:0}
+.topb{display:flex;align-items:center;gap:12px;padding:0 16px;height:54px;background:var(--card);border-bottom:1px solid var(--line);flex:none}
+.topb #sub{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;border:0;background:none;width:auto;padding:0}
+.topb #sub h4,.topb #sub .shint{display:none}
+.topb #sub a{display:flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 11px;border-radius:8px;font-size:12.4px;color:var(--muted);cursor:pointer;border:0;margin:0}
+.topb #sub a code{font:600 9px 'JetBrains Mono',monospace;color:var(--muted2)}
+.topb #sub a.on{background:var(--brandl);color:var(--brand);font-weight:700}.topb #sub a.on code{color:var(--brand)}
+.topb .top-r{display:flex;align-items:center;gap:6px;margin-left:auto}.topb .me{background:var(--brand);color:#fff}
+.main{flex:1;min-height:0}
+.bt.p{background:var(--brand);border-color:var(--brand)}.bt.p:hover{background:#5a1a2b;border-color:#5a1a2b}
+.said{border-left-color:var(--acc);background:var(--accl)}
+.posw{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px}.posw.off .posr{border-color:var(--warn)}
+.posl,.posr{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.posbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.syncb{margin-top:10px;padding:9px 11px;border-radius:8px;background:var(--ok-l);font-size:11.6px}.syncb b{display:block;color:var(--ok)}.syncb.w{background:var(--warn-l)}.syncb.w b{color:var(--warn)}.syncb span{color:var(--muted)}
+.chk{display:flex;gap:8px;align-items:center;font-size:12px;margin:8px 0}
+.catg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.catc{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11.6px;display:flex;flex-direction:column;gap:5px}.catc b{font-size:12px}.catc span{color:var(--muted)}
+.sw{display:block;height:34px;border-radius:7px}
+.chl a{display:block;padding:9px 10px;border-radius:8px;cursor:pointer;border-bottom:1px solid var(--line)}.chl a.on{background:var(--brandl)}.chl a b{display:block;font-size:12.4px}.chl a span{font-size:10.6px;color:var(--muted)}
+.vbars div.y{background:var(--acc)}
+@media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:100vh}.side{flex-direction:row;align-items:center;overflow-x:auto}.side .brandm{padding:10px}.side #rail{flex-direction:row;padding:0}.side #rail .ri{white-space:nowrap;padding:8px 10px}.sidef{padding:6px}.sidef .rsel{width:120px}.topb{height:auto;flex-wrap:wrap;padding:8px}.topb .srch{display:none}.posw,.catg{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="54" height="54" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#5a1a2b"/><rect x="40" y="14" width="20" height="30" rx="4" fill="#e7c9b8"/><path d="M30 44h40v34a8 8 0 0 1-8 8H38a8 8 0 0 1-8-8z" fill="#c48b72"/><path d="M38 58h24" stroke="#5a1a2b" stroke-width="5" stroke-linecap="round"/></svg><div><b class="gname">ЛАКМУС ПРО</b><small class="gsub">ПРОИЗВОДСТВО И ТОРГОВЛЯ ДЛЯ МАСТЕРОВ МАНИКЮРА · 10 ФИЛИАЛОВ</small></div></div>
+  <span class="gtag">демо для Миержана · по встрече 09.11</span>
+  <h1>Своя экосистема вместо 1С — <em>касса работает даже без интернета, а салон заказывает сам с телефона.</em></h1>
+  <p>Кассы в 10 филиалах со сканером и бонусами, офлайн-режим с досылкой чеков. Оптовые заказы от заявки до оплаты с чеком. Цех: розлив и автосписание по спецификации. Склады и перемещения. Телефон торгового агента, кабинеты салона, оптовика и инструктора. Kaspi, WhatsApp и Instagram в одном окне.</p>
+  <div class="gstat"><div><small>Экранов</small><b class="a">23</b></div><div><small>Ролей и входов</small><b>9</b></div><div><small>Филиалов</small><b>10</b></div><div><small>Подписок</small><b>0</b></div></div>
+ </div>
+ <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Сотрудники и клиенты входят в одну систему — каждый видит своё.</p><div class="roles" id="roles"></div>
+  <div class="lnote"><b>Демо на вымышленных данных</b>Название, товары, цены, филиалы, клиенты и люди придуманы. Пришлёте логотип — перекрасим. Excel реально скачивается.</div></div></div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="side">
+  <div class="brandm"><svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#5a1a2b"/><rect x="40" y="14" width="20" height="30" rx="4" fill="#e7c9b8"/><path d="M30 44h40v34a8 8 0 0 1-8 8H38a8 8 0 0 1-8-8z" fill="#c48b72"/><path d="M38 58h24" stroke="#5a1a2b" stroke-width="5" stroke-linecap="round"/></svg><div><b>ЛАКМУС</b><small>ПРО</small></div></div>
+  <nav id="rail"></nav>
+  <div class="sidef"><select class="rsel" id="rsel"></select></div>
+ </aside>
+ <div class="col">
+  <header class="topb"><div id="sub"></div>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="товар, клиент, город" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <button class="ib" onclick="tour()" title="Сценарий">▶</button>
+    <button class="ib" onclick="toggleTheme()" title="Тема">◐</button>
+    <div class="me" id="me">МЖ</div>
+   </div>
+  </header>
+  <main class="main"><h1 id="ttl" class="vh">Лакмус Про</h1><div class="content" id="content"></div></main>
+ </div>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ЛАКМУС ПРО — производство и торговля товарами для маникюра (Миержан). Демо на вымышленных данных. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const tg=n=>fmt(n)+' ₸';
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const TODAY='09.11.2026',NOW='16:40';
+const tag=(t,c)=>`<span class="tag ${c||''}">${t}</span>`;
+const bar=(w,c)=>`<div class="bar"><i class="${c||''}" style="--w:${Math.max(2,Math.min(100,w))}%"></i></div>`;
+const said=(q,a)=>`<div class="said"><b>Из встречи</b><i>${q}</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
+const vbars=(arr,lab,yi)=>{const m=Math.max(...arr);return `<div class="vbars">${arr.map((v,i)=>`<div class="${yi&&yi.includes(i)?'y':''}" style="height:${Math.max(4,Math.round(v/m*100))}%"><em>${fmt(v)}</em></div>`).join('')}</div><div class="vlab">${lab.map(l=>`<span>${l}</span>`).join('')}</div>`};
+const SEC=[
+ {k:'sum',n:'Пульт',sub:[['dash','Пульт · 10 филиалов'],['branches','Продажи по филиалам'],['reports','Отчёты']]},
+ {k:'pos',n:'Магазины',sub:[['pos','Касса'],['shifts','Смены и Z-отчёт'],['kaspi','Заказы Kaspi']]},
+ {k:'opt',n:'Опт',sub:[['wsale','Оптовые заказы'],['agents','Торговые агенты'],['clients','Клиенты: мастера, салоны, опт']]},
+ {k:'prod',n:'Производство',sub:[['prod','Заказы на производство'],['spec','Спецификации']]},
+ {k:'wh',n:'Склады',sub:[['stock','Остатки по филиалам'],['moves','Перемещения'],['inv','Инвентаризация']]},
+ {k:'cab',n:'Кабинеты',sub:[['cab','Кабинет мастера / салона'],['opt','Кабинет оптовика'],['instr','Инструкторы и рефералы'],['bonus','Бонусная программа'],['auth','Проверка подлинности']]},
+ {k:'msg',n:'Чаты',sub:[['chat','WhatsApp и Instagram']]},
+ {k:'go',n:'Запуск',sub:[['move1c','Переезд с 1С'],['roles','Роли и права'],['launch','Стоимость']]}
+];
+const SECOF={},SUBN={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+const ROLES={
+ 'Собственник':{av:'МЖ',n:'Миержан',note:'Всё: 10 филиалов, кассы, опт, производство, склады, кабинеты, деньги',s:ALL.slice()},
+ 'Оптовый менеджер':{av:'ОМ',n:'Камила · опт',note:'Оптовые заказы, оплаты с чеком, клиенты, кабинеты оптовиков, чаты',s:['wsale','clients','opt','chat','kaspi','stock','agents']},
+ 'Кассир':{av:'КС',n:'Динара · касса, Алматы',note:'Касса со сканером, бонусы, офлайн, смена и Z-отчёт',s:['pos','shifts','stock']},
+ 'Кладовщик':{av:'КЛ',n:'Ербол · центральный склад',note:'Сборка заказов, перемещения в филиалы, инвентаризация',s:['stock','moves','inv','wsale','kaspi']},
+ 'Производство':{av:'ПР',n:'Айгерим · цех розлива',note:'Заказы на производство, спецификации, автосписание, выход',s:['prod','spec','stock']},
+ 'Торговый агент':{av:'ТА',n:'Мадина · агент, Алматы',note:'С телефона: салоны, остатки, заявка за салон',s:['agents','clients','stock']},
+ 'Салон / мастер':{av:'СМ',n:'Салон «Люми» · кабинет',note:'Заказ, история, бонусы — с телефона',s:['cab','bonus','auth']},
+ 'Оптовик':{av:'ОП',n:'Магазин «НейлМаркет», Уральск',note:'Свои оптовые цены, остатки по складу, корзина',s:['opt','auth']},
+ 'Инструктор':{av:'ИН',n:'Асель · обучающий мастер',note:'Кто пришёл от меня и мои бонусы',s:['instr','bonus']}
+};
+let role='Собственник',cur='dash';
+let ONLINE=true,SYNCQ=[];
+const BR=[
+ {id:'AKT',n:'Актобе',t:'головной · склад · цех',day:1184000,plan:1300000,chk:96,cash:'Динара Ж.',on:true},
+ {id:'ALA',n:'Алматы',t:'магазин · склад',day:1462000,plan:1400000,chk:118,cash:'Динара · касса 1',on:true},
+ {id:'AST',n:'Астана',t:'магазин',day:1036000,plan:1100000,chk:84,cash:'Алия',on:true},
+ {id:'KRG',n:'Караганда',t:'магазин',day:612000,plan:700000,chk:57,cash:'Жанар',on:false},
+ {id:'SHY',n:'Шымкент',t:'магазин',day:884000,plan:900000,chk:79,cash:'Гульназ',on:true},
+ {id:'URA',n:'Уральск',t:'магазин',day:402000,plan:520000,chk:41,cash:'Сабина',on:true},
+ {id:'ATY',n:'Атырау',t:'магазин',day:538000,plan:560000,chk:46,cash:'Айжан',on:true},
+ {id:'AKU',n:'Актау',t:'магазин',day:466000,plan:500000,chk:44,cash:'Мерей',on:true},
+ {id:'KOS',n:'Костанай',t:'магазин',day:318000,plan:420000,chk:33,cash:'Томирис',on:true},
+ {id:'PAV',n:'Павлодар',t:'магазин',day:354000,plan:400000,chk:36,cash:'Индира',on:true}
+];
+const BRN=id=>(BR.find(b=>b.id===id)||BR[0]).n;
+/* Номенклатура: розница / опт (−40–45%) / остатки по филиалам (AKT, ALA, AST, KRG, SHY, URA, ATY, AKU, KOS, PAV) */
+let SKU=[
+ {id:'4870101110111',a:'GL-111',n:'Гель-лак 7 мл, цвет 111 «Пион»',g:'Гель-лаки',r:2400,w:1350,st:[1840,210,160,44,120,38,52,47,30,41],min:60},
+ {id:'4870101110112',a:'GL-112',n:'Гель-лак 7 мл, цвет 112 «Бордо»',g:'Гель-лаки',r:2400,w:1350,st:[1210,180,96,12,88,40,26,31,22,18],min:60},
+ {id:'4870101110140',a:'GL-140',n:'Гель-лак 7 мл, цвет 140 «Нюд»',g:'Гель-лаки',r:2400,w:1350,st:[2260,320,240,90,150,66,70,58,44,60],min:60},
+ {id:'4870101120010',a:'BS-10',n:'База каучуковая 15 мл',g:'База и топ',r:3900,w:2200,st:[960,140,110,38,64,22,30,26,18,24],min:40},
+ {id:'4870101120020',a:'TP-20',n:'Топ без липкого слоя 15 мл',g:'База и топ',r:3900,w:2200,st:[880,96,88,30,58,9,22,20,14,16],min:40},
+ {id:'4870101130030',a:'PG-30',n:'Полигель 30 г, прозрачный',g:'Моделирование',r:5200,w:2900,st:[410,64,52,14,22,11,10,9,8,10],min:20},
+ {id:'4870101140005',a:'FL-5',n:'Файл 180/240, 5 шт.',g:'Расходники',r:900,w:480,st:[3200,420,380,150,260,110,90,95,80,88],min:100},
+ {id:'4870101150001',a:'LMP-48',n:'Лампа UV/LED 48 Вт',g:'Оборудование',r:18900,w:11200,st:[92,14,10,3,8,2,4,3,2,3],min:5},
+ {id:'4870101150020',a:'DR-35',n:'Аппарат для маникюра 35 000 об., Корея',g:'Оборудование',r:38000,w:22500,st:[38,6,5,1,3,0,2,1,1,1],min:3},
+ {id:'4870101160001',a:'CL-1',n:'Кисть для дизайна, № 1',g:'Расходники',r:1200,w:650,st:[1100,130,90,40,70,30,25,28,20,22],min:40},
+ {id:'4870101170001',a:'OL-15',n:'Масло для кутикулы 15 мл',g:'Уход',r:1500,w:820,st:[1500,200,150,60,90,48,40,38,30,34],min:50},
+ {id:'4870101180001',a:'DG-1',n:'Дегидратор 15 мл',g:'Подготовка',r:1900,w:1050,st:[720,88,70,26,40,14,18,15,10,12],min:30}
+];
+const SK=id=>SKU.find(s=>s.id===id||s.a===id)||SKU[0];
+const brI=id=>BR.findIndex(b=>b.id===id);
+/* Оптовые заказы: заявка → сборка → накладная → оплата (чек) */
+const WST=[['new','Заявка'],['pick','Сборка на складе'],['inv','Расходная накладная'],['paid','Оплачено · чек']];
+let WS=[
+ {id:'ОЗ-2214',c:'«НейлМаркет», Уральск',m:'Камила',sum:486000,st:'new',src:'кабинет оптовика',it:[['GL-111',120],['GL-140',100],['BS-10',40]],chk:null},
+ {id:'ОЗ-2213',c:'ИП Сейткали, Атырау',m:'Камила',sum:312400,st:'new',src:'WhatsApp',it:[['TP-20',60],['FL-5',200]],chk:null},
+ {id:'ОЗ-2211',c:'«Бьюти Склад», Актау',m:'Ринат',sum:828000,st:'pick',src:'агент Мадина',it:[['LMP-48',20],['GL-112',150],['DG-1',60]],chk:null},
+ {id:'ОЗ-2209',c:'«Мастер-Опт», Шымкент',m:'Ринат',sum:1140000,st:'pick',src:'звонок',it:[['DR-35',20],['BS-10',100],['TP-20',100]],chk:null},
+ {id:'ОЗ-2206',c:'«НейлМаркет», Уральск',m:'Камила',sum:402000,st:'inv',src:'кабинет оптовика',it:[['GL-111',80],['OL-15',120]],chk:null},
+ {id:'ОЗ-2203',c:'Салон «Люми», Алматы',m:'Мадина',sum:96000,st:'inv',src:'агент Мадина',it:[['GL-140',30],['CL-1',20]],chk:null},
+ {id:'ОЗ-2199',c:'«Бьюти Склад», Актау',m:'Ринат',sum:654000,st:'paid',src:'кабинет оптовика',it:[['PG-30',60],['FL-5',400]],chk:'Kaspi Pay · чек 0412'},
+ {id:'ОЗ-2196',c:'ИП Нурланова, Костанай',m:'Камила',sum:228000,st:'paid',src:'WhatsApp',it:[['GL-112',100],['DG-1',40]],chk:'перевод · платёжка 118'}
+];
+const WO=id=>WS.find(o=>o.id===id);
+/* Производство */
+let PO=[
+ {id:'ПЗ-0381',sku:'GL-111',q:600,st:'run',done:420,who:'Айгерим',d:'09.11'},
+ {id:'ПЗ-0382',sku:'BS-10',q:400,st:'plan',done:0,who:'Айгерим',d:'10.11'},
+ {id:'ПЗ-0380',sku:'GL-140',q:800,st:'done',done:796,who:'Сауле',d:'08.11'},
+ {id:'ПЗ-0379',sku:'TP-20',q:400,st:'done',done:400,who:'Сауле',d:'07.11'}
+];
+const SPEC={
+ 'GL-111':{out:'Гель-лак 7 мл, цвет 111',items:[['Флакон 7 мл, чёрный','шт',1,38],['Крышка с кистью','шт',1,46],['Наклейка «Лакмус» 111','шт',1,6],['Пигмент «Пион»','г',0.42,90],['Основа гель-лака','мл',7.1,24],['Коробка-индивидуалка','шт',1,22]]},
+ 'GL-140':{out:'Гель-лак 7 мл, цвет 140',items:[['Флакон 7 мл, чёрный','шт',1,38],['Крышка с кистью','шт',1,46],['Наклейка «Лакмус» 140','шт',1,6],['Пигмент «Нюд»','г',0.36,84],['Основа гель-лака','мл',7.1,24],['Коробка-индивидуалка','шт',1,22]]},
+ 'BS-10':{out:'База каучуковая 15 мл',items:[['Флакон 15 мл, белый','шт',1,52],['Крышка с кистью','шт',1,46],['Наклейка «База»','шт',1,6],['Каучуковая основа','мл',15.2,41],['Коробка-индивидуалка','шт',1,22]]},
+ 'TP-20':{out:'Топ без липкого слоя 15 мл',items:[['Флакон 15 мл, белый','шт',1,52],['Крышка с кистью','шт',1,46],['Наклейка «Топ»','шт',1,6],['Основа топа','мл',15.2,44],['Коробка-индивидуалка','шт',1,22]]}
+};
+let MAT={'Флакон 7 мл, чёрный':[9400,'шт'],'Флакон 15 мл, белый':[2100,'шт'],'Крышка с кистью':[7800,'шт'],'Наклейка «Лакмус» 111':[1200,'шт'],'Наклейка «Лакмус» 140':[3400,'шт'],'Наклейка «База»':[900,'шт'],'Наклейка «Топ»':[1400,'шт'],'Пигмент «Пион»':[640,'г'],'Пигмент «Нюд»':[880,'г'],'Основа гель-лака':[38000,'мл'],'Каучуковая основа':[9100,'мл'],'Основа топа':[11200,'мл'],'Коробка-индивидуалка':[6100,'шт']};
+/* Перемещения */
+let MV=[
+ {id:'ПМ-1044',to:'URA',st:'new',it:[['TP-20',40],['GL-112',60]],why:'ниже минимума'},
+ {id:'ПМ-1043',to:'KRG',st:'pick',it:[['GL-112',50],['BS-10',30],['DR-35',3]],why:'заявка филиала'},
+ {id:'ПМ-1042',to:'ALA',st:'road',it:[['GL-111',150],['LMP-48',8]],why:'заявка филиала'},
+ {id:'ПМ-1040',to:'AST',st:'done',it:[['GL-140',100]],why:'заявка филиала'}
+];
+const MVS=[['new','Заявка филиала'],['pick','Собирается'],['road','В пути'],['done','Принято филиалом']];
+/* Клиенты */
+let CL=[
+ {id:'K-0912',n:'Салон «Люми»',t:'салон',city:'Алматы',ag:'Мадина',ref:'Асель',bon:18400,ltv:1240000,last:'05.11',ph:'+7 707 512 44 10'},
+ {id:'K-0877',n:'Мастер Жанель Б.',t:'мастер',city:'Алматы',ag:'—',ref:'Асель',bon:6200,ltv:286000,last:'08.11',ph:'+7 778 401 22 19'},
+ {id:'K-0841',n:'Студия «Нюанс»',t:'салон',city:'Астана',ag:'Ержан',ref:'—',bon:9800,ltv:812000,last:'31.10',ph:'+7 701 300 18 77'},
+ {id:'K-0790',n:'«НейлМаркет»',t:'оптовик',city:'Уральск',ag:'—',ref:'—',bon:0,ltv:6420000,last:'09.11',ph:'+7 705 611 09 31'},
+ {id:'K-0766',n:'«Бьюти Склад»',t:'оптовик',city:'Актау',ag:'—',ref:'—',bon:0,ltv:9180000,last:'07.11',ph:'+7 702 455 71 02'},
+ {id:'K-0731',n:'Мастер Айдана С.',t:'мастер',city:'Шымкент',ag:'—',ref:'Гульмира',bon:3100,ltv:142000,last:'02.11',ph:'+7 747 200 15 63'},
+ {id:'K-0705',n:'Салон «Пальчики»',t:'салон',city:'Алматы',ag:'Мадина',ref:'—',bon:12800,ltv:968000,last:'14.10',ph:'+7 777 130 52 88'},
+ {id:'K-0688',n:'«Мастер-Опт»',t:'оптовик',city:'Шымкент',ag:'—',ref:'—',bon:0,ltv:7760000,last:'06.11',ph:'+7 701 890 33 14'}
+];
+/* Агенты и салоны на маршруте */
+let VISITS=[
+ {s:'Салон «Люми», Абая 52',st:'заказ',sum:96000},
+ {s:'Салон «Пальчики», Жандосова 8',st:'нет 26 дней — позвонить',sum:0},
+ {s:'Студия «Нейл Арт», Сатпаева 30',st:'новый салон',sum:0},
+ {s:'Салон «Шёлк», Розыбакиева 120',st:'сейчас',sum:0}
+];
+let ACART={};
+const SC={};
+/* ===== Пульт ===== */
+SC.dash=()=>{const day=BR.reduce((a,b)=>a+b.day,0),plan=BR.reduce((a,b)=>a+b.plan,0),chk=BR.reduce((a,b)=>a+b.chk,0);const low=[];SKU.forEach(s=>s.st.forEach((q,i)=>{if(q<s.min&&i>0)low.push([s,i])}));
+ return `<div class="hd"><div><h2>Пульт · ${TODAY}, ${NOW}</h2><p>Десять филиалов, центральный склад и цех в Актобе, опт, Kaspi и кабинеты клиентов — в одной своей системе. Открыли — увидели, не спрашивая никого.</p></div><div class="btns"><button class="bt" onclick="xlsDay()">Excel</button><button class="bt p" onclick="go('branches')">Филиалы</button></div></div>
+ <div class="strip"><div><small>Розница сегодня · 10 касс</small><b>${tg(day)}</b>${bar(pct(day,plan),'g')}<span>${pct(day,plan)}% дневного плана · ${chk} чеков</span></div><div><small>Опт · заказы в работе</small><b>${WS.filter(o=>o.st!=='paid').length}</b><span>${tg(WS.filter(o=>o.st!=='paid').reduce((a,o)=>a+o.sum,0))}</span></div><div><small>Kaspi сегодня</small><b>${KASPI.length} заказов</b><span>пришли сами, без ручного ввода</span></div><div><small>Цех · розлив</small><b>${fmt(PO[0].done)} / ${fmt(PO[0].q)}</b><span>${esc(SK(PO[0].sku).n.split(',')[0])} 111</span></div><div><small>Касса без интернета</small><b class="${BR.some(b=>!b.on)?'bad':''}">${BR.filter(b=>!b.on).length}</b><span>${BR.filter(b=>!b.on).map(b=>b.n).join(', ')||'все онлайн'} · продают офлайн</span></div></div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Филиалы сейчас</h3><div class="tw"><table class="t"><thead><tr><th>Филиал</th><th>Тип</th><th class="r">Выручка</th><th style="width:18%">к плану дня</th><th class="r">Чеков</th><th class="r">Ср. чек</th><th>Связь</th></tr></thead><tbody>${BR.map(b=>`<tr onclick="go('branches')"><td><b>${b.n}</b></td><td class="mini">${b.t}</td><td class="r">${tg(b.day)}</td><td>${bar(pct(b.day,b.plan),pct(b.day,b.plan)<85?'r':'g')}</td><td class="r">${b.chk}</td><td class="r">${tg(b.day/b.chk)}</td><td>${b.on?tag('онлайн','g'):tag('офлайн · очередь 7 чеков','w')}</td></tr>`).join('')}</tbody></table></div></div>
+  <div class="pan"><h3>Выручка по дням, тыс. ₸</h3><p>Все каналы: розница, опт, Kaspi. Выделены выходные.</p>${vbars([7420,7860,6980,8240,9610,10420,7310,7580,8100,7260],['31','01','02','03','04','05','06','07','08','09'],[5,6])}</div>
+ </div><div>
+  <div class="pan"><h3>Требует внимания</h3><div class="alist">
+   <a onclick="go('shifts')"><i class="dt w"></i><b>Караганда без интернета 38 минут</b><span>касса продаёт офлайн · 7 чеков ждут синхронизации</span></a>
+   <a onclick="go('wsale')"><i class="dt i"></i><b>2 оптовые заявки ждут сборки</b><span>«НейлМаркет» пришла из кабинета оптовика</span></a>
+   <a onclick="go('stock')"><i class="dt r"></i><b>${low.length} позиций ниже минимума в филиалах</b><span>${low.slice(0,3).map(x=>x[0].a+' · '+BR[x[1]].n).join(', ')}</span></a>
+   <a onclick="go('moves')"><i class="dt w"></i><b>Перемещение ПМ-1044 в Уральск не собрано</b><span>топ и «Бордо» на нуле</span></a>
+   <a onclick="go('clients')"><i class="dt i"></i><b>Салон «Пальчики» не заказывал 26 дней</b><span>задача агенту Мадине</span></a>
+   <a onclick="go('kaspi')"><i class="dt g"></i><b>Kaspi: ${KASPI.length} заказа сегодня — уже в системе</b><span>раньше менеджер вбивал руками</span></a>
+  </div></div>
+  ${said('Нам нужна целая экосистема. Не просто кассовая зона.','Здесь всё сходится в одном пульте: кассы, опт, цех, склады и кабинеты клиентов.')}
+ </div></div>`};
+function xlsDay(){const h=`<html><head><meta charset="utf-8"></head><body><table border="1"><tr><th>Филиал</th><th>Выручка</th><th>План</th><th>Чеков</th></tr>${BR.map(b=>`<tr><td>${b.n}</td><td>${b.day}</td><td>${b.plan}</td><td>${b.chk}</td></tr>`).join('')}</table></body></html>`;try{const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Филиалы_'+TODAY+'.xls';document.body.appendChild(a);a.click();a.remove()}catch(e){}toast('Файл <b>Филиалы.xls</b> скачан.')}
+let brSel='ALA';
+SC.branches=()=>{const b=BR.find(x=>x.id===brSel);const i=brI(brSel);
+ return `<div class="hd"><div><h2>Продажи по филиалам</h2><p>Розница, опт и Kaspi по каждому городу; что продаётся и чего не хватает на полке.</p></div></div>
+ <div class="chipr">${BR.map(x=>`<a class="${x.id===brSel?'on':''}" onclick="brSel='${x.id}';render()">${x.n}</a>`).join('')}</div>
+ <div class="strip"><div><small>${b.n} · сегодня</small><b>${tg(b.day)}</b><span>план ${tg(b.plan)}</span></div><div><small>Чеков</small><b>${b.chk}</b><span>средний ${tg(b.day/b.chk)}</span></div><div><small>Месяц к прошлому</small><b class="ok">+12%</b><span>ноябрь 1–9</span></div><div><small>Кассир</small><b style="font-size:15px">${esc(b.cash)}</b><span>${b.on?'онлайн':'офлайн-режим'}</span></div></div>
+ <div class="g2"><div class="pan"><h3>Топ продаж · ${b.n}, ноябрь</h3><div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Продано</th><th class="r">Остаток</th><th></th></tr></thead><tbody>${SKU.slice().sort((x,y)=>y.st[0]-x.st[0]).slice(0,8).map((s,k)=>`<tr><td>${esc(s.n)}</td><td class="r">${[184,162,140,96,88,71,60,44][k]}</td><td class="r ${s.st[i]<s.min?'bad':''}">${s.st[i]}</td><td>${s.st[i]<s.min?tag('пополнить','r'):''}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Каналы, ноябрь 1–9</h3><div class="kv"><span>Розница (касса)</span><b>${tg(b.day*7.6)}</b></div><div class="kv"><span>Опт из филиала</span><b>${tg(b.day*2.1)}</b></div><div class="kv"><span>Kaspi (самовывоз из филиала)</span><b>${tg(b.day*0.9)}</b></div><div class="kv"><span>Бонусами оплачено</span><b>${tg(b.day*0.18)}</b></div><div class="kv tot"><span>Итого</span><b>${tg(b.day*10.78)}</b></div><button class="bt full" onclick="go('reports')">Все отчёты →</button></div></div>`};
+SC.reports=()=>`<div class="hd"><div><h2>Отчёты</h2><p>Отчёты, которые сейчас собираете из 1С вручную, — по кнопке. Список дополним на полировке под ваши вопросы.</p></div><div class="btns"><button class="bt" onclick="xlsDay()">Excel</button></div></div>
+ <div class="g2"><div class="pan"><h3>Отчёты собственника</h3><div class="alist">${[['Продажи по филиалам и дням','branches'],['Валовая прибыль по товарам и группам','reports'],['Оптовые клиенты: выручка, долг, частота','clients'],['Касса: чеки, возвраты, бонусы, Z-отчёты','shifts'],['Производство: план-факт, списание материалов','prod'],['Остатки и неликвид по филиалам','stock'],['Агенты: визиты, заявки, новые салоны','agents'],['Рефералы инструкторов и начисленные бонусы','instr']].map(r=>`<a onclick="go('${r[1]}')"><i class="dt i"></i><b>${r[0]}</b><span>за день, неделю, месяц · Excel</span></a>`).join('')}</div></div>
+ <div class="pan"><h3>Валовая прибыль по группам, октябрь</h3><div class="tw"><table class="t"><thead><tr><th>Группа</th><th class="r">Выручка</th><th class="r">Себест.</th><th class="r">Маржа</th></tr></thead><tbody>${[['Гель-лаки',38400000,12100000],['База и топ',16200000,5300000],['Оборудование',21800000,15600000],['Расходники',9400000,4100000],['Уход и подготовка',6100000,2000000]].map(r=>`<tr><td>${r[0]}</td><td class="r">${tg(r[1])}</td><td class="r">${tg(r[2])}</td><td class="r"><b>${pct(r[1]-r[2],r[1])}%</b></td></tr>`).join('')}</tbody></table></div></div></div>`;
+/* ===== Касса ===== */
+let POSC=[['GL-140',2],['BS-10',1]],POSB=false,POSN=1287;
+function posAdd(a){const r=POSC.find(x=>x[0]===a);if(r)r[1]++;else POSC.push([a,1]);render()}
+function posScan(){const pick=['GL-111','TP-20','FL-5','OL-15','CL-1','DG-1'][POSN%6];POSN++;posAdd(pick);toast('Пик! Штрихкод '+SK(pick).id+' — '+esc(SK(pick).n))}
+function posQ(a,d){const r=POSC.find(x=>x[0]===a);r[1]+=d;if(r[1]<=0)POSC=POSC.filter(x=>x[0]!==a);render()}
+function posTot(){return POSC.reduce((s,x)=>s+SK(x[0]).r*x[1],0)}
+function posPay(m){if(!POSC.length){toast('Чек пустой — отсканируйте товар.');return}const t=posTot(),bon=POSB?Math.min(6200,Math.round(t*.3)):0;const c={n:'Ч-'+POSN++,t:t-bon,m,bon,at:NOW};if(ONLINE){toast(`Чек <b>${c.n}</b> на ${tg(c.t)} пробит${bon?`, списано ${tg(bon)} бонусов`:''}. Начислено ${tg(Math.round(c.t*.03))} бонусов клиенту.`)}else{SYNCQ.push(c);toast(`Нет интернета — чек <b>${c.n}</b> сохранён на кассе. В очереди: ${SYNCQ.length}. Отправим, как только появится сеть.`)}POSC=[];POSB=false;render()}
+function netToggle(){ONLINE=!ONLINE;if(ONLINE&&SYNCQ.length){const n=SYNCQ.length;SYNCQ=[];toast(`Интернет вернулся — ${n} чек(ов) синхронизированы: остатки, выручка и бонусы обновлены.`)}else toast(ONLINE?'Онлайн.':'Интернет пропал. Касса продолжает продавать: чеки копятся на компьютере.');render()}
+SC.pos=()=>{const t=posTot(),bon=POSB?Math.min(6200,Math.round(t*.3)):0;
+ return `<div class="hd"><div><h2>Касса · Алматы, касса 1</h2><p>В браузере на весь экран, сканер штрихкодов, бонусы клиента. Если пропал интернет — касса продолжает продавать, а потом сама досылает чеки.</p></div><div class="btns"><button class="bt ${ONLINE?'':'p'}" onclick="netToggle()">${ONLINE?'⦿ Онлайн — выключить интернет':'○ Офлайн — включить интернет'}</button></div></div>
+ <div class="posw ${ONLINE?'':'off'}"><div class="posl">
+  <div class="posbar"><button class="bt p" onclick="posScan()">▮▯▮ Сканировать</button><span class="mini">или выберите:</span>${['GL-111','GL-112','TP-20','FL-5','LMP-48'].map(a=>`<button class="bt sm" onclick="posAdd('${a}')">${a}</button>`).join('')}</div>
+  <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Цена</th><th class="r">Кол-во</th><th class="r">Сумма</th></tr></thead><tbody>${POSC.map(x=>{const s=SK(x[0]);return `<tr><td><b>${esc(s.n)}</b><br><code class="mini">${s.id}</code></td><td class="r">${tg(s.r)}</td><td class="r"><button class="bt sm" onclick="posQ('${x[0]}',-1)">−</button> ${x[1]} <button class="bt sm" onclick="posQ('${x[0]}',1)">+</button></td><td class="r">${tg(s.r*x[1])}</td></tr>`}).join('')||'<tr><td colspan="4" class="mini">Чек пустой — нажмите «Сканировать»</td></tr>'}</tbody></table></div>
+ </div><div class="posr">
+  <div class="kv"><span>Клиент</span><b>Жанель Б. · мастер</b></div><div class="kv"><span>Бонусов на счёте</span><b>6 200 ₸</b></div>
+  <label class="chk"><input type="checkbox" ${POSB?'checked':''} onchange="POSB=this.checked;render()"> Списать бонусы (до 30% чека)</label>
+  <div class="kv"><span>Сумма</span><b>${tg(t)}</b></div>${bon?`<div class="kv"><span>Бонусы</span><b>−${tg(bon)}</b></div>`:''}<div class="kv tot"><span>К оплате</span><b>${tg(t-bon)}</b></div>
+  <button class="bt p full" onclick="posPay('наличные')">Наличные</button><button class="bt p full" onclick="posPay('карта')">Карта</button><button class="bt full" onclick="posPay('Kaspi QR')">Kaspi QR</button>
+  <div class="syncb ${ONLINE?'':'w'}"><b>${ONLINE?'Онлайн':'Офлайн-режим'}</b><span>${SYNCQ.length?`В очереди ${SYNCQ.length} чек(ов): ${SYNCQ.map(c=>c.n).join(', ')}`:'Очередь пустая — всё отправлено'}</span></div>
+ </div></div>
+ ${said('Интернет отключился… чтобы менеджеры могли работать, продавать, и как только сеть появляется — она обратно синхронизируется.','Попробуйте: выключите интернет кнопкой сверху, пробейте пару чеков и включите снова.')}`};
+SC.shifts=()=>`<div class="hd"><div><h2>Смены и Z-отчёт</h2><p>Открытие и закрытие смены, наличные в кассе, возвраты, бонусы. Z-отчёт по каждому филиалу — и сводный у собственника.</p></div><div class="btns"><button class="bt p" onclick="toast('Смена закрыта. Z-отчёт № 318 сформирован и отправлен собственнику.')">Закрыть смену</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Филиал</th><th>Кассир</th><th>Смена</th><th class="r">Чеков</th><th class="r">Наличные</th><th class="r">Карта / QR</th><th class="r">Бонусы</th><th class="r">Возвраты</th><th>Связь</th></tr></thead><tbody>${BR.map((b,i)=>`<tr><td><b>${b.n}</b></td><td>${esc(b.cash)}</td><td class="mini">10:00 – открыта</td><td class="r">${b.chk}</td><td class="r">${tg(b.day*.34)}</td><td class="r">${tg(b.day*.6)}</td><td class="r">${tg(b.day*.06)}</td><td class="r">${i%4===1?tg(4800):'—'}</td><td>${b.on?tag('онлайн','g'):tag('офлайн · 7 чеков в очереди','w')}</td></tr>`).join('')}</tbody></table></div>
+ <div class="g2"><div class="pan"><h3>Z-отчёт · Алматы, вчера</h3><div class="kv"><span>Чеков</span><b>126</b></div><div class="kv"><span>Наличные</span><b>${tg(512000)}</b></div><div class="kv"><span>Карта и Kaspi QR</span><b>${tg(918000)}</b></div><div class="kv"><span>Оплачено бонусами</span><b>${tg(64000)}</b></div><div class="kv"><span>Возвраты</span><b>${tg(9600)}</b></div><div class="kv tot"><span>Выручка</span><b>${tg(1494000)}</b></div></div>
+ <div class="pan"><h3>Офлайн за неделю</h3><p>Сколько касс работали без интернета и сколько чеков досланы автоматически — ни одного потерянного.</p><div class="kv"><span>Караганда, сегодня</span><b>38 мин · 7 чеков</b></div><div class="kv"><span>Уральск, 06.11</span><b>2 ч 10 мин · 31 чек ✓</b></div><div class="kv"><span>Актау, 04.11</span><b>25 мин · 4 чека ✓</b></div></div></div>`;
+/* ===== Kaspi ===== */
+let KASPI=[
+ {id:'KSP-58201',it:'Лампа UV/LED 48 Вт',sum:18900,br:'Алматы',st:'новый'},
+ {id:'KSP-58197',it:'Гель-лак 111 × 3, топ',sum:11100,br:'Астана',st:'собирается'},
+ {id:'KSP-58190',it:'Аппарат 35 000 об.',sum:38000,br:'Шымкент',st:'передан курьеру'},
+ {id:'KSP-58184',it:'База 15 мл × 2',sum:7800,br:'Алматы',st:'выдан'}
+];
+SC.kaspi=()=>`<div class="hd"><div><h2>Заказы Kaspi</h2><p>Заказы с Kaspi приходят в систему сами: товар резервируется в нужном филиале, остатки и цены на Kaspi обновляются из портала. Руками ничего не вбиваем.</p></div><div class="btns"><button class="bt" onclick="toast('Цены и остатки отправлены на Kaspi: 12 товаров, 10 складов.')">Обновить цены на Kaspi</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Заказ</th><th>Товар</th><th class="r">Сумма</th><th>Филиал выдачи</th><th>Статус</th><th></th></tr></thead><tbody>${KASPI.map((k,i)=>`<tr><td><code>${k.id}</code></td><td>${esc(k.it)}</td><td class="r">${tg(k.sum)}</td><td>${k.br}</td><td>${tag(k.st,k.st==='новый'?'w':k.st==='выдан'?'g':'')}</td><td>${k.st==='новый'?`<button class="bt sm p" onclick="KASPI[${i}].st='собирается';render();toast('Заказ принят, товар зарезервирован в филиале.')">Принять</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+ ${said('Менеджеры просто руками забивают.','Теперь Kaspi-заказ сразу в системе: резерв, сборка, выдача, выручка в отчётах.')}`;
+function posDemoOff(){ONLINE=false;SYNCQ=[{n:'Ч-1285'}];SYNCQ.push({n:'Ч-1286'});POSB=true}
+/* ===== Опт ===== */
+function wNext(id){const o=WO(id);const i=WST.findIndex(s=>s[0]===o.st);if(i>=WST.length-1)return;if(WST[i+1][0]==='paid'){wPay(id);return}o.st=WST[i+1][0];render();toast(o.st==='pick'?'Склад получил лист сборки.':'Расходная накладная № РН-'+o.id.slice(3)+' сформирована, остатки списаны.')}
+function wPay(id){const o=WO(id);openM('Оплата '+id,esc(o.c)+' · '+tg(o.sum),`<div class="kv"><span>Способ</span><b><select class="sel" id="wpm"><option>Kaspi Pay</option><option>Перевод на счёт</option><option>Наличные</option></select></b></div><div class="kv"><span>Чек / платёжка</span><b><button class="bt sm" onclick="this.textContent='чек_${id}.jpg ✓'">Прикрепить фото</button></b></div><button class="bt p full" onclick="wPaid('${id}')">Отметить оплату</button>`)}
+function wPaid(id){const o=WO(id);o.st='paid';o.chk=(document.getElementById('wpm')||{}).value+' · чек прикреплён';closeM();render();toast('Оплата отмечена, чек прикреплён. Собственник видит деньги в пульте.')}
+function wOpen(id){const o=WO(id);openM('Заказ '+id,esc(o.c)+' · менеджер '+o.m+' · источник: '+o.src,`<table class="t sm"><thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Опт. цена</th><th class="r">Остаток АКТ</th></tr></thead><tbody>${o.it.map(x=>{const s=SK(x[0]);return `<tr><td>${esc(s.n)}</td><td class="r">${x[1]}</td><td class="r">${tg(s.w)}</td><td class="r ${s.st[0]<x[1]?'bad':''}">${s.st[0]}</td></tr>`}).join('')}</tbody></table><div class="kv tot"><span>Итого</span><b>${tg(o.sum)}</b></div>${o.chk?`<div class="kv"><span>Оплата</span><b>${esc(o.chk)}</b></div>`:''}`)}
+SC.wsale=()=>`<div class="hd"><div><h2>Оптовые заказы</h2><p>Как сейчас в 1С, только быстрее: заявка → склад собирает → расходная накладная → менеджер отмечает оплату и прикрепляет чек. Заявки приходят и из кабинета оптовика, от агентов, из WhatsApp.</p></div><div class="btns"><button class="bt p" onclick="WS.unshift({id:'ОЗ-'+(2215+WS.length),c:'Новый клиент',m:'Камила',sum:150000,st:'new',src:'звонок',it:[['GL-140',60]],chk:null});render()">+ Заказ</button></div></div>
+ <div class="kanban k4">${WST.map(([k,n])=>`<div class="kcol"><div class="kh"><b>${n}</b><span>${WS.filter(o=>o.st===k).length} · ${tg(WS.filter(o=>o.st===k).reduce((a,o)=>a+o.sum,0))}</span></div>${WS.filter(o=>o.st===k).map(o=>`<div class="kc" onclick="wOpen('${o.id}')"><code>${o.id} · ${esc(o.src)}</code><b>${esc(o.c)}</b><em>${tg(o.sum)}</em><span>${o.m}${o.chk?' · '+esc(o.chk):''}</span>${k!=='paid'?`<button class="bt sm full" onclick="event.stopPropagation();wNext('${o.id}')">${k==='inv'?'Отметить оплату →':'Дальше →'}</button>`:''}</div>`).join('')}</div>`).join('')}</div>`;
+/* ===== Агенты ===== */
+function agAdd(a,d){ACART[a]=Math.max(0,(ACART[a]||0)+d);render()}
+function agSend(){const it=Object.entries(ACART).filter(x=>x[1]>0);if(!it.length){toast('Добавьте товары в заявку.');return}const sum=it.reduce((s,x)=>s+SK(x[0]).w*x[1],0);WS.unshift({id:'ОЗ-'+(2220+WS.length),c:'Салон «Шёлк», Алматы',m:'Мадина',sum,st:'new',src:'агент Мадина',it,chk:null});VISITS[3].st='заказ';VISITS[3].sum=sum;ACART={};render();toast('Заявка за салон «Шёлк» на '+tg(sum)+' ушла в филиал Алматы — склад начал сборку.')}
+SC.agents=()=>`<div class="hd"><div><h2>Торговые агенты</h2><p>Агент ходит по салонам с телефоном: видит остатки ближайшего склада и оформляет заявку за салон. Значок на экране телефона, push-уведомления.</p></div></div>
+ <div class="g21"><div>
+  <div class="pan"><h3>Агенты · ноябрь</h3><div class="tw"><table class="t"><thead><tr><th>Агент</th><th>Город</th><th class="r">Визитов</th><th class="r">Заявок</th><th class="r">Сумма</th><th class="r">Новые салоны</th></tr></thead><tbody>${[['Мадина','Алматы',46,31,2840000,4],['Ержан','Астана',38,22,1960000,3],['Гульмира','Шымкент',29,18,1220000,2],['Нурлан','Караганда',21,9,640000,0]].map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td class="r">${r[2]}</td><td class="r">${r[3]}</td><td class="r">${tg(r[4])}</td><td class="r">${r[5]}</td></tr>`).join('')}</tbody></table></div></div>
+  ${said('Нам нужно, чтобы у неё было приложение, на котором она сможет сразу создавать заявку.','Справа — телефон агента. Добавьте товары и отправьте заявку: она появится в «Оптовых заказах».')}
+ </div><div class="phone3"><div class="phs"><div class="phtop"><b>Мадина · сегодня</b><span>${VISITS.length} салона</span></div>${VISITS.map(v=>`<div class="ci2"><span>${esc(v.s)}</span><b>${v.st}${v.sum?' · '+tg(v.sum):''}</b></div>`).join('')}
+  <h4 style="margin:10px 0 4px;font-size:12px">Заявка за «Шёлк» · склад Алматы</h4>${['GL-111','GL-140','BS-10','TP-20'].map(a=>{const s=SK(a);return `<div class="ci2"><span>${esc(s.n.replace('Гель-лак 7 мл, ',''))}<br><small class="mini">остаток ${s.st[1]} · ${tg(s.w)}</small></span><b><button class="bt sm" onclick="agAdd('${a}',-5)">−</button> ${ACART[a]||0} <button class="bt sm" onclick="agAdd('${a}',5)">+</button></b></div>`}).join('')}
+  <button class="bt p full" onclick="agSend()">Отправить заявку</button></div></div></div>`;
+/* ===== Клиенты ===== */
+let clT='all';
+SC.clients=()=>{const L=CL.filter(c=>clT==='all'||c.t===clT);
+ return `<div class="hd"><div><h2>Клиенты: мастера, салоны, оптовики</h2><p>Каждый клиент с типом цены: розница для мастеров и салонов, персональные оптовые цены для оптовиков. История, бонусы, кто привёл, какой агент ведёт.</p></div></div>
+ <div class="seg">${[['all','Все'],['мастер','Мастера'],['салон','Салоны'],['оптовик','Оптовики']].map(x=>`<a class="${clT===x[0]?'on':''}" onclick="clT='${x[0]}';render()">${x[1]}</a>`).join('')}</div>
+ <div class="tw" style="margin-top:10px"><table class="t"><thead><tr><th>Клиент</th><th>Тип</th><th>Город</th><th>Цены</th><th>Агент</th><th>Пришёл от</th><th class="r">Бонусы</th><th class="r">Покупки всего</th><th>Последний заказ</th></tr></thead><tbody>${L.map(c=>`<tr onclick="clOpen('${c.id}')"><td><b>${esc(c.n)}</b><br><span class="mini">${c.ph}</span></td><td>${tag(c.t,c.t==='оптовик'?'i':'')}</td><td>${c.city}</td><td>${c.t==='оптовик'?'опт −43%':'розница'}</td><td>${c.ag}</td><td>${c.ref}</td><td class="r">${c.bon?tg(c.bon):'—'}</td><td class="r">${tg(c.ltv)}</td><td>${c.last}</td></tr>`).join('')}</tbody></table></div>`};
+function clOpen(id){const c=CL.find(x=>x.id===id);openM(esc(c.n),c.t+' · '+c.city,`<div class="kv"><span>Тип цены</span><b>${c.t==='оптовик'?'Оптовая −43% (галочка «оптовик» ✓)':'Розничная'}</b></div><div class="kv"><span>Бонусы</span><b>${tg(c.bon)}</b></div><div class="kv"><span>Пришёл от инструктора</span><b>${c.ref}</b></div><div class="kv"><span>Покупки всего</span><b>${tg(c.ltv)}</b></div><div class="kv"><span>Последние</span><b>${c.last}: гель-лаки, база, топ</b></div><button class="bt p full" onclick="closeM();go('chat')">Написать в WhatsApp</button>`)}
+/* ===== Производство ===== */
+function poRun(id){const o=PO.find(x=>x.id===id);if(o.st==='plan'){o.st='run';render();toast('Заказ на производство запущен: материалы выданы в цех по спецификации.');return}const sp=SPEC[o.sku];const add=o.q-o.done;sp.items.forEach(it=>{MAT[it[0]][0]-=it[2]*add});SK(o.sku).st[0]+=add;o.done=o.q;o.st='done';render();toast(`Розлив закончен: +${add} шт. «${esc(sp.out)}» на склад Актобе. Материалы списаны автоматически.`)}
+SC.prod=()=>`<div class="hd"><div><h2>Заказы на производство</h2><p>Заказ → розлив → выход готовой продукции. Ингредиенты и упаковка списываются автоматически по спецификации, готовый товар приходуется на центральный склад.</p></div><div class="btns"><button class="bt p" onclick="PO.unshift({id:'ПЗ-0'+(383+PO.length),sku:'GL-140',q:500,st:'plan',done:0,who:'Айгерим',d:'11.11'});render()">+ Заказ на производство</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Заказ</th><th>Продукт</th><th class="r">План</th><th class="r">Готово</th><th style="width:16%"></th><th>Ответственный</th><th>Дата</th><th>Статус</th><th></th></tr></thead><tbody>${PO.map(o=>`<tr><td><code>${o.id}</code></td><td><b>${esc(SPEC[o.sku].out)}</b></td><td class="r">${o.q}</td><td class="r">${o.done}</td><td>${bar(pct(o.done,o.q),'g')}</td><td>${o.who}</td><td>${o.d}</td><td>${tag({plan:'план',run:'розлив',done:'готово'}[o.st],o.st==='done'?'g':o.st==='run'?'w':'')}</td><td>${o.st!=='done'?`<button class="bt sm p" onclick="poRun('${o.id}')">${o.st==='plan'?'Запустить':'Завершить розлив'}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+ <div class="g2"><div class="pan"><h3>Что спишется по ${PO[0].id} · ${PO[0].q} шт.</h3><div class="tw"><table class="t sm"><thead><tr><th>Материал</th><th class="r">На 1 шт.</th><th class="r">На заказ</th><th class="r">Остаток</th></tr></thead><tbody>${SPEC[PO[0].sku].items.map(it=>`<tr><td>${it[0]}</td><td class="r">${it[2]} ${it[1]}</td><td class="r">${fmt(it[2]*PO[0].q)} ${it[1]}</td><td class="r ${MAT[it[0]][0]<it[2]*PO[0].q?'bad':''}">${fmt(MAT[it[0]][0])}</td></tr>`).join('')}</tbody></table></div></div>
+ <div>${said('Чтобы этот один гель-лак сделать, он там списывает крышку, списывает, наклейку списывает.','Так и работает: нажмите «Завершить розлив» — материалы спишутся, гель-лак придёт на склад.')}</div></div>`;
+let spSel='GL-111';
+SC.spec=()=>{const sp=SPEC[spSel];const cost=sp.items.reduce((a,x)=>a+x[2]*x[3],0);
+ return `<div class="hd"><div><h2>Спецификации</h2><p>Состав каждого продукта: флакон, крышка с кистью, наклейка, пигмент, основа, коробка. Из спецификации — автосписание и себестоимость.</p></div></div>
+ <div class="chipr">${Object.keys(SPEC).map(k=>`<a class="${k===spSel?'on':''}" onclick="spSel='${k}';render()">${SPEC[k].out}</a>`).join('')}</div>
+ <div class="g2"><div class="pan"><h3>${sp.out}</h3><div class="tw"><table class="t"><thead><tr><th>Компонент</th><th class="r">Норма</th><th class="r">Цена ед.</th><th class="r">В себестоимости</th></tr></thead><tbody>${sp.items.map(x=>`<tr><td>${x[0]}</td><td class="r">${x[2]} ${x[1]}</td><td class="r">${tg(x[3])}</td><td class="r">${tg(x[2]*x[3])}</td></tr>`).join('')}</tbody></table></div><div class="kv tot"><span>Себестоимость 1 шт.</span><b>${tg(cost)}</b></div></div>
+ <div class="pan"><h3>Цены и маржа</h3><div class="kv"><span>Розничная цена</span><b>${tg(SK(spSel).r)}</b></div><div class="kv"><span>Оптовая цена</span><b>${tg(SK(spSel).w)}</b></div><div class="kv"><span>Маржа в рознице</span><b>${pct(SK(spSel).r-cost,SK(spSel).r)}%</b></div><div class="kv"><span>Маржа в опте</span><b>${pct(SK(spSel).w-cost,SK(spSel).w)}%</b></div><button class="bt full" onclick="toast('Новая версия спецификации сохранена. Старые заказы считаются по старой.')">Изменить состав</button></div></div>`};
+/* ===== Склады ===== */
+let stG='all';
+SC.stock=()=>`<div class="hd"><div><h2>Остатки по филиалам</h2><p>Центральный склад в Актобе и 10 магазинов в одной таблице. Красное — ниже минимума: система предлагает перемещение.</p></div><div class="btns"><button class="bt p" onclick="mvAuto()">Сформировать перемещения</button></div></div>
+ <div class="seg">${['all','Гель-лаки','База и топ','Оборудование','Расходники'].map(g=>`<a class="${stG===g?'on':''}" onclick="stG='${g}';render()">${g==='all'?'Все':g}</a>`).join('')}</div>
+ <div class="tw" style="margin-top:10px"><table class="t sm"><thead><tr><th>Товар</th>${BR.map(b=>`<th class="r">${b.n.slice(0,4)}</th>`).join('')}</tr></thead><tbody>${SKU.filter(s=>stG==='all'||s.g===stG).map(s=>`<tr><td><b>${esc(s.n)}</b><br><code class="mini">${s.a} · ${s.id}</code></td>${s.st.map((q,i)=>`<td class="r ${i>0&&q<s.min?'bad':''}">${q}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+function mvAuto(){MV.unshift({id:'ПМ-'+(1045+MV.length),to:'KRG',st:'new',it:[['GL-112',60],['TP-20',30]],why:'авто: ниже минимума'});toast('Создано перемещение в Караганду по минимальным остаткам.');go('moves')}
+function mvNext(id){const m=MV.find(x=>x.id===id);const i=MVS.findIndex(s=>s[0]===m.st);if(i<MVS.length-1){m.st=MVS[i+1][0];if(m.st==='done'){const k=brI(m.to);m.it.forEach(x=>{SK(x[0]).st[k]+=x[1];SK(x[0]).st[0]-=x[1]})}render()}}
+SC.moves=()=>`<div class="hd"><div><h2>Перемещения</h2><p>Филиал заказывает с центрального склада — склад собирает — в пути — филиал принимает сканером. Остатки меняются на обоих складах.</p></div></div>
+ <div class="kanban k4">${MVS.map(([k,n])=>`<div class="kcol"><div class="kh"><b>${n}</b><span>${MV.filter(m=>m.st===k).length}</span></div>${MV.filter(m=>m.st===k).map(m=>`<div class="kc"><code>${m.id} · ${m.why}</code><b>Актобе → ${BRN(m.to)}</b><span>${m.it.map(x=>x[0]+' × '+x[1]).join(', ')}</span>${k!=='done'?`<button class="bt sm full" onclick="mvNext('${m.id}')">Дальше →</button>`:''}</div>`).join('')}</div>`).join('')}</div>`;
+let INV=null;
+SC.inv=()=>{if(!INV)INV=SKU.slice(0,8).map(s=>({a:s.a,book:s.st[1],fact:null}));const done=INV.filter(r=>r.fact!==null).length;
+ return `<div class="hd"><div><h2>Инвентаризация · Алматы</h2><p>Сканируете полку — система сравнивает с учётом и показывает расхождения. Итог — акт и корректировка остатков.</p></div><div class="btns"><button class="bt p" onclick="invScan()">▮▯▮ Сканировать следующую</button><button class="bt" onclick="INV=null;render()">Заново</button></div></div>
+ <div class="strip"><div><small>Проверено</small><b>${done} / ${INV.length}</b>${bar(pct(done,INV.length),'g')}<span>позиций</span></div><div><small>Расхождения</small><b class="${INV.some(r=>r.fact!==null&&r.fact!==r.book)?'bad':''}">${INV.filter(r=>r.fact!==null&&r.fact!==r.book).length}</b><span>ждут объяснения</span></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">По учёту</th><th class="r">Факт</th><th class="r">Разница</th></tr></thead><tbody>${INV.map(r=>`<tr><td>${esc(SK(r.a).n)}</td><td class="r">${r.book}</td><td class="r">${r.fact===null?'—':r.fact}</td><td class="r ${r.fact!==null&&r.fact!==r.book?'bad':''}">${r.fact===null?'':r.fact-r.book}</td></tr>`).join('')}</tbody></table></div>`};
+function invScan(){const r=INV.find(x=>x.fact===null);if(!r){toast('Всё проверено. Акт инвентаризации готов к подписи.');return}r.fact=r.a==='GL-112'?r.book-2:r.book;render()}
+/* ===== Кабинет мастера / салона ===== */
+let CC={},CBON=18400;
+function ccAdd(a,d){CC[a]=Math.max(0,(CC[a]||0)+d);render()}
+function ccSend(){const it=Object.entries(CC).filter(x=>x[1]>0);if(!it.length){toast('Корзина пустая.');return}const sum=it.reduce((s,x)=>s+SK(x[0]).r*x[1],0);CBON+=Math.round(sum*.03);WS.unshift({id:'ОЗ-'+(2230+WS.length),c:'Салон «Люми», Алматы',m:'Мадина',sum,st:'new',src:'кабинет салона',it,chk:null});CC={};render();toast('Заказ на '+tg(sum)+' отправлен в филиал Алматы. Начислено '+tg(Math.round(sum*.03))+' бонусов.')}
+SC.cab=()=>{const sum=Object.entries(CC).reduce((s,x)=>s+SK(x[0]).r*x[1],0);
+ return `<div class="hd"><div><h2>Кабинет салона «Люми»</h2><p>Так видит кабинет мастер или салон — с телефона, по ярлыку на экране. Каталог с наличием в своём городе, корзина, история заказов, бонусы.</p></div></div>
+ <div class="g21"><div><div class="pan"><h3>Каталог · наличие в Алматы</h3><div class="catg">${SKU.slice(0,9).map(s=>`<div class="catc"><i class="sw" style="background:${{'GL-111':'#d98a9b','GL-112':'#7a1f34','GL-140':'#e6c3ae'}[s.a]||'#cbb7a8'}"></i><b>${esc(s.n)}</b><span>${tg(s.r)} · ${s.st[1]>0?'есть '+s.st[1]:'нет'}</span><div><button class="bt sm" onclick="ccAdd('${s.a}',-1)">−</button> ${CC[s.a]||0} <button class="bt sm" onclick="ccAdd('${s.a}',1)">+</button></div></div>`).join('')}</div></div>
+  ${said('Чтобы она могла отслеживать свои бонусы, историю, смотреть, что она покупала, когда покупала — как личный кабинет.')}</div>
+ <div><div class="pan"><h3>Корзина</h3><div class="kv"><span>Товаров</span><b>${Object.values(CC).reduce((a,b)=>a+b,0)}</b></div><div class="kv tot"><span>Сумма</span><b>${tg(sum)}</b></div><button class="bt p full" onclick="ccSend()">Заказать</button></div>
+ <div class="pan"><h3>Бонусы</h3><div class="kv"><span>На счёте</span><b>${tg(CBON)}</b></div><div class="kv"><span>Уровень</span><b>Салон · 3% с покупок</b></div><div class="kv"><span>Сгорят 31.12</span><b>${tg(2400)}</b></div></div>
+ <div class="pan"><h3>История</h3>${[['05.11','ОЗ-2203',96000],['21.10','ОЗ-2118',142000],['02.10','ОЗ-2040',88000]].map(r=>`<div class="kv"><span>${r[0]} · ${r[1]}</span><b>${tg(r[2])}</b></div>`).join('')}<button class="bt full" onclick="toast('Повтор заказа ОЗ-2203 добавлен в корзину.');CC={'GL-140':30,'CL-1':20};render()">Повторить последний</button></div></div></div>`};
+/* ===== Кабинет оптовика ===== */
+let OC={'GL-111':60,'BS-10':20},OWH='AKT';
+function ocAdd(a,d){OC[a]=Math.max(0,(OC[a]||0)+d);render()}
+function ocSend(){const it=Object.entries(OC).filter(x=>x[1]>0);if(!it.length){toast('Корзина пустая.');return}const sum=it.reduce((s,x)=>s+SK(x[0]).w*x[1],0);WS.unshift({id:'ОЗ-'+(2240+WS.length),c:'«НейлМаркет», Уральск',m:'Камила',sum,st:'new',src:'кабинет оптовика',it,chk:null});OC={};render();toast('Заявка на '+tg(sum)+' ушла менеджеру Камиле — она уже в «Оптовых заказах».')}
+SC.opt=()=>{const k=brI(OWH);const sum=Object.entries(OC).reduce((s,x)=>s+SK(x[0]).w*x[1],0);
+ return `<div class="hd"><div><h2>Кабинет оптовика · «НейлМаркет», Уральск</h2><p>Оптовик регистрируется, менеджер ставит галочку «оптовик» — и он видит свои цены (−40–45%) и живые остатки выбранного склада. Розничные мастера этих цен не видят.</p></div></div>
+ <div class="seg">${['AKT','ALA','URA'].map(w=>`<a class="${OWH===w?'on':''}" onclick="OWH='${w}';render()">Склад ${BRN(w)}</a>`).join('')}</div>
+ <div class="g21" style="margin-top:10px"><div class="pan"><div class="tw"><table class="t"><thead><tr><th>Товар</th><th class="r">Розница</th><th class="r">Ваша цена</th><th class="r">В наличии</th><th class="r">В корзине</th></tr></thead><tbody>${SKU.map(s=>`<tr><td>${esc(s.n)}</td><td class="r mini"><s>${tg(s.r)}</s></td><td class="r"><b>${tg(s.w)}</b></td><td class="r ${s.st[k]<10?'bad':''}">${s.st[k]}</td><td class="r"><button class="bt sm" onclick="ocAdd('${s.a}',-10)">−</button> ${OC[s.a]||0} <button class="bt sm" onclick="ocAdd('${s.a}',10)">+</button></td></tr>`).join('')}</tbody></table></div></div>
+ <div><div class="pan"><h3>Заявка</h3><div class="kv"><span>Склад отгрузки</span><b>${BRN(OWH)}</b></div><div class="kv"><span>Позиций</span><b>${Object.values(OC).filter(x=>x>0).length}</b></div><div class="kv tot"><span>Сумма по оптовым ценам</span><b>${tg(sum)}</b></div><button class="bt p full" onclick="ocSend()">Отправить менеджеру</button></div>
+ ${said('Мы им создаём аккаунт, она заходит на этот сайт, и у неё свои цены выходят.','Сейчас у вас корзина без остатков. Здесь — свои цены и живые остатки выбранного склада.')}</div></div>`};
+/* ===== Инструкторы ===== */
+SC.instr=()=>`<div class="hd"><div><h2>Инструкторы и рефералы</h2><p>Обучающий мастер даёт ученикам свой код или ссылку. Ученица регистрируется — и инструктор видит, кто от него пришёл, сколько купил и какой бонус начислен.</p></div><div class="btns"><button class="bt p" onclick="toast('Ссылка скопирована: lakmus.kz/r/ASEL — QR для сертификата учениц тоже готов.')">Моя ссылка и QR</button></div></div>
+ <div class="strip"><div><small>Асель · пришло учениц</small><b>23</b><span>за 3 месяца · 14 покупают</span></div><div><small>Их покупки</small><b>${tg(1846000)}</b><span>с октября</span></div><div><small>Бонус инструктора</small><b class="ok">${tg(92300)}</b><span>5% от покупок учениц</span></div></div>
+ <div class="g2"><div class="pan"><h3>Кто пришёл от Асель</h3><div class="tw"><table class="t"><thead><tr><th>Ученица</th><th>Курс</th><th>Пришла</th><th class="r">Купила</th><th class="r">Бонус Асель</th></tr></thead><tbody>${[['Жанель Б.','Базовый маникюр','12.08',286000],['Салон «Люми» (Аружан)','Аппаратный','03.09',412000],['Дана К.','Базовый маникюр','12.08',96000],['Томирис А.','Дизайн','01.10',58000],['Карина Е.','Аппаратный','03.09',0]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="r">${tg(r[3])}</td><td class="r">${tg(r[3]*.05)}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Инструкторы · рейтинг</h3>${[['Асель, Алматы',23,92300],['Гульмира, Шымкент',17,61400],['Алина, Астана',11,38900],['Жанна, Актобе',8,22100]].map(r=>`<div class="kv"><span>${r[0]} · ${r[1]} учениц</span><b>${tg(r[2])}</b></div>`).join('')}${said('Нам бы тоже хотелось, чтоб они видели, кто от них пришёл, какой бонус они получают.')}</div></div>`;
+/* ===== Бонусы ===== */
+SC.bonus=()=>`<div class="hd"><div><h2>Бонусная программа</h2><p>Своя бонусная система вместо модуля 1С, который «слетает». Правила настраиваются: процент, уровни, сгорание, сколько можно списать за раз.</p></div></div>
+ <div class="g2"><div class="pan"><h3>Правила</h3>${[['Мастер, розница','3% с покупки'],['Салон','3% + 1% при заказе от 100 000 ₸'],['Списание','до 30% чека'],['Сгорание','через 6 месяцев без покупок'],['День рождения','+2 000 ₸'],['Инструктор','5% от покупок учениц']].map(r=>`<div class="kv"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}<button class="bt full" onclick="toast('Правила сохранены — действуют во всех 10 кассах и кабинетах.')">Изменить правила</button></div>
+ <div class="pan"><h3>Ноябрь</h3><div class="kv"><span>Начислено</span><b>${tg(486000)}</b></div><div class="kv"><span>Списано в кассах</span><b>${tg(312000)}</b></div><div class="kv"><span>Сгорело</span><b>${tg(18400)}</b></div><div class="kv"><span>Клиентов с бонусами</span><b>3 412</b></div><div class="kv"><span>Ошибок начисления</span><b class="ok">0</b></div>${said('Одинэсовские бонусы постоянно слетают, постоянно что-то не так.')}</div></div>`;
+/* ===== Проверка подлинности ===== */
+let AUQ='KR-35A-2025-004812',AUR=null;
+SC.auth=()=>`<div class="hd"><div><h2>Проверка подлинности аппарата</h2><p>Страница сайта: покупатель вводит серийный номер корейского аппарата — система проверяет его по базе поставок и показывает, где и когда он продан.</p></div></div>
+ <div class="g2"><div class="pan"><h3>Введите серийный номер</h3><input class="sel" style="width:100%" value="${AUQ}" oninput="AUQ=this.value"><button class="bt p full" onclick="AUR=AUQ.trim().toUpperCase()==='KR-35A-2025-004812'?1:0;render()">Проверить</button>${AUR===null?'':AUR?`<div class="syncb"><b>✓ Оригинал</b><span>Аппарат 35 000 об., партия 2025-10 · продан 14.10.2026, филиал Алматы · гарантия до 14.10.2027</span></div>`:`<div class="syncb w"><b>Номер не найден</b><span>Возможно, подделка. Позвоните нам: +7 700 000 00 00</span></div>`}</div>
+ <div class="pan"><h3>Откуда данные</h3><p>Серийные номера сканируются при приходе партии на склад и при продаже на кассе — отдельно вести таблицу не нужно.</p><div class="kv"><span>Аппаратов в базе</span><b>1 284</b></div><div class="kv"><span>Проверок за месяц</span><b>312</b></div><div class="kv"><span>Не найдено</span><b class="bad">9</b></div></div></div>
+ <div class="pan"><h3>Последние проверки</h3><div class="tw"><table class="t"><thead><tr><th>Время</th><th>Серийный номер</th><th>Город</th><th>Результат</th></tr></thead><tbody>${[['16:22','KR-35A-2025-004812','Алматы',1],['15:40','KR-35A-2025-003117','Атырау',1],['14:05','KR-35A-2024-99X01','Актобе',0],['12:47','KR-48L-2025-000214','Астана',1]].map(r=>`<tr><td>${r[0]}</td><td><code>${r[1]}</code></td><td>${r[2]}</td><td>${r[3]?tag('оригинал','g'):tag('не найден','r')}</td></tr>`).join('')}</tbody></table></div></div>${said('Чтобы они могли в любой момент проверить на этом сайте, подлинный или нет.','Номера уже в базе: сканируются при приходе партии и при продаже — сайт берёт их из портала.')}`;
+/* ===== Чаты ===== */
+let CHS=0;
+const CHATS=[
+ {n:'Салон «Люми»',ch:'WhatsApp · опт',m:[['in','Добрый день! Есть «Бордо» 112 в Алматы?'],['out','Есть 180 шт. Оформить 30?'],['in','Да, и топ 10 шт']]},
+ {n:'@nails_by_dana',ch:'Instagram',m:[['in','Сколько стоит лампа 48 Вт?'],['out','18 900 ₸, есть во всех филиалах']]},
+ {n:'«НейлМаркет», Уральск',ch:'WhatsApp · опт',m:[['in','Заявку отправила из кабинета, посмотрите'],['out','Видим ОЗ-2214, собираем']]},
+ {n:'Мастер Айдана С.',ch:'WhatsApp · розница',m:[['in','Где ближайший магазин в Шымкенте?']]}
+];
+SC.chat=()=>{const c=CHATS[CHS];return `<div class="hd"><div><h2>WhatsApp и Instagram</h2><p>Все номера WhatsApp (оптовый, розница, филиалы) и Instagram в одном окне. Переписка сохраняется в карточке клиента; ответить можно с оптовыми ценами и остатками под рукой.</p></div></div>
+ <div class="g21"><div class="pan"><div class="chl">${CHATS.map((x,i)=>`<a class="${i===CHS?'on':''}" onclick="CHS=${i};render()"><b>${esc(x.n)}</b><span>${x.ch}</span></a>`).join('')}</div></div>
+ <div class="pan"><h3>${esc(c.n)} <small class="mini">${c.ch}</small></h3><div class="wchat">${c.m.map(m=>`<div class="wm ${m[0]}">${esc(m[1])}</div>`).join('')}</div><div class="btns l"><button class="bt" onclick="CHATS[CHS].m.push(['out','Остатки: 112 «Бордо» — 180 шт. в Алматы']);render()">Вставить остатки</button><button class="bt p" onclick="CHATS[CHS].m.push(['out','Заказ оформлен, номер пришлём сюда']);render();toast('Сделка создана из чата.')">Оформить заказ</button></div></div></div>`};
+/* ===== Переезд с 1С ===== */
+SC.move1c=()=>`<div class="hd"><div><h2>Переезд с 1С без остановки</h2><p>Бизнес продолжает работать в 1С, пока портал не готов. Переходим филиал за филиалом, после сверки. Если нужно, бухгалтерия продолжает получать документы в 1С.</p></div></div>
+ <div class="stepr">${[['1','Недели 1–2','Демо → база портала: справочники, цены, остатки из 1С'],['2','Недели 3–4','Цех, склады, опт, касса в одном филиале параллельно с 1С'],['3','Недели 5–6','Кабинеты, агенты, Kaspi, бонусы, остальные филиалы'],['4','Недели 7–8','Инвентаризация, сверка, 1С остаётся только для бухгалтерии или отключается']].map(s=>`<div><b>${s[0]}</b><strong>${s[1]}</strong><span>${s[2]}</span></div>`).join('')}</div>
+ <div class="g2"><div class="pan"><h3>Что переносим из 1С</h3>${['Номенклатура, штрихкоды, цены (розница и опт)','Остатки по 10 складам','Клиенты, оптовики, бонусные счета','Спецификации производства','Открытые заказы и долги'].map(x=>`<div class="kv"><span>${x}</span><b class="ok">✓</b></div>`).join('')}</div>
+ <div class="pan"><h3>Что меняется для вас</h3><div class="kv"><span>Подписка 1С и сеансы</span><b>не нужна</b></div><div class="kv"><span>Пользователей</span><b>без ограничений</b></div><div class="kv"><span>Сервер</span><b>свой, ~$5–10 в мес.</b></div><div class="kv"><span>Код и база</span><b>ваши</b></div>${said('Хотелось бы свою экосистему полностью, чтоб не приходилось каждый месяц оплачивать.')}</div></div>`;
+/* ===== Роли ===== */
+const PERM=['Пульт и деньги','Касса','Опт и оплаты','Производство','Склады','Агентский телефон','Клиенты и бонусы','Цены и опт. цены'];
+const PM={'Собственник':'11111111','Оптовый менеджер':'00100011','Кассир':'01000010','Кладовщик':'00101000','Производство':'00011000','Торговый агент':'00000110'};
+SC.roles=()=>`<div class="hd"><div><h2>Роли и права</h2><p>Каждый видит только своё: кассир не видит оптовые цены, агент — чужих салонов, клиенты — только свой кабинет. Пользователей сколько угодно, без лимита сеансов.</p></div></div>
+ <div class="tw"><table class="t perm"><thead><tr><th>Роль</th>${PERM.map(p=>`<th>${p}</th>`).join('')}</tr></thead><tbody>${Object.entries(PM).map(([r,m])=>`<tr><td><b>${r}</b></td>${m.split('').map(x=>`<td>${x==='1'?'✓':'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+ <div class="g2"><div class="pan"><h3>Клиентские входы</h3><div class="kv"><span>Салон / мастер</span><b>каталог, заказ, история, бонусы</b></div><div class="kv"><span>Оптовик</span><b>свои цены, остатки, заявка</b></div><div class="kv"><span>Инструктор</span><b>ученицы и бонусы</b></div></div><div class="pan"><h3>Журнал действий</h3><div class="kv"><span>16:31 Камила</span><b>ОЗ-2206 → накладная</b></div><div class="kv"><span>16:12 Айгерим</span><b>ПЗ-0381 розлив 420 шт.</b></div><div class="kv"><span>15:58 Динара</span><b>возврат 4 800 ₸</b></div></div></div>`;
+/* ===== Стоимость ===== */
+let OPTS={c1:true,site:true};
+SC.launch=()=>{const t=2800000+(OPTS.c1?800000:0)+(OPTS.site?400000:0);
+ return `<div class="hd"><div><h2>Стоимость</h2><p>Своя система, без подписок и лимитов пользователей. Демо ни к чему не обязывает — здесь просто цифры, чтобы было от чего отталкиваться.</p></div></div>
+ <div class="g21"><div class="pan price"><h3>Портал · стандартный пакет — 2 800 000 ₸</h3><p>Пульт и отчёты, касса с офлайн-режимом в 10 филиалах, оптовые заказы, производство и спецификации, склады и перемещения, кабинеты салона, оптовика и инструктора, телефон агента, бонусы и рефералы, Kaspi, WhatsApp и Instagram, роли.</p>
+  <label class="pan opt ${OPTS.c1?'on':''}"><input type="checkbox" ${OPTS.c1?'checked':''} onchange="OPTS.c1=this.checked;render()"> <b>Перенос и интеграция с 1С — 800 000 ₸</b><br><span class="mini">данные из 1С, параллельная работа, выгрузка документов бухгалтерии</span></label>
+  <label class="pan opt ${OPTS.site?'on':''}"><input type="checkbox" ${OPTS.site?'checked':''} onchange="OPTS.site=this.checked;render()"> <b>Сайт — <s>800 000</s> 400 000 ₸</b><br><span class="mini">розница публично, опт по входу, проверка подлинности; скидка 50% при заказе вместе с порталом</span></label>
+ </div><div class="pan"><h3>Итого</h3><div class="kv tot"><span>Сумма</span><b>${tg(t)}</b></div><div class="kv"><span>30% — старт</span><b>${tg(t*.3)}</b></div><div class="kv"><span>40% — база работает</span><b>${tg(t*.4)}</b></div><div class="kv"><span>30% — сдача</span><b>${tg(t*.3)}</b></div><div class="kv"><span>Срок</span><b>4–6 недель + 1–2 на 1С</b></div><div class="kv"><span>Поддержка</span><b>3 месяца бесплатно</b></div><div class="kv"><span>Абонплата</span><b>нет</b></div></div></div>`};
+/* ===== Каркас: верхние вкладки + левая колонка ===== */
+function searchDemo(v){if(!v)return;const q=v.toLowerCase();const c=CL.find(x=>(x.n+x.city).toLowerCase().includes(q));if(c&&allowed('clients')){go('clients');clOpen(c.id);return}const k=SKU.find(x=>(x.n+x.a+x.id).toLowerCase().includes(q));if(k&&allowed('stock')){go('stock');toast('Товар: <b>'+esc(k.n)+'</b>');return}toast('Не найдено. Попробуйте: «Люми», «111», «лампа».')}
+function renderRoles(){const r=document.getElementById('roles');if(r)r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option>${esc(k)}</option>`).join('')}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Собственник';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');const s=document.getElementById('rsel');if(s)s.value=role;document.getElementById('me').textContent=ROLES[role].av;if(!allowed(cur))cur=ROLES[role].s[0];build()}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль <b>${esc(role)}</b>: ${esc(ROLES[role].note)}.`)}
+function buildRail(){document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<a class="ri ${s.k===SECOF[cur]?'on':''}" onclick="go('${s.sub.filter(x=>allowed(x[0]))[0][0]}')"><span>${s.n}</span></a>`).join('');
+ const S=SEC.find(x=>x.k===SECOF[cur]);document.getElementById('sub').innerHTML=`<h4>${esc(S.n)}</h4>`+S.sub.filter(x=>allowed(x[0])).map((x,i)=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')"><code>${String(i+1).padStart(2,'0')}</code>${esc(x[1])}</a>`).join('')+`<div class="shint"><b>${esc(role)}</b><br>${esc(ROLES[role].note)}</div>`}
+function build(){buildRail();render()}
+function render(){const f=SC[cur]||SC.dash;document.getElementById('ttl').textContent=SUBN[cur]||'Лакмус Про';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildRail();try{history.replaceState(null,'','?s='+cur)}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль справа вверху.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show')}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+let theme='light';function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme()}
+const TOUR=[['dash','1 · Пульт: 10 филиалов, опт, цех, Kaspi — одно окно.'],['pos','2 · Касса: сканер, бонусы и офлайн-режим.'],['shifts','3 · Смены и Z-отчёты всех касс.'],['wsale','4 · Опт: заявка → сборка → накладная → оплата с чеком.'],['agents','5 · Телефон агента: заявка за салон.'],['opt','6 · Кабинет оптовика: свои цены и остатки.'],['cab','7 · Кабинет салона: заказ, история, бонусы.'],['instr','8 · Инструкторы видят своих учениц и бонус.'],['prod','9 · Производство: розлив и автосписание.'],['stock','10 · Остатки по 10 филиалам.'],['moves','11 · Перемещения в филиалы.'],['kaspi','12 · Kaspi-заказы приходят сами.'],['chat','13 · WhatsApp и Instagram в одном окне.'],['move1c','14 · Переезд с 1С без остановки.'],['launch','15 · 2,8 млн + 1С + сайт, без подписок.']];
+let ti=-1,tRun=false;function tour(){if(tRun){tRun=false;return}tRun=true;ti=-1;step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){tRun=false;toast('Сценарий закончен — всё кликается.');return}const [k,m]=TOUR[ti];if(!allowed(k))switchRole('Собственник');cur=k;build();toast('<b>'+m+'</b>');setTimeout(step,5200)}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();tRun=false}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+function stopTour(){tRun=false}
+
+</script>
+</body>
+</html>
