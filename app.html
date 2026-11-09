@@ -1323,7 +1323,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code -->
 <link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
 <link rel="stylesheet" href="./app/financial-planning.css?v=20261012-notes-hover">
-<script src="/app/production-activity.js?v=10"></script>
+<script src="/app/production-activity.js?v=11"></script>
 <link rel="stylesheet" href="./app/project-cards.css?v=20261020-compact">
 </head>
 <body>
@@ -7778,6 +7778,7 @@ async function saveSocialAccess(form){
 }
 
 const FINANCE_CHART_META = {
+  production: { title:'Активность Производства', sub:'Обращения к Codex и Claude', color:'#0f766e' },
   social: { title:'Количество исходящих постов', sub:'Instagram @pllato.kz · ежедневный учёт', color:'#16a34a' },
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   kep: { title:'Количество людей на КЭП', sub:'От «Создание Демо» до «Аванса» включительно', color:'#7c3aed' },
@@ -8833,7 +8834,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
     +financeChartsHeader()
-    +'<div class="fc-grid fc-aligned-grid">'+kinds.filter(kind=>kind!=='releases').map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(data.productionActivity&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[],{period:FINANCE_CHART_PERIOD,suffix:financeChartPeriodMeta().suffix,api:apiFetch,refresh:renderFinanceCharts}):'')+(kinds.includes('releases')?financeChartCard('releases',data.charts.releases):'')+'</div>';
+    +'<div class="fc-grid fc-aligned-grid">'+kinds.filter(kind=>kind!=='releases').map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(data.productionActivity&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[],{period:FINANCE_CHART_PERIOD,suffix:financeChartPeriodMeta().suffix,tasksHtml:financeWeekTaskBlock('production',[]),api:apiFetch,refresh:renderFinanceCharts}):'')+(kinds.includes('releases')?financeChartCard('releases',data.charts.releases):'')+'</div>';
   const analyticsSlot=document.getElementById('leadAnalyticsSlot');
   if(analyticsSlot){
     analyticsSlot.innerHTML=kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'';
