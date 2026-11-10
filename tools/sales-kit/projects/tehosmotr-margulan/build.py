@@ -35,7 +35,7 @@ gate=f'''<section class="gate" id="gate">
   <span class="gtag">демо для Маргулана и Индиры · по встрече 09.11</span>
   <h1>Всё в одном месте — <em>собственник спрашивает голосом, а не звонит директорам.</em></h1>
   <p>22 станции, колл-центр 24/7, запись и напоминания об окончании ТО, смены и рейтинг операторов, задачник вместо Trello, HR с откликами hh.ru и базой знаний, ОПиУ и ДДС, маркетинг и франшиза. ИИ-ассистент отвечает данными системы и сам раздаёт задачи отделам.</p>
-  <div class="gstat"><div><small>Экранов</small><b class="a">26</b></div><div><small>Ролей</small><b>7</b></div><div><small>Станций</small><b>22</b></div><div><small>Подписок</small><b>0</b></div></div>
+  <div class="gstat"><div><small>Экранов</small><b class="a">26</b></div><div><small>Ролей</small><b>7</b></div><div><small>Станций</small><b>22</b></div><div><small>Портал</small><b>2,8 млн ₸</b></div></div>
  </div>
  <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только нужное.</p><div class="roles" id="roles"></div>
   <div class="lnote"><b>Демо на вымышленных данных</b>Название, станции, клиенты, суммы и люди придуманы. Пришлёте логотип — перекрасим. Excel реально скачивается.</div></div></div>
@@ -63,6 +63,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/tehosmotr-margulan.
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/tehosmotr-margulan.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f't{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,9))
+js=''.join(open(os.path.join(D,f't{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,8,9))
 open(ROOT+'/app/tehosmotr-margulan.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
