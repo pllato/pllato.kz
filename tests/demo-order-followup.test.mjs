@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const html=fs.readFileSync(new URL('../app.html',import.meta.url),'utf8');
-const functions=['demoOrderTaskTitle','financeDemoTaskText','financeWeekBoundsAt','demoOrderFollowups','financeDemoTaskLink','syncDemoOrderFollowups'];
+const functions=['demoOrderTaskTitle','financeDemoTaskText','financeWeekBoundsAt','demoOrderFollowups','financeTaskProject','financeDemoTaskLink','syncDemoOrderFollowups'];
 const code=functions.map(name=>{const start=html.search(new RegExp('(?:async )?function '+name+'\\('));return html.slice(start,html.indexOf('\n}',start)+2);}).join('\n');
 const now=Date.parse('2026-10-28T15:00:00+05:00');
 const record={projectId:'client',title:'Клиент',timestamp:now-3600000,manager:'manager@example.com',demoUrl:'app/client.html',crmDealId:'deal1'};
-function setup(){const c=vm.createContext({Date,URL,location:{href:'https://pllato.kz/app',origin:'https://pllato.kz'},mEsc:String,DEMO_ORDER_SYNC:null,CURRENT:{isSuperAdmin:true},canConfigureFinanceChart:()=>true,FINANCE_WEEK_TASKS:[],appDemoRecords:()=>[record]});vm.runInContext(code,c);return c;}
+function setup(){const c=vm.createContext({Date,URL,location:{href:'https://pllato.kz/app',origin:'https://pllato.kz'},mEsc:String,paymentPlanProjectToken:encodeURIComponent,canEditFinanceTask:()=>true,DEMO_ORDER_SYNC:null,CURRENT:{isSuperAdmin:true},canConfigureFinanceChart:()=>true,FINANCE_WEEK_TASKS:[],appDemoRecords:()=>[record]});vm.runInContext(code,c);return c;}
 test('one order follow-up links demo and manager, with correct weekly bounds',()=>{
  const c=setup(),[t]=c.demoOrderFollowups([record,record],[],now);
  assert.equal(c.demoOrderFollowups([record,record],[],now).length,1);
  assert.equal(t.kind,'orders');assert.equal(t.sourceProjectId,'client');assert.equal(t.managerEmail,record.manager);assert.equal(t.crmDealId,'deal1');
  assert.equal(t.start,Date.parse('2026-10-22T14:00:00+05:00'));assert.equal(t.end,Date.parse('2026-10-29T14:00:00+05:00'));
- assert.match(c.financeDemoTaskLink(t),/https:\/\/pllato.kz\/app\/client.html/);
+ assert.match(c.financeDemoTaskLink(t),/openTaskProjectCard\('client'\)/);
 });
 test('old, undated and future catalog entries are excluded',()=>{
  const c=setup();for(const timestamp of [0,Date.parse('2026-10-27T12:00:00+05:00'),now+86400000])assert.equal(c.demoOrderFollowups([{...record,timestamp}],[],now).length,0);
@@ -22,7 +22,7 @@ test('completed, deleted and moved originals are never recreated',()=>{
  const c=setup();for(const state of [{done:true},{deleted:true},{movedToStart:now}])assert.equal(c.demoOrderFollowups([record],[{id:'demo-order:client',...state}],now).length,0);
 });
 test('untrusted URLs are not rendered as demo links',()=>{
- const c=setup();for(const sourceDemoUrl of ['javascript:alert(1)','https://evil.test/app/a','/login.html',''])assert.equal(c.financeDemoTaskLink({source:'demo-followup',sourceDemoUrl}),'');
+ const c=setup();for(const sourceDemoUrl of ['javascript:alert(1)','https://evil.test/app/a','/login.html',''])assert.match(c.financeDemoTaskLink({id:'unlinked',source:'demo-followup',sourceDemoUrl}),/Привязать/);
 });
 test('sync writes create-only and reloads persisted state; simultaneous calls share one job',async()=>{
  const c=setup();let pushes=0,pulls=0;c.apiFetch=async(path,{body})=>{pushes++;assert.equal(path,'/store/push');assert.equal(body.ops[0].createOnly,true);};c.loadFinanceWeekTasks=async()=>{pulls++;};
@@ -60,4 +60,15 @@ test('contact prefixes company and existing generated task in the editor',()=>{
  assert.equal(c.financeDemoTaskText({source:'demo-followup',sourceProjectId:'client',text:entry.title+' — Связаться после демо'}),expected);
  assert.equal(c.financeDemoTaskText({source:'demo-followup',sourceProjectId:'client',text:'Есен перезвонить в пятницу'}),'Есен перезвонить в пятницу');
  assert.ok(html.includes("mEsc(existing?financeDemoTaskText(existing):'')"));
+});
+
+test('every task type links its project, including manual and payment plan tasks',()=>{
+ const c=setup();for(const source of ['manual','payment-plan','demo-followup'])assert.match(c.financeDemoTaskLink({source,sourceProjectId:'client'}),/Карточка/);
+ assert.equal(c.financeTaskProject({crmDealId:'deal_deal1'}).projectId,'client');
+ assert.equal(c.financeTaskProject({sourceDemoUrl:'app/client.html'}).projectId,'client');
+ c.appDemoRecords=()=>[record,{...record,projectId:'duplicate'}];
+ assert.equal(c.financeTaskProject({crmDealId:'deal1'}),null);
+});
+test('unlinked read-only tasks do not offer editing',()=>{
+ const c=setup();c.canEditFinanceTask=()=>false;assert.match(c.financeDemoTaskLink({id:'x'}),/Без карточки/);
 });
