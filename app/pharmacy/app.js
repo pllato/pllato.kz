@@ -3035,27 +3035,67 @@ function doctorModal(d){
 }
 
 // ---------- ANALYTICS ----------
-PAGES.analytics=async(c)=>{ if(noRevAccess()){ noRevBlock(c); return; }
-  const ahStores=await fetchStores();
+PAGES.analytics=async(c)=>{
+  // Без доступа к выручке страница раньше закрывалась целиком. Переписки — не выручка, а маркетингу
+  // (в том числе «Операционному маркетологу» с отметкой «без доступа к выручке») они нужны:
+  // оставляем выбор периода и блок переписок, продажи не показываем.
+  const noRev=noRevAccess();
+  const ahStores=noRev?[]:await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-ah="range"><button data-d="7">7 дней</button><button class="on" data-d="30">30 дней</button><button data-d="90">90 дней</button></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="from" title="С даты"></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="to" title="По дату"></div>
     <button class="btn sm" data-ah="apply">Показать</button>
-    ${storeSelectHtml(ahStores,'','class="sel" data-ah="store" title="Точка"','Все точки')}
-    <select class="sel" data-ah="org" title="Организация"><option value="">Все организации</option></select>
+    ${noRev?'':storeSelectHtml(ahStores,'','class="sel" data-ah="store" title="Точка"','Все точки')}
+    ${noRev?'':'<select class="sel" data-ah="org" title="Организация"><option value="">Все организации</option></select>'}
   </div>`);
   const host=el(`<div class="section-gap"><div class="muted2" style="padding:10px">Загрузка аналитики…</div></div>`);
-  c.appendChild(tbar); c.appendChild(host);
+  const chHost=el(`<div class="section-gap"></div>`);
+  c.appendChild(tbar);
+  if(noRev) c.appendChild(el(`<div class="note amber section-gap" style="display:block">${ic('i-shield','sm')} Данные по выручке и продажам для вашей учётной записи скрыты. Ниже — статистика переписок.</div>`));
+  else c.appendChild(host);
+  c.appendChild(chHost);
   const seg=tbar.querySelector('[data-ah=range]'),fromI=tbar.querySelector('[data-ah=from]'),toI=tbar.querySelector('[data-ah=to]'),applyB=tbar.querySelector('[data-ah=apply]');
+  const stSel=tbar.querySelector('[data-ah=store]'), orgSel=tbar.querySelector('[data-ah=org]');
   let curF=isoDaysAgo(29), curT=isoDaysAgo(0);
-  const go=(f,t)=>{ curF=f; curT=t; loadAnalytics(host,f,t,tbar.querySelector('[data-ah=store]').value,tbar.querySelector('[data-ah=org]').value); };
+  const loadSales=()=>{ if(!noRev) loadAnalytics(host,curF,curT,stSel?stSel.value:'',orgSel?orgSel.value:''); };
+  const go=(f,t)=>{ curF=f; curT=t; loadSales(); loadChatStats(chHost,f,t); };
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value='';toI.value=''; go(isoDaysAgo(+b.dataset.d-1),isoDaysAgo(0)); });
   applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); go(fromI.value,toI.value); } else toast('Укажите обе даты','i-info'); };
-  tbar.querySelector('[data-ah=store]').onchange=()=>go(curF,curT);
-  tbar.querySelector('[data-ah=org]').onchange=()=>go(curF,curT);
+  // точка и организация влияют только на продажи — переписки по ним не перезапрашиваем
+  if(stSel) stSel.onchange=loadSales;
+  if(orgSel) orgSel.onchange=loadSales;
   go(isoDaysAgo(29),isoDaysAgo(0));
 };
+// Переписки за период: сколько клиентов написало — по номерам WhatsApp (филиалы) и страницам Instagram.
+// Все номера, без ограничения по точке (решение заказчика). Цифры — /api/analytics/chats.
+async function loadChatStats(box,from,to){
+  const seq=(box.__seq=(box.__seq||0)+1);   // быстрая смена периода: старый ответ не перетирает новый
+  const dmy=s=>String(s||'').split('-').reverse().join('.');
+  const shell=(inner,btn)=>`<div class="panel"><div class="panel-h" style="display:flex;align-items:center;gap:10px"><h3>Переписки</h3><span class="muted2" style="font-size:12px">${esc(dmy(from))} — ${esc(dmy(to))}</span>${btn||''}</div><div class="panel-b">${inner}</div></div>`;
+  box.innerHTML=shell(`<div class="muted2" style="padding:6px 2px">Загрузка…</div>`);
+  const r=await api('/api/analytics/chats?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
+  if(seq!==box.__seq) return;
+  if(!r.ok){ box.innerHTML=shell(`<div class="muted2" style="padding:6px 2px">${esc((r.data&&r.data.error)||'Не удалось загрузить статистику переписок')}</div>`); return; }
+  const d=r.data, groups=d.groups||[], t=d.total||{}, fmt=n=>(n||0).toLocaleString('ru-RU');
+  if(!groups.length){ box.innerHTML=shell(`<div class="muted2" style="padding:6px 2px">Нет подключённых номеров WhatsApp и страниц Instagram.</div>`); return; }
+  const head=isIg=>`<tr><th>${isIg?'Страница':'Номер (филиал)'}</th><th class="num">Написали</th><th class="num">Новые</th>${isIg?'<th class="num">В директ</th><th class="num">Только комментарии</th>':''}<th class="num">Сообщений</th></tr>`;
+  const line=(x,isIg,bold)=>`<tr${bold?' style="font-weight:700;border-top:2px solid var(--line2)"':''}><td>${esc(x.name)}${(!bold&&x.active===false)?' <span class="tag">отключён</span>':''}</td><td class="num">${fmt(x.chats)}</td><td class="num">${fmt(x.new)}</td>${isIg?`<td class="num">${fmt(x.direct)}</td><td class="num">${fmt(x.comments_only)}</td>`:''}<td class="num">${fmt(x.msgs)}</td></tr>`;
+  const tables=groups.map(g=>{ const isIg=g.type==='ig', many=g.rows.length>1;
+    const tot=Object.assign({},g.total,{name:'Итого по '+g.title+(isIg?'':' (без повторов)')});
+    return `<div style="font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 4px">${esc(g.title)}</div>
+      <div style="overflow-x:auto"><table class="tbl"><thead>${head(isIg)}</thead><tbody>${g.rows.map(x=>line(x,isIg)).join('')}${many?line(tot,isIg,true):''}</tbody></table></div>`; }).join('');
+  const cards=`<div class="cards-row">${miniStat('i-users','#0891b2','Написали',fmt(t.chats))}${miniStat('i-star','#16a34a','Новые',fmt(t.new))}${miniStat('i-chat','#7c3aed','Входящих сообщений',fmt(t.msgs))}</div>`;
+  const note=`<div class="muted2" style="font-size:11.5px;line-height:1.5;margin-top:10px"><b>Написали</b> — сколько разных клиентов прислали хотя бы одно сообщение за период. Если клиент писал на два номера, он есть в обеих строках, а в итоге посчитан один раз. <b>Новые</b> — написали впервые. <b>Только комментарии</b> — в Instagram писали лишь под постами, без сообщения в директ. Время — по Бишкеку.</div>`;
+  box.innerHTML=shell(cards+tables+note, `<button class="btn sm" data-cs="csv" style="margin-left:auto">${ic('i-doc','sm')} Экспорт</button>`);
+  const csvB=box.querySelector('[data-cs=csv]');
+  if(csvB) csvB.onclick=()=>{
+    const rows=[]; groups.forEach(g=>g.rows.forEach(x=>rows.push([g.title, x.name, x.chats, x.new, g.type==='ig'?x.direct:'', g.type==='ig'?x.comments_only:'', x.msgs])));
+    rows.push(['Всего', '', t.chats, t.new, '', '', t.msgs]);
+    downloadCSV('Переписки_'+from+'_'+to+'.csv', ['Канал','Номер / страница','Написали','Новые','В директ','Только комментарии','Сообщений'], rows);
+    toast('Выгружено','i-check2');
+  };
+}
 function anMargin(x){ return x.revenue>0?Math.round((x.profit||0)/x.revenue*100):0; }
 async function loadAnalytics(host,from,to,store,org){
   host.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
