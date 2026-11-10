@@ -1,3 +1,4 @@
+import { META_TEST, isMetaTestChat, handleMetaTest, sendMetaTest, ensureMetaTestSchema } from './wa-meta-test.js';
 import {waDeliveryStatus} from './wa-delivery-status.js';
 import {writtenPlacement} from './written-placement.js';
 import {ensureActiveChatMemberships} from './chat-membership-lifecycle.js';
@@ -2486,7 +2487,7 @@ async function handleContactCardByPhone(request, env) {
         SELECT m.direction, m.text, m.ts
         FROM wa_messages m
         JOIN wa_chats c ON c.id = m.chat_id
-        WHERE c.phone LIKE ?
+        WHERE c.phone LIKE ? AND COALESCE(c.instance_id, '') NOT LIKE 'meta-test-%'
         ORDER BY m.ts DESC
         LIMIT 3
       `).bind(`%${tail10}%`).all();
@@ -5692,6 +5693,18 @@ async function handleWaSend(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  if ([body.channelId, body.instanceId, body.chatId].some(isMetaTestChat)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+    const expectedChat = `${META_TEST.recipient}@c.us`;
+    if ((body.phone && normalizeWaPhone(body.phone) !== META_TEST.recipient) ||
+        (body.chatId && ![expectedChat, `wa:${META_TEST.instance}:${expectedChat}`].includes(body.chatId)) || body.mediaUrl) {
+      return json({ error: 'Тест Meta поддерживает текст только на подтверждённый номер Платона.' }, 400, request);
+    }
+    await ensureMetaTestSchema(env);
+    try { const r = await sendMetaTest(env, { text: body.text }); return json({ ok: true, ...r, chatId: r.chatDocId, status: 'pending' }, 200, request); }
+    catch (e) { return json({ error: e.message }, 502, request); }
+  }
   const channelId = String(body.channelId || '').trim();
   let instanceId = String(body.instanceId || '').trim();
   let chatId = String(body.chatId || '').trim();
@@ -5765,6 +5778,14 @@ async function handleWaDeliveryStatus(request, env) {
   await resolveCanonicalUser(env, auth.claims);
   const url=new URL(request.url), chatId=url.searchParams.get('chatId'), messageId=url.searchParams.get('messageId');
   if(!chatId || !messageId) return json({error:'chatId and messageId required'},400,request);
+  if (isMetaTestChat(chatId)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({error:guard.error},guard.status,request);
+    await ensureMetaTestSchema(env);
+    const status = await env.DB.prepare(`SELECT s.status,s.error_code FROM wa_messages m LEFT JOIN wa_meta_test_status s ON s.message_id=m.wa_message_id WHERE m.chat_id=? AND m.wa_message_id=? AND m.direction='out'`).bind(chatId,messageId).first();
+    if (!status) return json({error:'Сообщение не найдено'},404,request);
+    return json({ok:true,status:status.status||'pending',errorCode:status.error_code||null},200,request);
+  }
   const row=await env.DB.prepare(`SELECT c.chat_id,c.instance_id FROM wa_messages m JOIN wa_chats c ON c.id=m.chat_id
     WHERE c.id=? AND m.wa_message_id=? AND m.direction='out' LIMIT 1`).bind(chatId,messageId).first();
   if(!row)return json({error:'Сообщение не найдено'},404,request);
@@ -6106,6 +6127,10 @@ async function handleWaChatAvatarUpload(request, env) {
   const url = new URL(request.url);
   const chatId = (url.searchParams.get("chatId") || "").trim();
   if (!chatId) return json({ error: "chatId required" }, 400, request);
+  if (isMetaTestChat(chatId)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   const contentType = request.headers.get('Content-Type') || '';
   if (!/^image\//i.test(contentType)) return json({ error: "Нужен файл-изображение" }, 400, request);
   const body = await request.arrayBuffer();
@@ -6130,6 +6155,10 @@ async function handleWaArchiveChat(request, env) {
   try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
   const chatId = body.chatId;
   if (!chatId) return json({ error: "chatId required" }, 400, request);
+  if (isMetaTestChat(chatId)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   await ensureWaArchivedColumn(env);
   const archived = body.archived === false ? 0 : 1;
   await env.DB.prepare(
@@ -6179,6 +6208,7 @@ async function handleWaListChats(request, env) {
   }
 
   const archivedCond = `COALESCE(c.archived, 0) = ${wantArchived ? 1 : 0}`;
+  if (me.role !== 'admin') whereSQL += (whereSQL ? ' AND ' : 'WHERE ') + "c.instance_id NOT LIKE 'meta-test-%'";
   let finalWhere = whereSQL ? `${whereSQL} AND ${archivedCond}` : `WHERE ${archivedCond}`;
   const recipientPhone = normalizeWaPhone(url.searchParams.get('phone'));
   if (recipientPhone) {
@@ -6215,8 +6245,12 @@ async function handleWaListMessages(request, env) {
   if (!chatId) return json({ error: "chatId required" }, 400, request);
   await ensureWaSenderColumn(env);
   await ensureWaHistorySchema(env.DB);
+  if (isMetaTestChat(chatId)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   let historySync = { status: 'pending' };
-  try { historySync = await syncWaHistory(env.DB, chatId); }
+  try { historySync = isMetaTestChat(chatId) ? { status: 'complete' } : await syncWaHistory(env.DB, chatId); }
   catch { historySync = { status: 'error' }; }
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
   const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
@@ -6256,6 +6290,10 @@ async function handleWaMarkRead(request, env) {
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
   const chatId = body.chatId;
   if (!chatId) return json({ error: "chatId required" }, 400, request);
+  if (isMetaTestChat(chatId)) {
+    const guard = await requireAdmin(request, env);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   await env.DB.prepare(`
     UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now')
     WHERE id = ?
@@ -6356,7 +6394,7 @@ async function handleWaMarkReadByDeal(request, env) {
   if (!dealId) return json({ error: "dealId required" }, 400, request);
   await env.DB.prepare(`
     UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now')
-    WHERE deal_id = ?
+    WHERE deal_id = ? AND COALESCE(instance_id, '') NOT LIKE 'meta-test-%'
   `).bind(Date.now(), dealId).run();
   return json({ ok: true }, 200, request);
 }
@@ -12821,6 +12859,8 @@ export default {
     if (cfItemMatch && request.method === "DELETE") {
       return handleCfSchemaDelete(request, env, cfItemMatch[1], cfItemMatch[2]);
     }
+
+    if (path.startsWith('/api/wa/meta-test/')) return handleMetaTest(request, env, { requireAdmin, json });
 
     // /api/wa/* — WhatsApp Green-API
     if (path === "/api/wa/webhook" && request.method === "POST") {

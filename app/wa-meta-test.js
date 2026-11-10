@@ -1,0 +1,28 @@
+// Настоящий тестовый канал Meta внутри CRM. Секреты не сохраняются в браузере.
+export async function openMetaTest({baseUrl,getToken}) {
+  const existing=document.getElementById('wa-meta-test-dialog'); if(existing){existing.showModal();return;}
+  const dialog=document.createElement('dialog');dialog.id='wa-meta-test-dialog';
+  dialog.style.cssText='width:min(900px,94vw);max-height:90vh;overflow:auto;border:1px solid #ccd1d9;border-radius:12px;padding:24px;background:var(--bg2,#fff);color:var(--t1,#17202c)';
+  dialog.innerHTML=`<header style="display:flex;justify-content:space-between;gap:16px"><div><h2 style="margin:0">WhatsApp · тест Meta</h2><p>Тестовый номер +1 555 149 9249 → ваш WhatsApp +7 706 642 3098</p></div><button type="button" data-close aria-label="Закрыть">×</button></header>
+  <p data-notice role="status">Загрузка…</p>
+  <details><summary>Настройка подключения</summary><p>Скопируйте временный токен из Meta → WhatsApp → «Шаг 1. Попробуйте» и App Secret из основных настроек Pllato CRM. Они передаются только серверу CRM и не выводятся обратно.</p>
+  <form data-config><label style="display:block">Токен доступа <input name="accessToken" type="password" autocomplete="off" style="width:100%"></label><label style="display:block;margin-top:10px">App Secret <input name="appSecret" type="password" autocomplete="off" style="width:100%"></label><button style="margin-top:12px">Проверить и сохранить</button></form>
+  <p>В Meta укажите Callback URL и Verify token ниже, затем подпишитесь на поле <b>messages</b> для тестового WhatsApp-аккаунта.</p><label>Callback URL<input data-webhook readonly style="width:100%"></label><label>Verify token<input data-verify readonly style="width:100%"></label>
+  <p>Рабочие каналы Green API продолжают работать. Это ограниченный тест текста и статусов, не подключение рабочего номера через Coexistence.</p></details>
+  <div style="display:flex;gap:8px;margin:16px 0"><button data-template>Отправить тестовый шаблон</button><button data-refresh>Обновить переписку</button></div>
+  <p style="font-size:13px">Ответьте на шаблон со своего телефона, чтобы открыть окно переписки. После этого можно писать обычный текст из CRM.</p>
+  <div data-messages role="log" aria-label="Тестовая переписка WhatsApp" style="height:300px;overflow:auto;padding:12px;border:1px solid #ccd1d9;border-radius:8px"></div>
+  <form data-send style="display:flex;gap:8px;margin-top:12px"><input name="text" required maxlength="4096" placeholder="Сообщение на ваш тестовый номер" aria-label="Текст сообщения" style="flex:1;min-width:0"><button>Отправить</button></form>`;
+  document.body.append(dialog);dialog.showModal();
+  const $=s=>dialog.querySelector(s),notice=$('[data-notice]');let busy=false,last='',timer;
+  async function api(path,body){const r=await fetch(`${baseUrl}/api/wa/meta-test/${path}`,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${await getToken()}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();if(!r.ok)throw new Error(d.error||`Ошибка ${r.status}`);return d;}
+  function message(text,error=false){notice.textContent=text;notice.style.color=error?'#b42318':'';}
+  async function refresh(){if(busy||!dialog.isConnected||document.hidden)return;try{const d=await api('messages');const next=JSON.stringify(d.items);if(next===last)return;last=next;const box=$('[data-messages]');box.replaceChildren();for(const m of d.items){const row=document.createElement('div');row.style.cssText=`padding:8px 12px;margin:8px 0;border-radius:8px;background:${m.direction==='out'?'#e8f3ed':'#f0f2f5'};color:#17202c`;const info=document.createElement('small');info.textContent=`${m.direction==='out'?'CRM':'Телефон'} · ${new Date(m.ts).toLocaleString('ru')} · ${{sent:'Отправлено',delivered:'Доставлено',read:'Прочитано',failed:'Ошибка доставки'}[m.status]||(m.direction==='out'?'Принято Meta, ждём статус':'Получено')}${m.error_code?' · код '+m.error_code:''}`;const text=document.createElement('div');text.style.whiteSpace='pre-wrap';text.textContent=m.text;row.append(info,text);box.append(row);}if(!d.items.length)box.textContent='Сообщений пока нет. Отправьте тестовый шаблон.';box.scrollTop=box.scrollHeight;}catch(e){message(e.message,true);}}
+  async function load(){const c=await api('config');$('[data-webhook]').value=c.webhookUrl;$('[data-verify]').value=c.verifyToken||'';$('details').open=!c.configured;message(c.configured?'Токен сохранён. Для входящих сообщений настройте webhook в Meta.':'Канал ещё не настроен. Откройте настройку подключения.');await refresh();}
+  async function operation(fn){if(busy)return;busy=true;dialog.querySelectorAll('button:not([data-close])').forEach(b=>b.disabled=true);try{await fn();}catch(e){message(e.message,true);}finally{busy=false;dialog.querySelectorAll('button').forEach(b=>b.disabled=false);await refresh();}}
+  $('[data-config]').onsubmit=e=>{e.preventDefault();const form=e.target;operation(async()=>{await api('config',{accessToken:form.elements.accessToken.value,appSecret:form.elements.appSecret.value});form.reset();await load();});};
+  $('[data-template]').onclick=()=>operation(async()=>{await api('send',{template:true});message('Meta приняла тестовый шаблон. Ответьте на него с телефона.');});
+  $('[data-send]').onsubmit=e=>{e.preventDefault();const form=e.target;operation(async()=>{await api('send',{text:form.elements.text.value});form.reset();message('Meta приняла сообщение. Статус доставки обновится автоматически.');});};
+  $('[data-refresh]').onclick=refresh;$('[data-close]').onclick=()=>dialog.close();dialog.onclose=()=>{clearInterval(timer);dialog.remove();};
+  try{await load();if(dialog.isConnected)timer=setInterval(refresh,5000);}catch(e){message(e.message,true);}
+}
