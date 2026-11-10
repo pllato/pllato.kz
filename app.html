@@ -1326,7 +1326,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
 <link rel="stylesheet" href="./app/financial-planning.css?v=20261012-notes-hover">
 <script src="/app/production-activity.js?v=11"></script>
-<link rel="stylesheet" href="./app/project-cards.css?v=20261109-dense">
+<link rel="stylesheet" href="./app/project-cards.css?v=20261110-task-link">
 </head>
 <body>
 
@@ -8014,14 +8014,47 @@ async function syncDemoOrderFollowups(){
   })();
   try{await DEMO_ORDER_SYNC;}finally{DEMO_ORDER_SYNC=null;}
 }
-function financeDemoTaskLink(task){
-  if(task?.source!=='demo-followup')return '';
+function financeTaskProject(task){
+  const records=appDemoRecords();
+  const direct=records.find(r=>r.projectId===task?.sourceProjectId);if(direct)return direct;
+  const key=v=>String(v||'').replace(/^deal_/,'');
+  const deals=task?.crmDealId?records.filter(r=>key(r.crmDealId)===key(task.crmDealId)):[];
+  if(deals.length===1)return deals[0];
   try{
-    const url=new URL(task.sourceDemoUrl,location.origin+'/');
-    if(!task.sourceDemoUrl || url.origin!==location.origin || !url.pathname.startsWith('/app/'))return '';
-    return `<a class="auto-badge" href="${mEsc(url.href)}" target="_blank" rel="noopener" title="Открыть демо клиента">Демо ↗</a>`;
-  }catch{return '';}
+    const url=new URL(task?.sourceDemoUrl,location.origin+'/');
+    if(!task?.sourceDemoUrl||url.origin!==location.origin||!url.pathname.startsWith('/app/'))return null;
+    return records.find(r=>r.demoUrl&&new URL(r.demoUrl,location.origin+'/').pathname===url.pathname)||null;
+  }catch{return null;}
 }
+function financeDemoTaskLink(task){
+  const project=financeTaskProject(task);
+  if(project)return `<button type="button" class="auto-badge" onclick="openTaskProjectCard('${paymentPlanProjectToken(project.projectId)}')" title="Перейти к карточке проекта">Карточка ↓</button>`;
+  if(!task?._virtual&&canEditFinanceTask(task))return `<button type="button" class="auto-badge" onclick="linkFinanceTaskProject('${paymentPlanProjectToken(task.id)}')" title="Выбрать карточку проекта для дела">Привязать</button>`;
+  return '<span class="auto-badge" title="Карточка проекта не привязана">Без карточки</span>';
+}
+function linkFinanceTaskProject(token){
+  const task=FINANCE_WEEK_TASKS.find(t=>t.id===decodeURIComponent(token));if(!task)return;
+  openFinanceWeekTaskEditor(task.kind,task.start,task.end,task.id);
+  document.getElementById('financeTaskProject')?.focus();
+}
+function openTaskProjectCard(token){
+  const card=mCard(decodeURIComponent(token));
+  if(!card||!cardAllowed(card)){alert('Карточка проекта недоступна.');return;}
+  document.querySelector('.fc-fullscreen')?.close();
+  if(card.getClientRects().length===0){
+    SEARCH_TERM='';const search=document.getElementById('projectSearch');if(search)search.value='';
+    ACTIVE_TAB='all';
+    document.querySelectorAll('#projectTabs .ptab').forEach(b=>b.classList.toggle('on',b.dataset.tab==='all'));
+    resetProjectDateFilters();
+  }
+  requestAnimationFrame(()=>{
+    card.classList.remove('task-card-highlight');void card.offsetWidth;
+    card.classList.add('task-card-highlight');card.setAttribute('tabindex','-1');card.focus({preventScroll:true});
+    card.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});
+    clearTimeout(card._taskHighlightTimer);card._taskHighlightTimer=setTimeout(()=>card.classList.remove('task-card-highlight'),4500);
+  });
+}
+
 async function ensureInitialFinanceComment(series){
   if(!CURRENT?.isSuperAdmin || !Array.isArray(series)) return;
   const point=series.find(item=>item?.partial && item?.label==='30.07');
@@ -10205,7 +10238,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { startFinanceTaskDrag, financeTaskGripKey, reorderFinanceWeekTask, openSocialDay, saveSocialDay, openSocialAccess, saveSocialAccess, setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openTaskProjectCard, linkFinanceTaskProject, startFinanceTaskDrag, financeTaskGripKey, reorderFinanceWeekTask, openSocialDay, saveSocialDay, openSocialAccess, saveSocialAccess, setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
