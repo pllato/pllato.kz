@@ -25373,6 +25373,7 @@ async function renderSettingsChannelsWa(el) {
         </div>
         <button class="btn btn-sm" id="wa-add-channel-btn" style="background:#25D366;color:#fff;border:none">➕ Подключить канал</button>
       </div>
+      <div style="margin-bottom:14px"><button class="btn btn-sm" id="wa-meta-test-btn">Meta · тестовый канал</button></div>
       <div id="settings-wa-channels"><div class="empty">Загрузка…</div></div>
       <div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6">
         💡 <b>Как это работает:</b> один канал = один Green-API инстанс (номер). Создаёшь инстанс на <a href="https://green-api.com" target="_blank" style="color:var(--ac)">green-api.com</a>, привязываешь WhatsApp по QR, вставляешь idInstance + apiToken сюда. Входящие сообщения автоматически попадают в чаты и могут создавать сделки.
@@ -25380,6 +25381,10 @@ async function renderSettingsChannelsWa(el) {
     </div>
   `;
   document.getElementById('wa-add-channel-btn').onclick = openWaChannelsModal;
+  document.getElementById('wa-meta-test-btn').onclick = async () => {
+    const { openMetaTest } = await import('/app/wa-meta-test.js?v=20261110');
+    await openMetaTest({ baseUrl: WORKER_BASE_URL, getToken: () => fbAuth.currentUser.getIdToken() });
+  };
   // Список существующих каналов
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
