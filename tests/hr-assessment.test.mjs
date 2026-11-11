@@ -45,3 +45,10 @@ assert.equal(registryChart({stage:'personality',code:'broken'}),null);
 assert.equal(registryChart({stage:'iq'}),null);
 assert.equal(registryChart({stage:'personality',code:HR.encodeResult({ans:{personality:{}}})}),null);
 console.log('Registry: compact profiles, legacy/checked/retry states, no answer/code leakage passed');
+for(const age of [null,0,121,25.5,'25']){const d=HR.decodeResult(personal.code).data;d.cand={formVersion:2,age};assert.throws(()=>assessSubmission({...personal,code:HR.encodeResult(d)}));}
+const ageData=HR.decodeResult(personal.code).data;ageData.cand={formVersion:2,age:25};
+const agePayload={...personal,code:HR.encodeResult(ageData)};
+assert.equal(assessSubmission(agePayload).status,'review');
+await req('submit','POST',agePayload,false);
+assert.equal((await req('submissions')).items[0].age,25);
+console.log('Required age validation and registry round-trip passed');
