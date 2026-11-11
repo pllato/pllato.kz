@@ -189,23 +189,24 @@ function screenIntro(){
     <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">около ${selectedMinutes(preset)||selectedMinutes('manager')} минут</b>. Один вопрос на экране. Нажмите ответ, чтобы перейти дальше. Ответы сохраняются на этом устройстве. В разделах IQ отсчёт времени продолжается, даже если закрыть вкладку.</p>
     <div class="card">
       <div class="field"><label>Имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
+      <div class="field"><label for="fAge">Возраст (полных лет)</label><input id="fAge" type="number" inputmode="numeric" min="1" max="120" step="1" required placeholder="Например, 25"></div>
       <div class="field"><label>Телефон (для связи)</label><input id="fPhone" type="tel" inputmode="tel" placeholder="+7 701 000 00 00"></div>
       <div class="field"><label>Электронная почта (необязательно)</label><input id="fEmail" type="email" inputmode="email" placeholder="you@example.com"></div>
       <div class="field"><label>Должность, на которую претендуете</label><div class="seg" id="posSeg" style="flex-wrap:wrap">`+
         Object.values(POS).map(p=>`<button data-p="${p.id}" class="${preset===p.id?'on':''}">${p.icon} ${p.short}</button>`).join('')+`</div></div>
     </div>
-    <div class="note warn">Нажимая «Начать», вы соглашаетесь на обработку ваших данных (имя, контакты, ответы) для оценки соответствия должности. Результат автоматически отправится работодателю.</div>`;
+    <div class="note warn">Нажимая «Начать», вы соглашаетесь на обработку ваших данных (имя, возраст, контакты, ответы) для оценки соответствия должности. Результат автоматически отправится работодателю.</div>`;
   let pick = preset||null;
   const estEl=$('#estTime'); if(pick) estEl.textContent='около '+selectedMinutes(pick)+' минут';
   app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;estEl.textContent='около '+selectedMinutes(pick)+' минут';updateNext()});
-  ['fName','fPhone','fEmail'].forEach(id=>$('#'+id).oninput=updateNext);
-  function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return $('#fName').value.trim() && ph.length>=10 && ph.length<=15 && (!em || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) && pick; }
+  ['fName','fPhone','fEmail','fAge'].forEach(id=>$('#'+id).oninput=updateNext);
+  function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return validAge(Number($('#fAge').value)) && $('#fName').value.trim() && ph.length>=10 && ph.length<=15 && (!em || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) && pick; }
   function updateNext(){ nextBtn.disabled=!valid(); }
   setFoot(true,{next:'Начать',nextEnabled:false}); updateNext();
   nextBtn.onclick=()=>{
     if(!valid()) return;
     state.fam=pick; const p=POS[pick];
-    state.cand.name=$('#fName').value.trim(); state.cand.phone=$('#fPhone').value.trim(); state.cand.email=$('#fEmail').value.trim();
+    state.cand.age=Number($('#fAge').value);state.cand.formVersion=2;state.cand.name=$('#fName').value.trim(); state.cand.phone=$('#fPhone').value.trim(); state.cand.email=$('#fEmail').value.trim();
     state.kp = qp.get('kp') || p.knowledgeProfile || null;
     state.cform = p.cognitiveForm || qp.get('form') || 'A';
     state.modules = p.modules.slice();
@@ -215,9 +216,17 @@ function screenIntro(){
     state.startTs=Date.now(); state.mi=0; saveDraft(); registerAttempt(); runModule();
   };
 }
+function validAge(age){return Number.isInteger(age)&&age>=1&&age<=120}
 function resumeDraft(draft){
+  if(!validAge(draft.cand?.age)){
+    app.innerHTML='<div class="card"><h1>Укажите возраст</h1><p>Ответы сохранены. Дополните анкету, чтобы продолжить.</p><div class="field"><label for="resumeAge">Возраст (полных лет)</label><input id="resumeAge" type="number" inputmode="numeric" min="1" max="120" step="1" required></div></div>';
+    setFoot(true,{next:'Продолжить',nextEnabled:false});
+    $('#resumeAge').oninput=()=>{nextBtn.disabled=!validAge(Number($('#resumeAge').value))};
+    nextBtn.onclick=()=>{const age=Number($('#resumeAge').value);if(!validAge(age))return;draft.cand={...draft.cand,age,formVersion:2};resumeDraft(draft)};return;
+  }
+
   Object.assign(state,{stage:draft.stage||STAGE,fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial,cogRun:draft.cogRun,attempt:draft.attempt});
-  runModule();
+  saveDraft();runModule();
 }
 
 /* ---- Диспетчер модулей ---- */

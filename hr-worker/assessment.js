@@ -10,6 +10,7 @@ export function assessSubmission(b){
  let hash=5381;for(let i=0;i<raw.length;i++)hash=((hash<<5)+hash+raw.charCodeAt(i))>>>0;
  if(hash.toString(36)!==parts[1])throw new Error('Повреждённый код результата');
  const d=JSON.parse(raw);
+ if(d.cand?.formVersion>=2&&(!Number.isInteger(d.cand.age)||d.cand.age<1||d.cand.age>120))throw new Error("Укажите возраст в полных годах (1–120).");
  if(!['manager','itr','sales','worker'].includes(d.fam)||d.fam!==b.fam||!d.ans)throw new Error('Некорректная анкета');
  const stage=['personality','iq'].includes(d.stage)?d.stage:b.stage==='personality'?'personality':b.stage==='iq'?'iq':'full';
  if(stage==='personality'||d.telemetry?.personalityQuality){
