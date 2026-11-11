@@ -102,7 +102,8 @@ svg.shape{width:100%;height:100%;display:block}
 <script src="data/personality.js?v=20261111-attention"></script>
 <script src="personality-quality.js?v=20261111-attention"></script>
 <script src="data/cognitive.js"></script>
-<script src="data/abstract.js"></script>
+<script src="data/abstract.js?v=20261111-figures"></script>
+<script src="figures.js?v=20261111-figures"></script>
 <script src="data/knowledge.js"></script>
 <script src="data/sjt.js"></script>
 <script src="data/integrity.js"></script>
@@ -126,26 +127,7 @@ const OPT_ORDER={};
 function optOrder(id,n){ if(!OPT_ORDER[id]){const a=[];for(let i=0;i<n;i++)a.push(i);for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}OPT_ORDER[id]=a;} return OPT_ORDER[id]; }
 
 /* Рендер фигуры-примитива в SVG */
-function renderShapes(prims){
-  if(!prims||!prims.length) return '';
-  const sz={s:14,m:20,l:28};
-  let parts=[];
-  const spread = prims.length>1;
-  prims.forEach((p,i)=>{
-    const r=sz[p.size]||20;
-    const cx = spread ? (100/(prims.length+1))*(i+1) : 50;
-    const cy = 50;
-    const fill = p.fill? '#0f1620':'none';
-    const stroke='#0f1620', sw=3;
-    let el='';
-    if(p.shape==='circle') el=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    else if(p.shape==='square') el=`<rect x="${cx-r}" y="${cy-r}" width="${2*r}" height="${2*r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" transform="rotate(${p.rot||0} ${cx} ${cy})"/>`;
-    else if(p.shape==='triangle'){const h=r*1.2;el=`<polygon points="${cx},${cy-h} ${cx-r},${cy+r*0.7} ${cx+r},${cy+r*0.7}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" transform="rotate(${p.rot||0} ${cx} ${cy})"/>`}
-    else if(p.shape==='arrow'){el=`<g transform="rotate(${p.rot||0} ${cx} ${cy})"><line x1="${cx}" y1="${cy+r}" x2="${cx}" y2="${cy-r}" stroke="${stroke}" stroke-width="${sw}"/><polyline points="${cx-r*0.5},${cy-r*0.4} ${cx},${cy-r} ${cx+r*0.5},${cy-r*0.4}" fill="none" stroke="${stroke}" stroke-width="${sw}"/></g>`}
-    parts.push(el);
-  });
-  return `<svg class="shape" viewBox="0 0 100 100">${parts.join('')}</svg>`;
-}
+const renderShapes=HR_FIGURES.renderShapes;
 
 /* ============ Состояние ============ */
 const POS = window.HR_POSITIONS;
@@ -364,11 +346,13 @@ function renderVN(it,cur,idx,total){
     order.map((oi,pos)=>`<div class="opt ${cur===oi?'on':''}" data-oi="${oi}"><div class="mk">${'АБВГД'[pos]}</div><div>${esc(it.options[oi])}</div></div>`).join('');
 }
 function renderAbstract(it,cur){
-  const cells=it.grid.map(c=>c===null?`<div class="cell q">?</div>`:`<div class="cell">${renderShapes(c)}</div>`).join('');
+  const series=it.rule==='rotation', examples=it.rule==='odd-symmetry';
+  const grid=series?[...it.grid.filter(Boolean),null]:examples?it.grid.filter(Boolean):it.grid;
+  const cells=grid.map(c=>c===null?`<div class="cell q">?</div>`:`<div class="cell">${renderShapes(c)}</div>`).join('');
   const order=optOrder(it.id,it.options.length);
   const opts=order.map((oi,pos)=>`<div class="optcell ${cur===oi?'on':''}" data-oi="${oi}">${renderShapes(it.options[oi])}</div>`).join('');
   return `<div class="muted" style="margin-bottom:8px">${esc(it.prompt||'Найдите недостающую фигуру')}</div>
-    <div class="grid3">${cells}</div><div class="muted" style="text-align:center;margin-bottom:6px">Выберите ответ:</div><div class="optgrid">${opts}</div>`;
+    <div class="grid3"${series?' style="grid-template-columns:repeat(4,1fr)"':''}>${cells}</div><div class="muted" style="text-align:center;margin-bottom:6px">Выберите ответ:</div><div class="optgrid">${opts}</div>`;
 }
 
 /* ============ Внимательность (генерация пар) ============ */
