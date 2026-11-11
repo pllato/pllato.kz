@@ -8699,7 +8699,7 @@ function chooseFinanceTaskWeek(task){
     const initial=Math.max(Number(task.start),current)+week;
     const dialog=document.createElement('dialog');dialog.className='task-week-picker';
     dialog.setAttribute('aria-label','Выбрать неделю переноса');
-    dialog.innerHTML='<form><header><h3>Перенести дело</h3><button type="button" data-cancel aria-label="Закрыть">×</button></header><p class="task-week-name"></p><label>Год<input name="year" type="number" min="2000" max="2100" required></label><p class="task-week-hint">Недели команды: четверг 14:00 — четверг 14:00, Алматы.</p><label>Неделя<select name="week" size="8" required aria-label="Неделя назначения"></select></label><footer><button type="button" data-cancel>Отмена</button><button type="submit">Выбрать неделю</button></footer></form>';
+    dialog.innerHTML='<form><header><h3>Перенести дело</h3><button type="button" data-cancel aria-label="Закрыть">×</button></header><p class="task-week-name"></p><label>Год<input name="year" type="number" min="2000" max="2100" required></label><p class="task-week-hint">Недели команды: четверг 14:00 — четверг 14:00, Алматы.</p><label>Неделя<select name="week" size="8" required aria-label="Неделя назначения"></select></label><footer><button type="button" data-cancel>Отмена</button><button type="submit">Перенести</button></footer></form>';
     dialog.querySelector('.task-week-name').textContent=financeDemoTaskText(task);
     const year=dialog.querySelector('[name=year]'),list=dialog.querySelector('[name=week]'),submit=dialog.querySelector('[type=submit]');
     year.value=new Date(initial+5*3600000).getUTCFullYear();
@@ -8730,11 +8730,11 @@ async function moveFinanceWeekTaskForward(taskId){
   task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
   if(!task||task.done||Number(task.movedToStart)>0||!canConfigureFinanceChart(task.kind)||!canEditFinanceTask(task))return;
   if(target<financeCurrentWeekPoint([]).start||target===Number(task.start))return;
-  if(financeWeekTaskIsAutomatic(task)){await moveAutomaticPaymentPlanTaskForward(task,target);return;}
-  await copyFinanceWeekTask(task,target,target+7*86400000);
+  if(financeWeekTaskIsAutomatic(task)){await moveAutomaticPaymentPlanTaskForward(task,target,true);return;}
+  await copyFinanceWeekTask(task,target,target+7*86400000,true);
 }
 
-async function moveAutomaticPaymentPlanTaskForward(task,targetStart=0){
+async function moveAutomaticPaymentPlanTaskForward(task,targetStart=0,confirmed=false){
   const projectId=String(task?.sourceProjectId||'');
   const stage=paymentPlanStage(projectId,task?.sourcePlanId);
   if(!projectId || !stage || !Number(stage.dueAt)){
@@ -8748,7 +8748,7 @@ async function moveAutomaticPaymentPlanTaskForward(task,targetStart=0){
   const nextBounds=financeWeekBoundsAt(nextDueAt);
   const period=financeWeekTaskPeriod(nextBounds);
   const linkedRelease=stage.id==='final' ? ' Связанный плановый выпуск будет перенесён вместе с платежом.' : '';
-  if(!confirm(`Перенести «${String(stage.label||'Плановый платёж')}» на неделю ${period}?${linkedRelease}`)) return;
+  if(!confirmed && !confirm(`Перенести «${String(stage.label||'Плановый платёж')}» на неделю ${period}?${linkedRelease}`)) return;
   const prevDueAt=Number(stage.dueAt);
   stage.dueAt=nextDueAt;
   try{
@@ -8773,11 +8773,11 @@ async function carryFinanceWeekTaskToCurrent(taskId){
   if(financeWeekTaskIsAutomatic(task)){await moveAutomaticPaymentPlanTaskForward(task,currentStart);return;}
   await copyFinanceWeekTask(task,currentStart,currentEnd);
 }
-async function copyFinanceWeekTask(task,targetStart,targetEnd){
+async function copyFinanceWeekTask(task,targetStart,targetEnd,confirmed=false){
   if(!task || task.done || financeWeekTaskIsAutomatic(task) || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
   if(!Number.isFinite(targetStart)||!Number.isFinite(targetEnd)) return;
   const period=financeWeekTaskPeriod({start:targetStart,end:targetEnd});
-  if(!confirm(`Перенести «${String(task.text||'Дело')}» на неделю ${period}? Исходная запись останется в истории.`)) return;
+  if(!confirmed && !confirm(`Перенести «${String(task.text||'Дело')}» на неделю ${period}? Исходная запись останется в истории.`)) return;
   const duplicate=FINANCE_WEEK_TASKS.find(item=>!item.deleted && item.kind===task.kind && Number(item.start)===Number(targetStart) && (item.movedFromTaskId===task.id || (String(item.text||'').trim()===String(task.text||'').trim() && Number(item.amount||0)===Number(task.amount||0))));
   if(duplicate){ alert('Это дело уже есть в выбранной неделе.'); return; }
   const now=Date.now();

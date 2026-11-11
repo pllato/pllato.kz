@@ -16,9 +16,9 @@ test('year list covers New Year, leap years and continuous Thursday periods',()=
 });
 test('selected distant week is used for manual and automatic tasks; cancel does not write',async()=>{
  const c=setup(),current=c.financeWeekBoundsAt(Date.parse('2026-11-10')).start,target=current+12*7*86400000;
- let calls=[];Object.assign(c,{FINANCE_WEEK_TASKS:[{id:'t',kind:'cash',start:current}],canConfigureFinanceChart:()=>true,canEditFinanceTask:()=>true,financeCurrentWeekPoint:()=>({start:current}),chooseFinanceTaskWeek:async()=>target,financeWeekTaskIsAutomatic:()=>false,copyFinanceWeekTask:async(t,s,e)=>calls.push([s,e]),moveAutomaticPaymentPlanTaskForward:async(t,s)=>calls.push([s])});
- await c.moveFinanceWeekTaskForward('t');assert.deepEqual(calls,[[target,target+7*86400000]]);
- calls=[];c.financeWeekTaskIsAutomatic=()=>true;await c.moveFinanceWeekTaskForward('t');assert.deepEqual(calls,[[target]]);
+ let calls=[];Object.assign(c,{FINANCE_WEEK_TASKS:[{id:'t',kind:'cash',start:current}],canConfigureFinanceChart:()=>true,canEditFinanceTask:()=>true,financeCurrentWeekPoint:()=>({start:current}),chooseFinanceTaskWeek:async()=>target,financeWeekTaskIsAutomatic:()=>false,copyFinanceWeekTask:async(t,s,e,confirmed)=>calls.push([s,e,confirmed]),moveAutomaticPaymentPlanTaskForward:async(t,s,confirmed)=>calls.push([s,confirmed])});
+ await c.moveFinanceWeekTaskForward('t');assert.deepEqual(calls,[[target,target+7*86400000,true]]);
+ calls=[];c.financeWeekTaskIsAutomatic=()=>true;await c.moveFinanceWeekTaskForward('t');assert.deepEqual(calls,[[target,true]]);
  calls=[];c.chooseFinanceTaskWeek=async()=>null;await c.moveFinanceWeekTaskForward('t');assert.deepEqual(calls,[]);
 });
 test('task completed while choosing cannot be moved',async()=>{
