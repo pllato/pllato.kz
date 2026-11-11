@@ -1,3 +1,4 @@
+import {practicalRoute,expirePractical} from './practical.js';
 import { sendWebPush } from '../elc-worker/webpush.js';
 import { assessSubmission, registryChart } from './assessment.js';
 /* pllato-hr-worker — воронка найма.
@@ -40,6 +41,8 @@ export default {
     if (path === "/api/hr/health") return json({ ok: true, ts: nowISO() }, 200, request);
 
     try {
+      const practical=await practicalRoute(request,env,teamOK(request,env),id=>{if(ctx)ctx.waitUntil(notifyCompletion(env,id,'practical').catch(()=>{}))});
+      if(practical)return json(practical.data,practical.status,request);
       if(path==='/api/hr/attempt' && request.method==='POST'){
         const b=await request.json();
         if(b.id){
@@ -93,8 +96,9 @@ export default {
       // ---------- Дальше — только с паролем ----------
       if (!teamOK(request, env)) return json({ error: "Нужен пароль команды" }, 401, request);
 
+      if(path==='/api/hr/summary'||path==='/api/hr/submissions')await expirePractical(env);
       if(path==='/api/hr/summary'&&request.method==='GET'){
-        const row=await env.DB.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN reviewed_at IS NULL AND decision IS NULL THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN reviewed_at IS NULL AND decision IS NULL AND stage='personality' THEN 1 ELSE 0 END) AS personality FROM submissions").first();
+        const row=await env.DB.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN reviewed_at IS NULL AND decision IS NULL AND status<>'in_progress' THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN reviewed_at IS NULL AND decision IS NULL AND stage='personality' THEN 1 ELSE 0 END) AS personality FROM submissions").first();
         return json({ok:true,...row},200,request);
       }
       if(path==='/api/hr/push/key'&&request.method==='GET')return json({key:env.VAPID_PUBLIC_KEY||null},200,request);
@@ -108,7 +112,7 @@ export default {
           "SELECT code,id,name,phone,email,fam,stage,kp,status,fit,reviewed_at,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
         ).all();
         const attempts=await env.DB.prepare("SELECT id,name,phone,fam,stage,status,progress,started_at AS submitted_at,updated_at FROM hr_attempts WHERE status='in_progress' AND julianday(updated_at) > julianday('now','-7 days') ORDER BY updated_at DESC").all();
-        return json({ items: [...(rows.results||[]).map(({code,...row})=>({...row,age:globalThis.HR.decodeResult(code).data?.cand?.age??null,chart:registryChart({...row,code})})),...(attempts.results||[])] },200,request);
+        return json({ items: [...(rows.results||[]).map(({code,...row})=>({...row,progress:(globalThis.HR.decodeResult(code).data?.practical?.completedTasks||0)*20,age:globalThis.HR.decodeResult(code).data?.cand?.age??null,chart:registryChart({...row,code})})),...(attempts.results||[])] },200,request);
       }
 
       // одна заявка целиком (с кодом — для полного разбора в панели)
@@ -160,6 +164,6 @@ export default {
 async function notifyCompletion(env,id,stage){
  if(!env.VAPID_PRIVATE_JWK)return;
  const result=await env.DB.prepare('SELECT endpoint,p256dh,auth FROM hr_push_subscriptions LIMIT 100').all();
- const title=stage==='personality'?'Завершён личностный тест':stage==='iq'?'Завершён тест IQ':'Завершена анкета';
+ const title=stage==='practical'?'Завершён разбор встречи':stage==='personality'?'Завершён личностный тест':stage==='iq'?'Завершён тест IQ':'Завершена анкета';
  await Promise.allSettled((result.results||[]).map(async sub=>{const sent=await sendWebPush(env,sub,{title:'Pllato · '+title,body:'Новый результат кандидата ожидает проверки.',url:'/app/hr/admin.html?candidate='+encodeURIComponent(id),tag:'hr-'+id});if(sent.status===404||sent.status===410)await env.DB.prepare('DELETE FROM hr_push_subscriptions WHERE endpoint=?').bind(sub.endpoint).run()}));
 }
