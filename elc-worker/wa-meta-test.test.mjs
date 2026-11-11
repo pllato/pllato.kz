@@ -13,7 +13,7 @@ test('webhooks persist only allowed account/phone/recipient, duplicate does not 
 test('older events do not overwrite latest chat preview; delivery statuses never regress',async()=>{const {db,env}=database();await ensureMetaTestSchema(env);for(const [id,ts]of[['new',2000],['old',1000]])await ingestMetaTest(env,event([{id,from:META_TEST.recipient,type:'text',text:{body:id},timestamp:String(ts)}]));assert.equal(db.prepare('SELECT last_message_text t FROM wa_chats').get().t,'new');for(const status of ['read','sent','failed','delivered'])await ingestMetaTest(env,event([],[{id:'out1',recipient_id:META_TEST.recipient,status,timestamp:'2000'}]));assert.equal(db.prepare('SELECT status FROM wa_meta_test_status').get().status,'read');});
 test('unauthorized configuration never touches DB',async()=>{const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/config'),{}, {...deps,requireAdmin:async()=>({error:'forbidden',status:403})});assert.equal(r.status,403);});
 test('config redacts secrets and webhook rejects invalid requests',async()=>{const {env}=database();await ensureMetaTestSchema(env);await env.DB.prepare('INSERT INTO wa_meta_test_config VALUES(1,?,?,?,?)').bind('super-secret-token','super-secret-app','verify','now').run();const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/config'),env,deps);const text=await r.text();assert.ok(!text.includes('super-secret'));assert.ok(text.includes('verify'));const invalid=await handleMetaTest(new Request('https://x/api/wa/meta-test/webhook',{method:'POST',body:'{}'}),env,deps);assert.equal(invalid.status,401);const challenge=await handleMetaTest(new Request('https://x/api/wa/meta-test/webhook?hub.mode=subscribe&hub.verify_token=verify&hub.challenge=123'),env,deps);assert.equal(await challenge.text(),'123');});
-test('sending uses fixed recipient and persists accepted message without leaking token',async()=>{const {db,env}=database();await ensureMetaTestSchema(env);await env.DB.prepare('INSERT INTO wa_meta_test_config VALUES(1,?,?,?,?)').bind('secret-token','secret-app','verify','now').run();const old=globalThis.fetch;let sent;globalThis.fetch=async(u,opts)=>{assert.equal(u,`https://graph.facebook.com/v26.0/${META_TEST.phoneId}/messages`);sent=JSON.parse(opts.body);return new Response(JSON.stringify({messages:[{id:'accepted'}]}));};try{const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/send',{method:'POST',body:JSON.stringify({text:'Из CRM',recipient:'77000000000'})}),env,deps);assert.equal(r.status,200);assert.equal(sent.to,META_TEST.recipient);assert.equal(db.prepare('SELECT text FROM wa_messages').get().text,'Из CRM');assert.ok(!(await r.text()).includes('secret-token'));}finally{globalThis.fetch=old;}});
+test('sending uses fixed recipient and persists accepted message without leaking token',async()=>{const {db,env}=database();await ensureMetaTestSchema(env);await env.DB.prepare('INSERT INTO wa_meta_test_config VALUES(1,?,?,?,?)').bind('secret-token','secret-app','verify','now').run();const old=globalThis.fetch;let sent;globalThis.fetch=async(u,opts)=>{assert.equal(u,`https://graph.facebook.com/v26.0/${META_TEST.phoneId}/messages`);sent=JSON.parse(opts.body);return new Response(JSON.stringify({messages:[{id:'accepted'}]}));};try{const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/send',{method:'POST',body:JSON.stringify({text:'Из CRM'})}),env,deps);assert.equal(r.status,200);assert.equal(sent.to,META_TEST.recipient);assert.equal(db.prepare('SELECT text FROM wa_messages').get().text,'Из CRM');assert.ok(!(await r.text()).includes('secret-token'));}finally{globalThis.fetch=old;}});
 test('shared chat mutations reject non-admin Meta access before storage', async()=>{
   const source=readFileSync(new URL('./worker.js',import.meta.url),'utf8');
   for(const name of ['handleWaChatAvatarUpload','handleWaArchiveChat','handleWaMarkRead']){
@@ -24,3 +24,22 @@ test('shared chat mutations reject non-admin Meta access before storage', async(
     assert.equal(r.status,403,name);
   }
 });
+
+test('second approved recipient has separate inbound chat and message history',async()=>{
+ const {db,env}=database();await ensureMetaTestSchema(env);
+ for(const [from,id] of [[META_TEST.recipient,'first'],['77011239999','second']])await ingestMetaTest(env,event([{from,id,type:'text',text:{body:id},timestamp:'1000'}]));
+ assert.equal(db.prepare('SELECT count(*) n FROM wa_chats').get().n,2);
+ const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/messages?recipient=77011239999'),env,deps);
+ assert.deepEqual((await r.json()).items.map(m=>m.text),['second']);
+ assert.equal(metaTextPayload('77011239999','Тест').to,'77011239999');
+ const invalid=await handleMetaTest(new Request('https://x/api/wa/meta-test/messages?recipient=787011239999'),env,deps);
+ assert.equal(invalid.status,400);
+});
+test('selected second recipient is sent unchanged and saved in its own chat',async()=>{
+ const {db,env}=database();await ensureMetaTestSchema(env);
+ await env.DB.prepare('INSERT INTO wa_meta_test_config VALUES(1,?,?,?,?)').bind('token','app','verify','now').run();
+ const old=globalThis.fetch;globalThis.fetch=async(u,o)=>{assert.equal(JSON.parse(o.body).to,'77011239999');return new Response(JSON.stringify({messages:[{id:'second-out'}]}));};
+ try {const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/send',{method:'POST',body:JSON.stringify({recipient:'77011239999',text:'Ответ'})}),env,deps);assert.equal(r.status,200);assert.match(db.prepare('SELECT chat_id FROM wa_messages').get().chat_id,/77011239999@c.us$/);}finally{globalThis.fetch=old;}
+});
+
+test('send rejects recipient outside allowlist before contacting Meta',async()=>{const {env}=database();const r=await handleMetaTest(new Request('https://x/api/wa/meta-test/send',{method:'POST',body:JSON.stringify({recipient:'787011239999',text:'no'})}),env,deps);assert.equal(r.status,400);});
