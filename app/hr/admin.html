@@ -185,7 +185,9 @@ function cognitiveCheatFlags(d,admin,ans){
 
 /* =============== ДОМ: ввод + список кандидатов =============== */
 let hrFilter=new URLSearchParams(location.search).get('filter')==='new'?'new':'all',hrStage=new URLSearchParams(location.search).get('stage')||'',hrQuery='',hrRows=[];
+const hrSelected=new Set();let hrBulkBusy=false;
 function renderHome(){
+  hrSelected.clear();
   MODE='evidence'; D=null; REC=null; SCORED=null;
   app.innerHTML=`
   <div class="card noprint" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -196,7 +198,7 @@ function renderHome(){
     <article><h3>Личностный тест</h3><p class="muted">Один вопрос на экран · около 12 минут</p><a href="./?stage=personality&tests=personality" target="_blank" rel="noopener">Открыть тест ↗</a> <button class="btn ghost sm" data-copy-test="personality">Копировать ссылку</button></article>
     <article><h3>IQ · способности</h3><p class="muted">Слова, числа, фигуры · около 15 минут</p><a href="./?stage=iq&tests=cognitive" target="_blank" rel="noopener">Открыть тест ↗</a> <button class="btn ghost sm" data-copy-test="iq">Копировать ссылку</button></article>
   </div>
-  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option></select><select id="hrDecision" aria-label="Решение менеджера"><option value="">Все решения</option><option value="pending">Без решения</option><option value="hire">Нанять</option><option value="reserve">Резерв</option><option value="reject">Отказ менеджера</option></select></div>
+  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option><option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option></select><select id="hrDecision" aria-label="Решение менеджера"><option value="">Все решения</option><option value="pending">Без решения</option><option value="hire">Нанять</option><option value="reserve">Резерв</option><option value="reject">Отказ менеджера</option></select></div>
   <p class="muted">Личностный профиль рассматривает менеджер. Порог IQ относится к упражнениям и не является решением о найме.</p>
   <div id="hrStats" class="hr-stats"></div>
   <div id="listWrap"><div class="card"><p class="muted" style="margin:0">Загрузка…</p></div></div>
@@ -238,21 +240,47 @@ async function enableHrPush(){
  }catch(e){status.textContent=e.message}
 }
 function renderList(){
-  if(!$('#listWrap'))return;
-  HRStore.listCandidates().then(list=>{hrRows=list;paintCandidates()}).catch(e=>{if($('#listWrap'))$('#listWrap').innerHTML=`<div class="card"><h2>Не удалось загрузить кандидатов</h2><p>${esc(e.message)}</p><button class="btn" onclick="renderList()">Повторить</button></div>`});
+  if(!$('#listWrap')||hrBulkBusy)return;
+  HRStore.listCandidates().then(list=>{if(hrBulkBusy)return;hrRows=list;paintCandidates()}).catch(e=>{if($('#listWrap'))$('#listWrap').innerHTML=`<div class="card"><h2>Не удалось загрузить кандидатов</h2><p>${esc(e.message)}</p><button class="btn" onclick="renderList()">Повторить</button></div>`});
 }
 function paintCandidates(){
   if(!$('#listWrap')||!$('#hrStats'))return;
   const stageRows=hrRows.filter(r=>!hrStage||r.stage===hrStage);
   const isNew=r=>r.status!=='in_progress'&&!r.reviewed_at&&!r.decision;
-  const matches=(r,key)=>key==='all'||(key==='new'?isNew(r):r.status===key);
-  const groups=[['new','Новые на проверку'],['all','Все результаты'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['needs_retry','Нужно повторить'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
+  const matches=(r,key)=>key==='all'||(key==='new'?isNew(r):key==='processed'?!!r.reviewed_at:r.status===key);
+  const groups=[['new','Новые на проверку'],['all','Все результаты'],['processed','Обработанные'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['needs_retry','Нужно повторить'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
   $('#hrStats').innerHTML=groups.map(([key,label])=>`<button class="hr-stat ${hrFilter===key?'active':''}" data-filter="${key}"><b>${stageRows.filter(r=>matches(r,key)).length}</b>${label}</button>`).join('');
   $('#hrStats').querySelectorAll('button').forEach(b=>b.onclick=()=>{hrFilter=b.dataset.filter;paintCandidates()});
   const decision=$('#hrDecision').value,q=hrQuery.toLowerCase().trim();
   const rows=stageRows.filter(r=>matches(r,hrFilter)&&(!decision||(decision==='pending'?!r.decision:r.decision===decision))&&(!q||[r.name,r.phone,r.email].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.submitted_at||'').localeCompare(a.submitted_at||''));
-  $('#listWrap').innerHTML=`<div class="card"><div class="row"><h2>Реестр · ${rows.length}</h2><span class="muted">Обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span></div>${rows.length?`<div class="hr-table-wrap"><table class="hr-table"><thead><tr><th>Кандидат / контакт</th><th>Тест</th><th>Результат</th><th>Решение</th><th>Получен</th><th></th></tr></thead><tbody>${rows.map(r=>{const status=statusInfo(r.status),dec=decInfo(r.decision);const phone=String(r.phone||'').replace(/[^+0-9]/g,'');return `<tr><td><div class="nm">${esc(r.name||'Без имени')}</div><a href="tel:${phone}">${esc(r.phone||'')}</a>${r.email?`<small>${esc(r.email)}</small>`:''}</td><td>${stageInfo(r.stage).label}<small>${esc(window.HR_POSITIONS[r.fam]?.short||r.fam)}</small></td><td><span class="pill ${status.tone}">${status.label}</span>${r.stage==='iq'&&r.fit!=null?`<small>Шкала упражнений: ${r.fit}/99</small>`:''}${r.status==='in_progress'?`<small>${r.progress||0}% · ${Date.now()-Date.parse(r.updated_at)>300000?'Пауза более 5 мин':'В процессе'}</small>`:''}</td><td>${dec.label||'Без решения'}</td><td>${r.submitted_at?esc(new Date(r.submitted_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'—'}</td><td>${r.status!=='in_progress'?`<button class="btn ghost sm" data-report="${esc(r.id)}">Открыть →</button>`:'Ожидаем завершения'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="hr-empty">По выбранным фильтрам кандидатов нет.</div>'}</div>`;
+  const selectable=new Set(rows.filter(r=>r.status!=='in_progress'&&!r.reviewed_at).map(r=>r.id));
+  for(const id of hrSelected)if(!selectable.has(id))hrSelected.delete(id);
+  $('#listWrap').innerHTML=`<div class="card"><div class="row"><h2>Реестр · ${rows.length}</h2><span class="muted">Обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="row" style="margin:12px 0;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="hrSelectAll" aria-label="Выбрать все необработанные результаты в текущем списке" ${!selectable.size?'disabled':''}> Выбрать всех в списке</label><button class="btn sm" id="hrMarkBulk" disabled>Отметить обработанными</button><span class="muted" id="hrSelectionCount"></span></div><p id="hrBulkMessage" role="status" aria-live="polite"></p>${rows.length?`<div class="hr-table-wrap"><table class="hr-table"><thead><tr><th>Выбор</th><th>Кандидат / контакт</th><th>Тест</th><th>Результат</th><th>Решение</th><th>Получен</th><th></th></tr></thead><tbody>${rows.map(r=>{const status=statusInfo(r.status),dec=decInfo(r.decision);const phone=String(r.phone||'').replace(/[^+0-9]/g,'');return `<tr><td>${selectable.has(r.id)?`<input type="checkbox" data-hr-select="${esc(r.id)}" aria-label="Выбрать: ${esc(r.name||r.phone||r.id)}" ${hrSelected.has(r.id)?'checked':''}>`:'—'}</td><td><div class="nm">${esc(r.name||'Без имени')}</div><a href="tel:${phone}">${esc(r.phone||'')}</a>${r.email?`<small>${esc(r.email)}</small>`:''}</td><td>${stageInfo(r.stage).label}<small>${esc(window.HR_POSITIONS[r.fam]?.short||r.fam)}</small></td><td><span class="pill ${status.tone}">${status.label}</span>${r.reviewed_at?'<small>Обработано</small>':''}${r.stage==='iq'&&r.fit!=null?`<small>Шкала упражнений: ${r.fit}/99</small>`:''}${r.status==='in_progress'?`<small>${r.progress||0}% · ${Date.now()-Date.parse(r.updated_at)>300000?'Пауза более 5 мин':'В процессе'}</small>`:''}</td><td>${dec.label||'Без решения'}</td><td>${r.submitted_at?esc(new Date(r.submitted_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'—'}</td><td>${r.status!=='in_progress'?`<button class="btn ghost sm" data-report="${esc(r.id)}">Открыть →</button>`:'Ожидаем завершения'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="hr-empty">По выбранным фильтрам кандидатов нет.</div>'}</div>`;
+  function syncSelection(){
+    const count=hrSelected.size,all=$('#hrSelectAll');all.checked=!!count&&count===selectable.size;all.indeterminate=count>0&&count<selectable.size;
+    $('#hrMarkBulk').disabled=hrBulkBusy||!count;$('#hrSelectionCount').textContent=count?'Выбрано: '+count:'';
+  }
+  $('#hrSelectAll').onchange=e=>{for(const id of selectable){if(e.target.checked)hrSelected.add(id);else hrSelected.delete(id)}$('#listWrap').querySelectorAll('[data-hr-select]').forEach(b=>b.checked=hrSelected.has(b.dataset.hrSelect));syncSelection()};
+  $('#listWrap').querySelectorAll('[data-hr-select]').forEach(b=>b.onchange=()=>{if(b.checked)hrSelected.add(b.dataset.hrSelect);else hrSelected.delete(b.dataset.hrSelect);syncSelection()});
+  $('#hrMarkBulk').onclick=markSelectedReviewed;syncSelection();
   $('#listWrap').querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>loadById(b.dataset.report));
+}
+async function markSelectedReviewed(){
+  if(hrBulkBusy||!hrSelected.size)return;
+  const ids=[...hrSelected],failed=[];let done=0;hrBulkBusy=true;
+  const controls=[...app.querySelectorAll('button,input,select')];controls.forEach(el=>el.disabled=true);
+  $('#hrBulkMessage').textContent='Сохраняем отметки…';
+  try{
+    for(let offset=0;offset<ids.length;offset+=4){
+      await Promise.all(ids.slice(offset,offset+4).map(async id=>{
+        try{await HRStore.markReviewed(id);const row=hrRows.find(r=>r.id===id);if(row)row.reviewed_at=new Date().toISOString();hrSelected.delete(id);done++}catch{failed.push(id)}
+      }));
+    }
+  }finally{
+    hrBulkBusy=false;controls.forEach(el=>el.disabled=false);paintCandidates();
+    const msg=$('#hrBulkMessage');if(msg)msg.textContent=failed.length?`Обработано: ${done}. Не удалось сохранить: ${failed.length}. Они остались выбранными — повторите действие.`:`Отмечено обработанными: ${done}.`;
+    if(done)try{localStorage.setItem('hr_reviewed_refresh',String(Date.now()))}catch{}
+  }
 }
 setInterval(()=>{if(!D && $('#hrStats') && !document.hidden)renderList()},30000);
 function migrateRec(r){r.interview=r.interview||{scores:{}};r.interview.scores=r.interview.scores||{};r.biodata=r.biodata||{};r.biodata.overrides=r.biodata.overrides||{};r.biodata.confirmed=r.biodata.confirmed||{};return r}
@@ -597,7 +625,7 @@ setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось под
 
   function api(path, opts){
     const pw=localStorage.getItem(PW_KEY)||'';
-    return fetch(WORKER+path, {...(opts||{}), headers:{'Content-Type':'application/json','X-HR-Team':pw, ...((opts&&opts.headers)||{})}})
+    return fetch(WORKER+path, {signal:AbortSignal.timeout(15000), ...(opts||{}), headers:{'Content-Type':'application/json','X-HR-Team':pw, ...((opts&&opts.headers)||{})}})
       .then(async r=>{ if(!r.ok){ let m; try{m=(await r.json()).error}catch(e){} throw new Error(m||('HTTP '+r.status)); } return r.json(); });
   }
   window.hrApi=api;
