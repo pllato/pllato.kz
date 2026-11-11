@@ -31,3 +31,17 @@ assert.throws(()=>assessQuality(quality,{}));
 assert.equal(assessQuality({...quality,failed:true,attentionRetries:3},{}).status,'needs_retry');
 assert.throws(()=>assessQuality({...quality,failed:true,attentionRetries:2},{}));
 console.log('Personality completion, read times, attention instructions and retry outcome: passed');
+
+const registry=(await req('submissions')).items[0];
+assert.equal(registry.code,undefined);
+assert.equal(registry.chart.quality,'legacy');
+assert.equal(Object.keys(registry.chart.scales).length,6);
+assert.equal(JSON.stringify(registry).includes('readMs'),false);
+const {registryChart}=await import('../hr-worker/assessment.js');
+const checked={stage:'personality',code:HR.encodeResult({ans:{personality:answers},telemetry:{personalityQuality:quality}})};
+assert.equal(registryChart(checked).quality,'checked');
+assert.equal(registryChart({...checked,status:'needs_retry'}).scales,null);
+assert.equal(registryChart({stage:'personality',code:'broken'}),null);
+assert.equal(registryChart({stage:'iq'}),null);
+assert.equal(registryChart({stage:'personality',code:HR.encodeResult({ans:{personality:{}}})}),null);
+console.log('Registry: compact profiles, legacy/checked/retry states, no answer/code leakage passed');
