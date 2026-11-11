@@ -28,3 +28,18 @@ export function assessSubmission(b){
  const fit=globalThis.HR.scoreCognitive(bank,answers).composite.score;
  return {stage,status:fit>=60?'passed':'failed',fit};
 }
+
+// Compact descriptive profile for the authenticated registry; never return answers.
+export function registryChart(row){
+ if(row.status==='needs_retry')return {quality:'retry',scales:null};
+ if(row.stage==='iq')return null;
+ const d=globalThis.HR.decodeResult(row.code).data;
+ if(!d)return null;
+ const answers=d.ans?.personality,items=globalThis.HR_PERSONALITY.items;
+ if(items.some(it=>!Number.isInteger(answers?.[it.id])||answers[it.id]<1||answers[it.id]>5))return null;
+ const q=d.telemetry?.personalityQuality;
+ const quality=q?.version===1?(globalThis.HR_PERSONALITY_QUALITY.issue(items,answers,q)||q.failed?'retry':'checked'):'legacy';
+ if(quality==='retry')return {quality,scales:null};
+ const scored=globalThis.HR.scorePersonality(answers);
+ return {quality,scales:Object.fromEntries(['C','ES','H','E','A','O'].map(k=>[k,scored.scales[k]?.pct??null]))};
+}

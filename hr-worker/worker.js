@@ -1,5 +1,5 @@
 import { sendWebPush } from '../elc-worker/webpush.js';
-import { assessSubmission } from './assessment.js';
+import { assessSubmission, registryChart } from './assessment.js';
 /* pllato-hr-worker — воронка найма.
    • Кандидат (публично, без входа): POST /api/hr/submit — присылает заявку с результатом.
    • Ответственный/команда (по паролю HR_TEAM_PASSWORD в заголовке X-HR-Team):
@@ -105,10 +105,10 @@ export default {
       }
       if (path === "/api/hr/submissions" && request.method === "GET") {
         const rows = await env.DB.prepare(
-          "SELECT id,name,phone,email,fam,stage,kp,status,fit,reviewed_at,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
+          "SELECT code,id,name,phone,email,fam,stage,kp,status,fit,reviewed_at,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
         ).all();
         const attempts=await env.DB.prepare("SELECT id,name,phone,fam,stage,status,progress,started_at AS submitted_at,updated_at FROM hr_attempts WHERE status='in_progress' AND julianday(updated_at) > julianday('now','-7 days') ORDER BY updated_at DESC").all();
-        return json({ items: [...(rows.results||[]),...(attempts.results||[])] },200,request);
+        return json({ items: [...(rows.results||[]).map(({code,...row})=>({...row,chart:registryChart({...row,code})})),...(attempts.results||[])] },200,request);
       }
 
       // одна заявка целиком (с кодом — для полного разбора в панели)
