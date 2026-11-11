@@ -1,5 +1,5 @@
 /* Личностный опросник (Big Five + Честность-Скромность). Пункты авторские, на базе конструктов IPIP (public domain). Формат: 5-балльный Ликерт. НЕ содержит материалов OCA/Freezone. */
-window.HR_PERSONALITY = {
+globalThis.HR_PERSONALITY = {
   "items": [
     {"id": "C1-01", "text": "Я берусь за работу и довожу её до конца.", "factor": "C", "facet": "C1", "key": 1, "block": "main", "attn_answer": 0},
     {"id": "C1-02", "text": "Я справляюсь даже с трудными задачами.", "factor": "C", "facet": "C1", "key": 1, "block": "main", "attn_answer": 0},
@@ -93,8 +93,8 @@ window.HR_PERSONALITY = {
     {"id": "SD-06", "text": "Я всегда довожу любое дело до идеала.", "factor": "SD", "facet": "", "key": 1, "block": "validity", "attn_answer": 0},
     {"id": "SD-07", "text": "Я ни разу не сказал ни о ком дурного слова.", "factor": "SD", "facet": "", "key": 1, "block": "validity", "attn_answer": 0},
     {"id": "SD-08", "text": "Я всегда вежлив со всеми без исключения.", "factor": "SD", "facet": "", "key": 1, "block": "validity", "attn_answer": 0},
-    {"id": "ATT-01", "text": "Для проверки внимательности выберите ответ «Совершенно согласен» (5).", "factor": "ATT", "facet": "", "key": 1, "block": "validity", "attn_answer": 5},
-    {"id": "ATT-02", "text": "Для проверки внимательности выберите ответ «Совершенно не согласен» (1).", "factor": "ATT", "facet": "", "key": 1, "block": "validity", "attn_answer": 1},
+    {"id": "ATT-01", "text": "Для проверки внимательности выберите ответ «Очень похоже» (5).", "factor": "ATT", "facet": "", "key": 1, "block": "validity", "attn_answer": 5},
+    {"id": "ATT-02", "text": "Для проверки внимательности выберите ответ «Совсем не похоже» (1).", "factor": "ATT", "facet": "", "key": 1, "block": "validity", "attn_answer": 1},
     {"id": "INF-01", "text": "Я умею читать мысли людей на расстоянии.", "factor": "INF", "facet": "", "key": 1, "block": "validity", "attn_answer": 0},
     {"id": "CONS-01", "text": "Я довожу начатую работу до конца.", "factor": "CONS", "facet": "", "key": 1, "block": "validity", "attn_answer": 0, "pairId": "C1-01"}
   ],
