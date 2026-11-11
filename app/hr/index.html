@@ -79,6 +79,7 @@ p{color:var(--text-2);margin:0 0 12px}
 .big-center{min-height:40vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 svg.shape{width:100%;height:100%;display:block}
 .hidden{display:none}
+.question-meta{display:flex;justify-content:space-between;gap:12px;color:var(--text-2);font-size:13px;margin:12px 0}.question-card{padding:clamp(20px,4vw,36px);box-shadow:none}.question-card h1{font-size:clamp(22px,4vw,30px);line-height:1.3;margin-bottom:24px}.answer-list{display:grid;gap:10px;margin:24px 0}.answer{display:flex;align-items:center;gap:16px;text-align:left;min-height:60px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;font:inherit;color:var(--text);cursor:pointer}.answer span{color:var(--bronze-deep);font-size:13px}.answer:hover,.answer.selected{border-color:var(--bronze);background:var(--bronze-tint)}button:focus-visible,[role=button]:focus-visible{outline:3px solid #2563eb;outline-offset:3px}.result-card{margin-top:40px}.foot{padding-bottom:max(16px,env(safe-area-inset-bottom))}.progress{position:sticky;top:58px;z-index:10}.optgrid .optcell{min-height:52px}
 </style>
 </head>
 <body>
@@ -113,7 +114,7 @@ const $ = s => document.querySelector(s);
 const app = $('#app'), foot = $('#foot'), nextBtn = $('#nextBtn'), prevBtn = $('#prevBtn');
 const timerEl = $('#timer'), progressBar = $('#progressBar');
 const qp = new URLSearchParams(location.search);
-const STAGE = ['personality','iq'].includes(qp.get('stage')) ? qp.get('stage') : 'full';
+const STAGE = ['personality','iq'].includes(qp.get('stage')) ? qp.get('stage') : qp.get('tests')==='personality' ? 'personality' : qp.get('tests')==='cognitive' ? 'iq' : 'full';
 const STAGE_LABEL = STAGE==='personality' ? 'Этап 1 — анализ личности' : STAGE==='iq' ? 'Этап 2 — IQ / тест способностей' : 'Анкета кандидата';
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function fmtTime(s){const m=Math.floor(s/60),x=s%60;return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
@@ -153,7 +154,7 @@ const MODULE_MIN = {personality:12, cognitive:15, attention:4, sjt:13, integrity
 function posMinutes(fam){ const p=POS[fam]; if(!p)return 0; return (p.modules||[]).reduce((s,m)=>s+(MODULE_MIN[m]||5),0); }
 function selectedMinutes(fam){ const requested=(qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean); return requested.length ? requested.reduce((s,m)=>s+(MODULE_MIN[m]||5),0) : posMinutes(fam); }
 let state = {
-  stage:STAGE, fam:null, kp:null, cform:'A', cand:{name:'',phone:'',email:'',sex:'m',age:'y'},
+  stage:STAGE, fam:null, kp:null, cform:'A', cand:{name:'',phone:'',email:'',},
   modules:[], mi:0, // module index
   ans:{ personality:{}, fc:[], cognitive:[], sjt:[], integrity:{}, biodata:{}, knowledge:[], attention:null, cogTimes:{} },
   telemetry:{blur:0,paste:0}, startTs:0
@@ -162,8 +163,8 @@ window.addEventListener('blur',()=>{ if(state.startTs) state.telemetry.blur++ })
 document.addEventListener('paste',()=>{ if(state.startTs) state.telemetry.paste++ });
 
 /* ============ Черновик (тот же браузер) ============ */
-const DRAFT_KEY='hr_candidate_draft_'+STAGE;
-function saveDraft(){ try{ if(!state.fam)return; localStorage.setItem(DRAFT_KEY, JSON.stringify({stage:state.stage,fam:state.fam,kp:state.kp,cform:state.cform,modules:state.modules,mi:state.mi,ans:state.ans,cand:state.cand,telemetry:state.telemetry,startTs:state.startTs,partial:state.partial,ts:Date.now()})); }catch(e){} }
+const DRAFT_KEY='hr_candidate_draft_v3_'+STAGE+'_'+(qp.get('pos')||'any');
+function saveDraft(){ try{ if(!state.fam)return; localStorage.setItem(DRAFT_KEY, JSON.stringify({stage:state.stage,fam:state.fam,kp:state.kp,cform:state.cform,modules:state.modules,mi:state.mi,ans:state.ans,cand:state.cand,telemetry:state.telemetry,startTs:state.startTs,partial:state.partial,cogRun:state.cogRun,attempt:state.attempt,ts:Date.now()})); }catch(e){} }
 function loadDraft(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||'null'); }catch(e){ return null; } }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
 window.addEventListener('beforeunload',()=>{ if(state.startTs) saveDraft(); });
@@ -174,14 +175,19 @@ function setFoot(show,{next='Далее',prev=false,nextEnabled=true}={}){
   nextBtn.textContent=next; nextBtn.disabled=!nextEnabled;
   prevBtn.classList.toggle('hidden',!prev);
 }
-function setProgress(f){progressBar.classList.remove('hidden');progressBar.firstElementChild.style.width=(f*100)+'%'}
+let lastProgressSent=0;
+function setProgress(f){progressBar.classList.remove('hidden');progressBar.firstElementChild.style.width=(f*100)+'%';progressBar.setAttribute('role','progressbar');progressBar.setAttribute('aria-valuenow',Math.round(f*100));progressBar.setAttribute('aria-label','Прогресс теста');progressBar.setAttribute('aria-valuemin','0');progressBar.setAttribute('aria-valuemax','100');
+ if(state.attempt&&Date.now()-lastProgressSent>5000){lastProgressSent=Date.now();fetch(WORKER+'/api/hr/attempt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...state.attempt,progress:Math.round(f*100)}),signal:AbortSignal.timeout(8000)}).catch(()=>{})}
+}
+async function registerAttempt(){if(state.attempt||!WORKER)return;try{const r=await fetch(WORKER+'/api/hr/attempt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:state.cand.name,phone:state.cand.phone,fam:state.fam,stage:state.stage}),signal:AbortSignal.timeout(8000)});const d=await r.json();if(r.ok&&d.ok){state.attempt={id:d.id,token:d.token};saveDraft()}}catch{}}
+
 
 /* ---- Старт ---- */
 function screenIntro(){
   timerEl.classList.add('hidden'); progressBar.classList.add('hidden');
   // Есть незаконченный черновик? Предложим продолжить.
   const draft = loadDraft();
-  const hasProgress = draft && draft.fam && (draft.mi>0 || (draft.ans&&draft.ans.personality&&Object.keys(draft.ans.personality).length));
+  const hasProgress = draft && draft.fam && (draft.mi>0 || (draft.ans&&draft.ans.personality&&Object.keys(draft.ans.personality).length) || draft.cogRun);
   if(hasProgress){
     const p=POS[draft.fam];
     app.innerHTML=`<h1>Продолжить анкету?</h1>
@@ -195,25 +201,22 @@ function screenIntro(){
   }
   const preset = qp.get('pos');
   app.innerHTML = `
-    <h1>${STAGE_LABEL}</h1>
-    <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">около ${selectedMinutes(preset)||selectedMinutes('manager')} минут</b>. Можно закрыть и продолжить позже с этого устройства. Отвечайте честно — в тесте есть встроенные проверки достоверности.</p>
+    <p class="muted">Pllato · подбор сотрудников</p><h1>${STAGE_LABEL}</h1>
+    <div class="card"><h2>Приглашение на этап интервью</h2><p>Здравствуйте! Компания <b>Pllato</b> проводит подбор сотрудников. Для прохождения этого этапа интервью необходимо пройти ${STAGE==='personality'?'личностный тест':STAGE==='iq'?'тест на логику и способности':'анкету'} и предоставить результаты менеджеру по набору персонала.</p><p>После завершения результаты отправятся автоматически. Дождитесь сообщения «Ответы получены» — отдельно пересылать их не нужно. Если отправка не удастся, вы сможете повторить её или передать менеджеру резервный код.</p><p class="muted">Менеджер рассмотрит результаты и свяжется с вами для уточнения деталей. Сам тест не принимает окончательное решение о найме.</p></div>
+    <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">около ${selectedMinutes(preset)||selectedMinutes('manager')} минут</b>. Один вопрос на экране. Нажмите ответ, чтобы перейти дальше. Ответы сохраняются на этом устройстве. В разделах IQ отсчёт времени продолжается, даже если закрыть вкладку.</p>
     <div class="card">
       <div class="field"><label>Имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
       <div class="field"><label>Телефон (для связи)</label><input id="fPhone" type="tel" inputmode="tel" placeholder="+7 701 000 00 00"></div>
-      <div class="field"><label>Электронная почта</label><input id="fEmail" type="email" inputmode="email" placeholder="you@example.com"></div>
+      <div class="field"><label>Электронная почта (необязательно)</label><input id="fEmail" type="email" inputmode="email" placeholder="you@example.com"></div>
       <div class="field"><label>Должность, на которую претендуете</label><div class="seg" id="posSeg" style="flex-wrap:wrap">`+
         Object.values(POS).map(p=>`<button data-p="${p.id}" class="${preset===p.id?'on':''}">${p.icon} ${p.short}</button>`).join('')+`</div></div>
-      <div class="field"><label>Пол</label><div class="seg" id="sexSeg"><button data-v="m" class="on">Мужской</button><button data-v="f">Женский</button></div></div>
-      <div class="field"><label>Возраст</label><div class="seg" id="ageSeg"><button data-v="y" class="on">18–35</button><button data-v="o">36 и старше</button></div></div>
     </div>
     <div class="note warn">Нажимая «Начать», вы соглашаетесь на обработку ваших данных (имя, контакты, ответы) для оценки соответствия должности. Результат автоматически отправится работодателю.</div>`;
   let pick = preset||null;
   const estEl=$('#estTime'); if(pick) estEl.textContent='около '+selectedMinutes(pick)+' минут';
-  app.querySelectorAll('#sexSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#sexSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.sex=b.dataset.v});
-  app.querySelectorAll('#ageSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#ageSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.age=b.dataset.v});
   app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;estEl.textContent='около '+selectedMinutes(pick)+' минут';updateNext()});
   ['fName','fPhone','fEmail'].forEach(id=>$('#'+id).oninput=updateNext);
-  function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return $('#fName').value.trim() && ph.length>=6 && /@.+\./.test(em) && pick; }
+  function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return $('#fName').value.trim() && ph.length>=10 && ph.length<=15 && (!em || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) && pick; }
   function updateNext(){ nextBtn.disabled=!valid(); }
   setFoot(true,{next:'Начать',nextEnabled:false}); updateNext();
   nextBtn.onclick=()=>{
@@ -223,14 +226,14 @@ function screenIntro(){
     state.kp = qp.get('kp') || p.knowledgeProfile || null;
     state.cform = p.cognitiveForm || qp.get('form') || 'A';
     state.modules = p.modules.slice();
-    const only = (qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean);
-    if(only.length){ const f=state.modules.filter(m=>only.includes(m)); if(f.length) state.modules=f; }
+    const only = STAGE==='personality' ? ['personality'] : STAGE==='iq' ? ['cognitive'] : (qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(only.length) state.modules=only.filter(m=>Object.hasOwn(MODULE_MIN,m));
     state.partial = only.length>0 && state.modules.length < p.modules.length;
-    state.startTs=Date.now(); state.mi=0; saveDraft(); runModule();
+    state.startTs=Date.now(); state.mi=0; saveDraft(); registerAttempt(); runModule();
   };
 }
 function resumeDraft(draft){
-  Object.assign(state,{stage:draft.stage||STAGE,fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial});
+  Object.assign(state,{stage:draft.stage||STAGE,fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial,cogRun:draft.cogRun,attempt:draft.attempt});
   runModule();
 }
 
@@ -259,41 +262,31 @@ function moduleIntro(title,desc,onStart,warn){
 
 /* ============ Личность ============ */
 function runPersonality(){
-  const items = window.HR_PERSONALITY.items;
-  const perPage=12; const pages=[]; for(let i=0;i<items.length;i+=perPage) pages.push(items.slice(i,i+perPage));
-  let pg=0;
-  const scaleLabels=['совсем нет','скорее нет','средне','скорее да','точно да'];
-  moduleIntro(MODULE_TITLES.personality,
-    'Ниже — утверждения о том, как вы обычно думаете и действуете. Отметьте, насколько каждое похоже на вас. Здесь нет правильных ответов.',
-    ()=>render(),
-    'В опроснике есть скрытые проверки достоверности. Приукрашенные или невнимательные ответы будут помечены. Отвечайте честно.');
+  const items=window.HR_PERSONALITY.items;
+  let qi=items.findIndex(it=>state.ans.personality[it.id]==null);
+  if(qi<0) qi=items.length-1;
+  const labels=['Совсем не похоже','Скорее не похоже','Нейтрально','Скорее похоже','Очень похоже'];
   function render(){
-    const page=pages[pg];
-    app.innerHTML = page.map(it=>{
-      const cur=state.ans.personality[it.id];
-      return `<div class="likert"><div class="q">${esc(it.text)}</div><div class="scale5" data-id="${it.id}">`+
-        [1,2,3,4,5].map(v=>`<button data-v="${v}" class="${cur===v?'on':''}">${v}<small>${scaleLabels[v-1]}</small></button>`).join('')+
-      `</div></div>`;
-    }).join('');
-    app.querySelectorAll('.scale5').forEach(row=>row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
-      state.ans.personality[row.dataset.id]=+b.dataset.v;
-      row.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
-      checkDone();
-    }));
-    setProgress((state.mi + (pg+1)/(pages.length+1))/state.modules.length);
-    setFoot(true,{next: pg<pages.length-1?'Далее':'Готово',prev:pg>0}); checkDone();
-    prevBtn.onclick=()=>{pg--;window.scrollTo(0,0);render()};
-    nextBtn.onclick=()=>{ if(pg<pages.length-1){pg++;window.scrollTo(0,0);render()} else nextModule(); };
-    window.scrollTo(0,0);
+    const it=items[qi], cur=state.ans.personality[it.id];
+    app.innerHTML=`<div class="question-meta"><span>Личностный тест</span><b>Вопрос ${qi+1} из ${items.length}</b></div>
+      <section class="card question-card"><p class="muted">Насколько это похоже на вас?</p><h1 tabindex="-1" id="questionTitle">${esc(it.text)}</h1>
+      <div class="answer-list">${labels.map((label,i)=>`<button class="answer ${cur===i+1?'selected':''}" aria-pressed="${cur===i+1}" data-answer="${i+1}"><span>${i+1}</span>${label}</button>`).join('')}</div>
+      <p class="muted">Нет правильных или неправильных ответов. Выбирайте то, что обычно вам свойственно.</p></section>`;
+    setProgress(qi/items.length); setFoot(true,{next:qi===items.length-1?'Завершить тест':'Далее',prev:qi>0,nextEnabled:cur!=null});
+    let advancing=false;
+    const advance=()=>{if(advancing)return;advancing=true;if(qi<items.length-1){qi++;render()}else nextModule()};
+    app.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>{state.ans.personality[it.id]=+b.dataset.answer;saveDraft();advance()});
+    nextBtn.onclick=advance;prevBtn.onclick=()=>{qi--;render()};
+    $('#questionTitle').focus({preventScroll:true});window.scrollTo(0,0);
   }
-  function checkDone(){ nextBtn.disabled = !pages[pg].every(it=>state.ans.personality[it.id]!=null); }
+  moduleIntro('Личностный тест','Выберите один ответ. Следующий вопрос появится сразу. К предыдущему можно вернуться кнопкой «Назад».',render);
 }
 /* ============ Когнитивный (секции с таймером) ============ */
 let timerHandle=null;
-function startTimer(sec,onEnd){
-  stopTimer(); let left=sec; timerEl.classList.remove('hidden'); paint();
-  timerHandle=setInterval(()=>{ left--; paint(); if(left<=0){stopTimer();onEnd()} },1000);
-  function paint(){ timerEl.textContent=fmtTime(left); timerEl.classList.toggle('warn',left<=30) }
+function startTimer(sec,onEnd,deadline){
+  stopTimer();const end=deadline||Date.now()+sec*1000;timerEl.classList.remove('hidden');
+  function paint(){const left=Math.max(0,Math.ceil((end-Date.now())/1000));timerEl.textContent=fmtTime(left);timerEl.classList.toggle('warn',left<=30);if(left<=0){stopTimer();onEnd()}}
+  timerHandle=setInterval(paint,250);paint();
 }
 function stopTimer(){ if(timerHandle){clearInterval(timerHandle);timerHandle=null} timerEl.classList.add('hidden') }
 
@@ -303,46 +296,40 @@ function cognitiveItemsFor(section){
   return window.HR_COGNITIVE.items.filter(x=>x.section===section && x.form===form);
 }
 function runCognitive(){
-  // секции: V (вербальная), N (числовая), A (абстрактная)
-  const budgets = state.cform==='C' ? {V:180,N:180,A:240} : {V:240,N:300,A:240};
-  const secs=[{k:'V',t:'Логика и слова',b:budgets.V},{k:'N',t:'Числа',b:budgets.N},{k:'A',t:'Фигуры и закономерности',b:budgets.A}];
-  let si=0;
-  moduleIntro(MODULE_TITLES.cognitive,
-    'Три коротких раздела с таймером: слова, числа, фигуры. Работайте быстро и точно. Калькулятор не нужен и не разрешён — часть ответов выборочно перепроверяется на собеседовании.',
-    ()=>runSec(),null);
+  const budgets=state.cform==='C'?{V:180,N:180,A:240}:{V:240,N:300,A:240};
+  const secs=[{k:'V',t:'Логика и слова'},{k:'N',t:'Числа'},{k:'A',t:'Фигуры и закономерности'}];
+  const completed=new Set(state.ans.cognitive.map(x=>x.id));
+  let si=secs.findIndex(sec=>!cognitiveItemsFor(sec.k).every(it=>completed.has(it.id)));
+  if(si<0)return nextModule();
+  if(state.cogRun?.deadline)runSec();
+  else moduleIntro('IQ · логика и способности','Три раздела: слова, числа и фигуры. Один вопрос на экран. После выбора ответа откроется следующий. Время продолжает идти при закрытии вкладки. Это упражнения, а не стандартизированный показатель IQ.',runSec);
   function runSec(){
-    const sec=secs[si]; const items=cognitiveItemsFor(sec.k); let qi=0;
-    const answers=new Array(items.length).fill(null); const times=new Array(items.length).fill(0);
-    let itemStart=Date.now(); const secStart=Date.now(); let ended=false;
-    // интро раздела
-    app.innerHTML=`<div class="big-center"><h2>Раздел: ${sec.t}</h2><p>${items.length} заданий, ${Math.floor(sec.b/60)} мин. Отвечать можно только вперёд.</p></div>`;
-    timerEl.classList.add('hidden');
-    setFoot(true,{next:'Начать'});
-    nextBtn.onclick=()=>{ startTimer(sec.b,endSec); paint(); };
+    if(si>=secs.length){state.cogRun=null;return nextModule()}
+    const sec=secs[si],items=cognitiveItemsFor(sec.k);
+    if(!items.length){si++;return runSec()}
+    let run=state.cogRun;
+    if(!run || run.section!==sec.k)run={section:sec.k,qi:0,answers:items.map(()=>null),times:items.map(()=>0),deadline:null};
+    state.cogRun=run;let ended=false,itemStart=Date.now();
+    function begin(){if(!run.deadline)run.deadline=Date.now()+budgets[sec.k]*1000;saveDraft();paint();startTimer(budgets[sec.k],endSec,run.deadline)}
     function paint(){
-      const it=items[qi]; itemStart=Date.now();
-      if(sec.k==='A') app.innerHTML=renderAbstract(it,answers[qi]);
-      else app.innerHTML=renderVN(it,answers[qi],qi,items.length);
-      if(sec.k==='A'){
-        app.querySelectorAll('.optcell').forEach(c=>c.onclick=()=>{answers[qi]=+c.dataset.oi;app.querySelectorAll('.optcell').forEach(x=>x.classList.remove('on'));c.classList.add('on');nextBtn.disabled=false});
-      } else {
-        app.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{answers[qi]=+o.dataset.oi;app.querySelectorAll('.opt').forEach(x=>x.classList.remove('on'));o.classList.add('on');nextBtn.disabled=false});
-      }
-      setFoot(true,{next: qi<items.length-1?'Далее':'Завершить раздел',nextEnabled:answers[qi]!=null});
-      nextBtn.onclick=advance;
-      window.scrollTo(0,0);
+      if(ended)return;
+      const it=items[run.qi];itemStart=Date.now();
+      app.innerHTML=`<div class="question-meta"><span>${sec.t} · раздел ${si+1} из 3</span><b>${run.qi+1} / ${items.length}</b></div><section class="card question-card">${sec.k==='A'?renderAbstract(it,run.answers[run.qi]):renderVN(it,run.answers[run.qi],run.qi,items.length)}</section>`;
+      setProgress((si+run.qi/items.length)/3);setFoot(true,{next:'Пропустить'});
+      app.querySelectorAll('[data-oi]').forEach(b=>{b.setAttribute('role','button');b.tabIndex=0;b.setAttribute('aria-label',b.textContent.trim()||('Вариант '+(+b.dataset.oi+1)));b.onclick=()=>advance(+b.dataset.oi);b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click()}}});
+      nextBtn.onclick=()=>advance(null);window.scrollTo(0,0);
     }
-    function advance(){
-      times[qi]=Math.round((Date.now()-itemStart)/1000);
-      if(qi<items.length-1){qi++;paint()} else endSec();
-    }
+    function advance(answer){if(ended)return;if(Date.now()>=run.deadline)return endSec();run.answers[run.qi]=answer;run.times[run.qi]=Math.round((Date.now()-itemStart)/1000);run.qi++;saveDraft();if(run.qi>=items.length)endSec();else paint()}
     function endSec(){
-      if(ended) return; ended=true; stopTimer();
-      if(!times[qi]) times[qi]=Math.round((Date.now()-itemStart)/1000);
-      items.forEach((it,i)=>state.ans.cognitive.push({id:it.id,a:answers[i],t:times[i]}));
-      state.ans.cogTimes[sec.k]=Math.round((Date.now()-secStart)/1000);
-      si++; if(si<secs.length) runSec(); else nextModule();
+      if(ended)return;ended=true;stopTimer();
+      const ids=new Set(items.map(it=>it.id));state.ans.cognitive=state.ans.cognitive.filter(x=>!ids.has(x.id));
+      items.forEach((it,i)=>state.ans.cognitive.push({id:it.id,a:run.answers[i],t:run.times[i]}));
+      state.ans.cogTimes[sec.k]=Math.min(budgets[sec.k],Math.max(0,Math.round((Date.now()-(run.deadline-budgets[sec.k]*1000))/1000)));
+      state.cogRun=null;saveDraft();si++;runSec();
     }
+    if(run.deadline){if(run.qi>=items.length||Date.now()>=run.deadline)endSec();else begin();return}
+    app.innerHTML=`<section class="card big-center"><p class="muted">Раздел ${si+1} из 3</p><h1>${sec.t}</h1><p>${items.length} заданий · ${budgets[sec.k]/60} минут</p><p>После выбора ответ изменить нельзя. Если не знаете — нажмите «Пропустить».</p></section>`;
+    setFoot(true,{next:'Начать раздел'});nextBtn.onclick=begin;
   }
 }
 function renderVN(it,cur,idx,total){
@@ -516,52 +503,32 @@ function screenFinish(){
   };
   const code=HR.encodeResult(result);
   // локальный скоринг + порог «прошёл/не прошёл»
-  let qr; try{ qr=HR.quickResult(result,{}); }catch(e){ qr={fit:0,passed:false}; }
+  let qr; try{ qr=HR.quickResult(result,{}); }catch(e){ app.innerHTML='<div class=card><h1>Не удалось обработать ответы</h1><p>Ответы сохранены на устройстве. Обновите страницу и повторите отправку.</p></div>';return; }
   const passed=!!qr.passed;
-  const status=state.stage==='personality' ? 'review' : (passed?'passed':'failed');
-  clearDraft(); // анкета завершена — черновик больше не нужен
+  const status=state.stage==='iq' ? (passed?'passed':'failed') : 'review';
+  saveDraft(); // сохраняем до подтверждения сервером
 
   app.innerHTML=`<div class="big-center"><h1>Отправляем результат…</h1><p class="muted">Секунду.</p></div>`;
   const payload={ name:state.cand.name, phone:state.cand.phone, email:state.cand.email||'',
-    stage:state.stage, fam:state.fam, kp:state.kp, status, fit:qr.fit, code:code };
+    stage:state.stage, fam:state.fam, kp:state.kp, status, fit:qr.fit, code:code,attempt:state.attempt };
 
   submitToServer(payload).then(ok=>{
-    renderDone(passed, ok, code);
+    if(ok)clearDraft();renderDone(passed, ok, code,payload);
   });
 }
 function submitToServer(payload){
   if(!WORKER) return Promise.resolve(false);
-  return fetch(WORKER+'/api/hr/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
-    .then(r=>r.ok).catch(()=>false);
+  return fetch(WORKER+'/api/hr/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),signal:AbortSignal.timeout(15000) })
+    .then(async r=>r.ok && (await r.json()).ok===true).catch(()=>false);
 }
-function renderDone(passed, sent, code){
-  if(state.stage==='personality'){
-    app.innerHTML=`<div class="big-center">
-      <div style="font-size:52px">✅</div>
-      <h1>Первый этап завершён</h1>
-      <p style="max-width:480px">${esc(state.cand.name||'')}, результаты анализа личности ${sent?'переданы работодателю':'сохранены'}. Если профиль подойдёт для выбранной должности, вам направят ссылку на второй этап — IQ / тест способностей.</p>
-    </div>`;
-  } else if(passed){
-    app.innerHTML=`<div class="big-center">
-      <div style="font-size:52px">✅</div>
-      <h1>Спасибо, заявка принята!</h1>
-      <p style="max-width:460px">${esc(state.cand.name||'')}, вы прошли первичную оценку на должность «${esc(POS[state.fam].short)}». ${sent?'Ваши данные переданы работодателю — с вами свяжутся по телефону или почте.':'Результат сохранён.'}</p>
-    </div>`;
-  } else {
-    app.innerHTML=`<div class="big-center">
-      <div style="font-size:52px">🙏</div>
-      <h1>Спасибо за то, что прошли анкету</h1>
-      <p style="max-width:480px">${esc(state.cand.name||'')}, к сожалению, на эту должность («${esc(POS[state.fam].short)}») на данном этапе вы не подходите. Это не оценка вас как человека — просто на этой позиции важны другие сильные стороны. Желаем удачи!</p>
-    </div>`;
-  }
-  if(!sent && WORKER){
-    // сервер не ответил — дадим запасной способ (код), чтобы результат не потерялся
-    const box=document.createElement('div'); box.className='card'; box.style.marginTop='16px';
-    box.innerHTML=`<div class="muted" style="margin-bottom:8px">Не удалось отправить автоматически. Отправьте этот код работодателю:</div>
-      <div class="codebox" id="code">${code}</div>
-      <button class="btn primary" id="copyBtn" style="margin-top:10px">Скопировать код</button> <span class="muted" id="copyMsg"></span>`;
-    app.appendChild(box);
-    $('#copyBtn').onclick=()=>navigator.clipboard.writeText(code).then(()=>$('#copyMsg').textContent='Скопировано ✓');
+function renderDone(passed,sent,code,payload){
+  const personality=state.stage!=='iq';
+  const title=!sent?'Результат ещё не отправлен':personality?'Личностный тест завершён':passed?'Порог упражнений пройден':'Порог упражнений пока не пройден';
+  const text=!sent?'Ответы сохранены на этом устройстве. Проверьте интернет и повторите отправку.':personality?'Спасибо за ответы. Результаты переданы менеджеру по набору персонала для рассмотрения. Менеджер свяжется с вами для уточнения деталей.':passed?'По итогам теста менеджер по набору персонала свяжется с вами для уточнения деталей.':'Результат ниже порога этого набора упражнений. Ответы переданы менеджеру для рассмотрения. Это не автоматический отказ в найме.';
+  app.innerHTML=`<section class="card result-card"><p class="muted">${sent?'Ответы получены':'Нужна отправка'}</p><h1>${title}</h1><p>${text}</p><p class="muted">${esc(state.cand.name)} · ${esc(state.cand.phone)}</p>${!sent?'<button class="btn primary" id="retrySubmit">Повторить отправку</button>':''}</section>`;
+  if(!sent){
+    $('#retrySubmit').onclick=async()=>{const b=$('#retrySubmit');b.disabled=true;b.textContent='Отправляем…';const ok=await submitToServer(payload);if(ok)clearDraft();renderDone(passed,ok,code,payload)};
+    const box=document.createElement('details');box.className='card';box.innerHTML=`<summary>Резервный код для менеджера</summary><p class="muted">Код содержит ваши ответы и контакты. Передавайте только менеджеру по найму.</p><div class="codebox">${code}</div>`;app.append(box);
   }
 }
 

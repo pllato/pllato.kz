@@ -31,7 +31,7 @@
   /* ---------- Личность ----------
      answers: {itemId: 1..5}. Возвращает домены/фасетки в percentile + z + oca(-100..100) + флаги достоверности. */
   HR.scorePersonality = function (answers) {
-    const P = window.HR_PERSONALITY;
+    const P = globalThis.HR_PERSONALITY;
     const acc = {}; // factor/facet -> {sum, n}
     const add = (k, v) => { if (!k) return; (acc[k] = acc[k] || { sum: 0, n: 0 }); acc[k].sum += v; acc[k].n++; };
     let sdSum = 0, sdN = 0;              // соц. желательность
@@ -232,11 +232,11 @@
     });
     const fit = wsum ? Math.round(s / wsum) : 0;
     contrib.forEach(c => c.norm = wsum ? c.weight / wsum : 0);
-    const band = window.HR_BANDS.fit.find(b => fit >= b.min);
+    const band = globalThis.HR_BANDS.fit.find(b => fit >= b.min);
     return { fit: fit, verdict: band.verdict, tone: band.tone, note: band.note, contrib: contrib };
   };
 
-  HR.band = function (pct) { return window.HR_BANDS.percentile.find(b => pct <= b.max); };
+  HR.band = function (pct) { return globalThis.HR_BANDS.percentile.find(b => pct <= b.max); };
 
   /* ---------- Кодирование результата (UTF-8 → base64 + контрольная сумма) ---------- */
   function hash(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0; return h.toString(36); }
@@ -259,7 +259,7 @@
   /* ---------- Настройки (overrides дефолтов) ----------
      settings = { positions:{fam:{moduleWeights,personalityWeights,cognitive}}, sjt:{scenarioId:{best,worst}}, combine:{interview,tests} } */
   HR.effectivePosition = function (fam, settings) {
-    const base = window.HR_POSITIONS[fam];
+    const base = globalThis.HR_POSITIONS[fam];
     const ov = settings && settings.positions && settings.positions[fam];
     if (!ov) return base;
     return Object.assign({}, base, {
@@ -293,12 +293,12 @@
   HR.combineVerdict = function (fitScore, interview, settings) {
     const w = (settings && settings.combine) || { interview: 55, tests: 45 };
     if (!interview || interview.pct == null) {
-      const band = window.HR_BANDS.fit.find(b => fitScore >= b.min);
+      const band = globalThis.HR_BANDS.fit.find(b => fitScore >= b.min);
       return { score: fitScore, verdict: band.verdict, tone: band.tone, note: band.note, hasInterview: false };
     }
     const wi = w.interview, wf = w.tests, sum = wi + wf;
     const score = Math.round((wi * interview.pct + wf * fitScore) / sum);
-    const band = window.HR_BANDS.fit.find(b => score >= b.min);
+    const band = globalThis.HR_BANDS.fit.find(b => score >= b.min);
     return { score: score, verdict: band.verdict, tone: band.tone, note: band.note, hasInterview: true, complete: interview.complete };
   };
 
@@ -308,22 +308,22 @@
     settings = settings || {};
     const P = HR.effectivePosition(d.fam, settings);
     const pers = HR.scorePersonality(d.ans.personality || {});
-    const lookup = {}; window.HR_COGNITIVE.items.forEach(it => lookup[it.id] = it);
-    window.HR_ABSTRACT.items.forEach(it => lookup[it.id] = Object.assign({ section: 'A' }, it));
+    const lookup = {}; globalThis.HR_COGNITIVE.items.forEach(it => lookup[it.id] = it);
+    globalThis.HR_ABSTRACT.items.forEach(it => lookup[it.id] = Object.assign({ section: 'A' }, it));
     let cog = null;
     if ((d.ans.cognitive || []).length) {
       const adm = d.ans.cognitive.map(c => lookup[c.id]).filter(Boolean);
       cog = HR.scoreCognitive(adm, d.ans.cognitive.map(c => c.a));
     }
-    const bank = P.sjtBank ? HR.effectiveSJT(window.HR_SJT[P.sjtBank], settings) : null;
+    const bank = P.sjtBank ? HR.effectiveSJT(globalThis.HR_SJT[P.sjtBank], settings) : null;
     const sjt = (bank && d.ans.sjt && d.ans.sjt.length) ? HR.scoreSJT(bank, d.ans.sjt) : null;
-    const intItems = window.HR_INTEGRITY.core.concat(window.HR_INTEGRITY[d.fam] || []);
+    const intItems = globalThis.HR_INTEGRITY.core.concat(globalThis.HR_INTEGRITY[d.fam] || []);
     const integ = (d.ans.integrity && Object.keys(d.ans.integrity).length) ? HR.scoreIntegrity(intItems, d.ans.integrity) : null;
-    const bioItems = window.HR_BIODATA.core.concat(window.HR_BIODATA[d.fam] || []);
+    const bioItems = globalThis.HR_BIODATA.core.concat(globalThis.HR_BIODATA[d.fam] || []);
     const bio = (d.ans.biodata && Object.keys(d.ans.biodata).length) ? HR.scoreBiodata(bioItems, d.ans.biodata, d.fam, {}) : null;
     let know = null;
     if ((d.ans.knowledge || []).length) {
-      const kl = {}; window.HR_KNOWLEDGE.items.forEach(it => kl[it.id] = it);
+      const kl = {}; globalThis.HR_KNOWLEDGE.items.forEach(it => kl[it.id] = it);
       let correct = 0, n = 0; d.ans.knowledge.forEach(k => { const it = kl[k.id]; if (it) { n++; if (k.a === it.answerIndex) correct++; } });
       know = { score: n ? Math.round(correct / n * 100) : 0 };
     }
@@ -339,9 +339,9 @@
     if (att) ms.attention = att.score;
     const fit = HR.computeFit(P, ms);
     // Порог прохождения: второй порог вердикта (по умолчанию 60). Ниже — «не прошёл».
-    const passMin = (window.HR_BANDS.fit[1] && window.HR_BANDS.fit[1].min) || 60;
+    const passMin = (globalThis.HR_BANDS.fit[1] && globalThis.HR_BANDS.fit[1].min) || 60;
     return { fit: fit.fit, tone: fit.tone, verdict: fit.verdict, passed: fit.fit >= passMin, passMin: passMin, moduleScores: ms };
   };
 
-  window.HR = HR;
+  globalThis.HR = HR;
 })();

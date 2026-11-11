@@ -1,0 +1,3 @@
+self.addEventListener('push',event=>{let d;try{d=event.data.json()}catch{d={}};event.waitUntil(self.registration.showNotification(d.title||'Pllato · найм',{body:d.body||'Новый результат теста',tag:d.tag||'hr-result',icon:'/pllato_favicon_64.svg',data:{url:d.url||'/app/hr/admin.html'}}))});
+self.addEventListener('notificationclick',event=>{event.notification.close();let url=new URL(event.notification.data?.url||'/app/hr/admin.html',self.location.origin);if(url.origin!==self.location.origin||!url.pathname.startsWith('/app/hr/'))url=new URL('/app/hr/admin.html',self.location.origin);event.waitUntil(clients.openWindow(url.href))});
+self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil(clients.claim()));
