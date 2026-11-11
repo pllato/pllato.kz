@@ -1,0 +1,35 @@
+import {gzipSync} from 'node:zlib';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import worker from '../hr-worker/worker.js';
+import {emptyAnswers} from '../app/hr/practical/tasks.js';
+const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../hr-worker/schema.sql',import.meta.url),'utf8'));
+function stmt(query,args=[]){return {bind(...a){return stmt(query,a)},async run(){const r=sql.prepare(query).run(...args);return {meta:{changes:r.changes}}},async first(){return sql.prepare(query).get(...args)},async all(){return {results:sql.prepare(query).all(...args)}}}}
+const DB={prepare:stmt,async batch(list){sql.exec('BEGIN');try{const r=[];for(const s of list)r.push(await s.run());sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}};
+const env={DB,HR_TEAM_PASSWORD:'test',HR_PRACTICAL_KEY_GZIP:gzipSync('PRIVATE KEY').toString('base64')};let notifications=0;
+const ctx={waitUntil(p){notifications++;p.catch(()=>{})}};
+async function req(path,body,auth=false,method=body?'POST':'GET'){const r=await worker.fetch(new Request('https://test/api/hr/'+path,{method,headers:{'Content-Type':'application/json',...(auth?{'X-HR-Team':'test'}:{})},...(body?{body:JSON.stringify(body)}:{})}),env,ctx);return {http:r.status,...await r.json()}}
+const cand={name:'Candidate',phone:'77010000000',age:25};
+assert.equal((await req('practical/key')).http,401);assert.equal((await req('practical/key',null,true)).text,'PRIVATE KEY');
+assert.equal((await req('practical/start',{cand,consent:false})).http,400);
+const s=await req('practical/start',{cand,consent:true});assert.equal(s.http,200);assert.ok(s.token);assert.ok(Date.parse(s.deadline)-Date.now()>39*60000);
+assert.equal((await req('summary',null,true)).pending,0);
+assert.equal((await req('practical/save',{id:s.id,token:'wrong',revision:1,answers:emptyAnswers()})).http,401);
+const answers=emptyAnswers();answers[0][0]='Цитата клиента';answers[0][1]='Значение для бизнеса';
+const saved=await req('practical/save',{...s,revision:1,answers,signals:{pasteCount:1}});assert.equal(saved.revision,1);
+assert.equal((await req('practical/save',{...s,revision:1,answers})).http,409);
+const status=await req('practical/status',s);assert.equal(status.answers[0][0],'Цитата клиента');assert.equal(status.signals.pasteCount,1);
+const listing=await req('submissions',null,true);assert.equal(listing.items[0].stage,'practical');assert.equal(listing.items[0].code,undefined);assert.equal(listing.items[0].token,undefined);
+const final=await req('practical/save',{...s,revision:2,answers,finish:true});assert.equal(final.finished,true);assert.equal(notifications,1);assert.equal((await req('summary',null,true)).pending,1);
+assert.equal((await req('practical/save',{...s,revision:3,answers:emptyAnswers(),finish:true})).finished,true);assert.equal(notifications,1);
+const detail=(await req('submission/'+s.id,null,true)).item;assert.equal(HR.decodeResult(detail.code).data.ans.practical[0][0],'Цитата клиента');
+assert.equal((await req('practical/grade',{id:s.id,scores:[4,3,4,3,3,3]})).http,401);
+assert.equal((await req('practical/grade',{id:s.id,scores:[5,3,4,3,3,3]},true)).http,400);
+assert.equal((await req('practical/grade',{id:s.id,scores:[4,3,4,3,3,3],decision:'reserve',notes:'Discuss'},true)).total,20);
+assert.equal((await req('summary',null,true)).pending,0);
+const timed=await req('practical/start',{cand,consent:true});await req('practical/save',{...timed,revision:1,answers});sql.prepare('UPDATE hr_practical_sessions SET deadline=? WHERE id=?').run(new Date(Date.now()-1000).toISOString(),timed.id);
+const late=await req('practical/save',{...timed,revision:2,answers:emptyAnswers(),finish:true});assert.equal(late.timedOut,true);assert.equal(late.answers[0][0],'Цитата клиента');
+const abandoned=await req('practical/start',{cand,consent:true});sql.prepare('UPDATE hr_practical_sessions SET deadline=? WHERE id=?').run(new Date(Date.now()-1000).toISOString(),abandoned.id);
+assert.equal((await req('submissions',null,true)).items.find(x=>x.id===abandoned.id).status,'review');
+console.log('Practical: auth, server deadline, drafts, revisions, no key/token leaks, immutable submission, grade and expiry passed');

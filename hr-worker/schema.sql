@@ -36,3 +36,7 @@ CREATE TABLE IF NOT EXISTS hr_attempts (
 CREATE INDEX IF NOT EXISTS idx_hr_attempts_status ON hr_attempts(status, updated_at);
 
 CREATE TABLE IF NOT EXISTS hr_push_subscriptions (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS hr_practical_sessions (
+ id TEXT PRIMARY KEY, token TEXT NOT NULL, deadline TEXT NOT NULL,
+ revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+);

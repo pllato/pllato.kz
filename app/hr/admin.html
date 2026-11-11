@@ -201,8 +201,9 @@ function renderHome(){
   <details class="hr-test-links noprint"><summary>Ссылки на тесты</summary>
     <div class="hr-test-link-row"><a href="/test/" target="_blank" rel="noopener">Личностный тест ↗</a><span class="muted">≈ 12 мин</span><button class="btn ghost sm" data-copy-test="personality">Копировать ссылку</button></div>
     <div class="hr-test-link-row"><a href="./?stage=iq&tests=cognitive" target="_blank" rel="noopener">IQ · способности ↗</a><span class="muted">≈ 15 мин</span><button class="btn ghost sm" data-copy-test="iq">Копировать ссылку</button></div>
+    <div class="hr-test-link-row"><a href="./practical/" target="_blank" rel="noopener">Разбор встречи ↗</a><span class="muted">40 мин</span><button class="btn ghost sm" data-copy-test="practical">Копировать ссылку</button></div>
   </details>
-  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option><option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option></select><select id="hrDecision" aria-label="Решение менеджера"><option value="">Все решения</option><option value="pending">Без решения</option><option value="hire">Нанять</option><option value="reserve">Резерв</option><option value="reject">Отказ менеджера</option></select></div>
+  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option><option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option><option value="practical">Разбор встречи</option></select><select id="hrDecision" aria-label="Решение менеджера"><option value="">Все решения</option><option value="pending">Без решения</option><option value="hire">Нанять</option><option value="reserve">Резерв</option><option value="reject">Отказ менеджера</option></select></div>
   <p class="muted">Личностный профиль рассматривает менеджер. Порог IQ относится к упражнениям и не является решением о найме.</p>
   <div id="hrStats" class="hr-stats"></div>
   <div id="listWrap"><div class="card"><p class="muted" style="margin:0">Загрузка…</p></div></div>
@@ -221,7 +222,7 @@ function renderHome(){
   $('#hrSearch').value=hrQuery;$('#hrSearch').oninput=e=>{hrQuery=e.target.value;paintCandidates()};
   $('#hrStage').value=hrStage;$('#hrStage').onchange=e=>{hrStage=e.target.value;paintCandidates()};
   $('#hrDecision').onchange=paintCandidates;
-  app.querySelectorAll('[data-copy-test]').forEach(b=>b.onclick=async()=>{const stage=b.dataset.copyTest;const url=new URL(stage==='personality'?'/test/':'./?stage=iq&tests=cognitive',location.href);try{await navigator.clipboard.writeText(url.href);toast('Ссылка скопирована')}catch{prompt('Скопируйте ссылку',url.href)}});
+  app.querySelectorAll('[data-copy-test]').forEach(b=>b.onclick=async()=>{const stage=b.dataset.copyTest;const url=new URL(stage==='practical'?'./practical/':stage==='personality'?'/test/':'./?stage=iq&tests=cognitive',location.href);try{await navigator.clipboard.writeText(url.href);toast('Ссылка скопирована')}catch{prompt('Скопируйте ссылку',url.href)}});
 
   $('#analyzeBtn').onclick=()=>analyze($('#codeInput').value);
   $('#fileBtn').onclick=()=>$('#fileInput').click();
@@ -229,11 +230,12 @@ function renderHome(){
   renderList();
 }
 function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='reserve'?{label:'Резерв',tone:'warn'}:d==='reject'?{label:'Отказ',tone:'bad'}:{label:'',tone:'neutral'}}
-function stageInfo(s){return s==='personality'?{label:'Этап 1 · личность',tone:'neutral'}:s==='iq'?{label:'Этап 2 · IQ',tone:'warn'}:{label:'Полная оценка',tone:'neutral'}}
+function stageInfo(s){if(s==='practical')return {label:'Разбор встречи',tone:'neutral'};return s==='personality'?{label:'Этап 1 · личность',tone:'neutral'}:s==='iq'?{label:'Этап 2 · IQ',tone:'warn'}:{label:'Полная оценка',tone:'neutral'}}
 function registryGraph(r){
  const bar=(value,max,tone='',threshold=false)=>{const v=Math.max(0,Math.min(max,Number(value)||0));return `<span class="hr-mini-track ${tone}" role="meter" aria-label="${threshold?'Результат IQ, порог 60':'Показатель'}" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${v}" title="${v} из ${max}${threshold?' · порог 60':''}"><i style="width:${v/max*100}%"></i>${threshold?'<b class="hr-threshold" title="Порог: 60 из 99"></b>':''}</span>`};
  if(r.status==='in_progress')return `<div class="hr-mini">${bar(r.progress,100)}</div>`;
  if(r.stage==='iq'&&r.fit!=null)return `<div class="hr-mini">${bar(r.fit,99,Number(r.fit)>=60?'pass':'below',true)}</div>`;
+ if(r.stage==='practical')return r.fit==null?'<small>Ожидает оценки проверяющего</small>':`<div class="hr-mini">${bar(r.fit,20)}<small>Оценка: ${Number(r.fit)} / 20</small></div>`;
  if(r.chart?.quality==='retry')return '<small>Проверка внимательности не пройдена</small>';
  if(!r.chart?.scales)return '<small>График недоступен для этой записи</small>';
  const colors={C:'#447a99',ES:'#419689',H:'#a78b52',E:'#b57c64',A:'#8c83aa',O:'#7e9654'};
@@ -297,7 +299,7 @@ async function markSelectedReviewed(){
 }
 setInterval(()=>{if(!D && $('#hrStats') && !document.hidden)renderList()},30000);
 function migrateRec(r){r.interview=r.interview||{scores:{}};r.interview.scores=r.interview.scores||{};r.biodata=r.biodata||{};r.biodata.overrides=r.biodata.overrides||{};r.biodata.confirmed=r.biodata.confirmed||{};return r}
-function loadRec(rec){ const dec=HR.decodeResult(rec.code); if(dec.error){toast(dec.error);return} D=dec.data; REC=migrateRec(rec); SCORED=computeScored(); renderReport(); window.scrollTo(0,0); }
+function loadRec(rec){ const dec=HR.decodeResult(rec.code); if(dec.error){toast(dec.error);return} D=dec.data; REC=migrateRec(rec); if(D.stage==='practical'){import('./practical/review.js').then(m=>m.renderPracticalReport({app,rec:REC,data:D,api:window.hrApi,onBack:renderHome})).catch(e=>toast(e.message));window.scrollTo(0,0);return} SCORED=computeScored(); renderReport(); window.scrollTo(0,0); }
 function loadById(id){ HRStore.getCandidate(id).then(rec=>{ if(!rec){toast('Заявка не найдена');return} loadRec(rec);HRStore.markReviewed?.(id).catch(()=>toast('Не удалось отметить просмотр')); }).catch(e=>toast(e.message)); }
 function analyze(code){
   // Ручной разбор кода (запасной путь): создаём заявку в системе и открываем её.
@@ -647,7 +649,7 @@ setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось под
     const iv=parseIV(row.interview);
     return { id:row.id, code:row.code, age:row.age, name:row.name||'', phone:row.phone||'', email:row.email||'',
       fam:row.fam, stage:row.stage||'full', kp:row.kp, status:row.status, fit:row.fit, decision:row.decision||null, notes:row.notes||'',
-      interview:{scores:iv.scores||{}}, biodata:iv.biodata||{overrides:{},confirmed:{}}, submitted_at:row.submitted_at,updated_at:row.updated_at,progress:row.progress,reviewed_at:row.reviewed_at,chart:row.chart };
+      interview:{scores:iv.scores||{},practical:iv.practical}, biodata:iv.biodata||{overrides:{},confirmed:{}}, submitted_at:row.submitted_at,updated_at:row.updated_at,progress:row.progress,reviewed_at:row.reviewed_at,chart:row.chart };
   }
   const listeners=[];
   window.HRStore = {
