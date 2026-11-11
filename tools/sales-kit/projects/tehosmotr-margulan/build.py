@@ -8,7 +8,7 @@ def rep(a,b):
     s=s.replace(a,b,1)
 # логотипа нет — знак от отрасли: галочка «прошёл ТО»
 MARK='<svg width="{w}" height="{w}" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="16" fill="#22272b"/><circle cx="50" cy="50" r="30" fill="none" stroke="#3fbf6e" stroke-width="9"/><path d="M36 51l10 10 19-22" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-s=re.sub(r'<title>.*?</title>','<title>ТехКонтроль · 22 станции техосмотра, колл-центр, операторы, HR, ИИ-ассистент · демо</title>',s,count=1)
+s=re.sub(r'<title>Техосмотр QZ · 21 станция: операции, качество, маркетинг, колл-центр, HR, финансы, 1С · демо</title>','<title>Техосмотр QZ · 22 станции техосмотра, колл-центр, операторы, HR, ИИ-ассистент · демо</title>',s,count=1)
 fav="<link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2322272b'/><path d='M50 12a18 18 0 0 1 18 18c0 13-18 30-18 30S32 43 32 30a18 18 0 0 1 18-18z' fill='none'/><circle cx='50' cy='50' r='30' fill='none' stroke='%233fbf6e' stroke-width='9'/></svg>\">"
 s=re.sub(r'<link rel="icon"[^\n]*>',fav,s,count=1)
 root=''':root{
@@ -31,11 +31,11 @@ s=re.sub(r'body\.dark\{.*?\n\}',dark,s,count=1,flags=re.S)
 g0=s.index('<section class="gate" id="gate">');g1=s.index('</section>',g0)+len('</section>')
 gate=f'''<section class="gate" id="gate">
  <div class="gate-l">
-  <div class="glogo">{MARK.format(w=54)}<div><b class="gname">ТЕХКОНТРОЛЬ</b><small class="gsub">СЕТЬ СТАНЦИЙ ТЕХОСМОТРА · АСТАНА + 14 РЕГИОНОВ</small></div></div>
-  <span class="gtag">демо для Маргулана и Индиры · по встрече 09.11</span>
-  <h1>Всё в одном месте — <em>собственник спрашивает голосом, а не звонит директорам.</em></h1>
-  <p>22 станции, колл-центр 24/7, запись и напоминания об окончании ТО, смены и рейтинг операторов, задачник вместо Trello, HR с откликами hh.ru и базой знаний, ОПиУ и ДДС, маркетинг и франшиза. ИИ-ассистент отвечает данными системы и сам раздаёт задачи отделам.</p>
-  <div class="gstat"><div><small>Экранов</small><b class="a">26</b></div><div><small>Ролей</small><b>7</b></div><div><small>Станций</small><b>22</b></div><div><small>Портал</small><b>2,8 млн ₸</b></div></div>
+  <div class="glogo">{MARK.format(w=54)}<div><b class="gname">ТЕХОСМОТР QZ</b><small class="gsub">СЕТЬ СТАНЦИЙ ТЕХОСМОТРА · 21 СТАНЦИЯ · 24/7 И ДНЕВНЫЕ</small></div></div>
+  <span class="gtag">демо по договору TZO-2026-01 · ТЗ операций, ОКК и маркетинга</span>
+  <h1>Каждый осмотр, смена и тенге — <em>в одном портале, по отделам.</em></h1>
+  <p>21 станция: осмотры с обязательными полями, смены 24/7 и дневные, ремонты и простои, закупки и OPEX, аудиты качества и рейтинг операторов, маркетинг — активности, контент, партнёры, допуслуги, рассылки и ребрендинг, колл-центр и напоминания, HR, ОПиУ и ДДС, обмен с 1С.</p>
+  <div class="gstat"><div><small>Экранов</small><b class="a">41</b></div><div><small>Ролей</small><b>12</b></div><div><small>Станций</small><b>21</b></div><div><small>Портал</small><b>2,8 млн ₸ · с 1С</b></div></div>
  </div>
  <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только нужное.</p><div class="roles" id="roles"></div>
   <div class="lnote"><b>Демо на вымышленных данных</b>Название, станции, клиенты, суммы и люди придуманы. Пришлёте логотип — перекрасим. Excel реально скачивается.</div></div></div>
@@ -44,7 +44,7 @@ s=s[:g0]+gate+s[g1:]
 a0=s.index('<div class="app hidden" id="app">');a1=s.index('<div class="mbg"')
 app=f'''<div class="app hidden" id="app">
  <header class="mast">
-  <div class="brandm">{MARK.format(w=30)}<b>ТЕХКОНТРОЛЬ</b></div>
+  <div class="brandm">{MARK.format(w=30)}<b>ТЕХОСМОТР QZ</b></div>
   <nav id="rail"></nav>
   <div class="top-r">
    <div class="srch"><i>⌕</i><input placeholder="станция, клиент, госномер" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
@@ -54,7 +54,7 @@ app=f'''<div class="app hidden" id="app">
    <div class="me" id="me">МГ</div>
   </div>
  </header>
- <div class="body2"><aside id="sub"></aside><main class="main"><h1 id="ttl" class="vh">ТехКонтроль</h1><div class="content" id="content"></div></main></div>
+ <div class="body2"><aside id="sub"></aside><main class="main"><h1 id="ttl" class="vh">Техосмотр QZ</h1><div class="content" id="content"></div></main></div>
 </div>
 
 '''
@@ -63,6 +63,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/tehosmotr-margulan.
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/tehosmotr-margulan.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f't{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,8,9))
+js=''.join(open(os.path.join(D,f't{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,5,6,9))
 open(ROOT+'/app/tehosmotr-margulan.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
