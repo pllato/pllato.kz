@@ -99,7 +99,8 @@ svg.shape{width:100%;height:100%;display:block}
 
 <!-- данные -->
 <script src="data/positions.js"></script>
-<script src="data/personality.js"></script>
+<script src="data/personality.js?v=20261111-attention"></script>
+<script src="personality-quality.js?v=20261111-attention"></script>
 <script src="data/cognitive.js"></script>
 <script src="data/abstract.js"></script>
 <script src="data/knowledge.js"></script>
@@ -262,24 +263,49 @@ function moduleIntro(title,desc,onStart,warn){
 
 /* ============ Личность ============ */
 function runPersonality(){
-  const items=window.HR_PERSONALITY.items;
-  let qi=items.findIndex(it=>state.ans.personality[it.id]==null);
-  if(qi<0) qi=items.length-1;
+  const policy=HR_PERSONALITY_QUALITY, bank=window.HR_PERSONALITY.items;
+  const items=bank.filter(it=>it.factor!=='ATT');
+  const checks=bank.filter(it=>it.factor==='ATT');
+  checks.forEach((it,i)=>items.splice(Math.min(items.length,24+i*40),0,it));
+  const quality=state.telemetry.personalityQuality ||= {version:1,readMs:{},fastClicks:0,attentionRetries:0};
+  if(quality.failed)return screenFinish();
+  let qi=items.findIndex(it=>state.ans.personality[it.id]==null||!(quality.readMs[it.id]>=policy.MIN_READ_MS)||(it.factor==='ATT'&&state.ans.personality[it.id]!==it.attn_answer));
+  if(qi<0)qi=items.length-1;
   const labels=['Совсем не похоже','Скорее не похоже','Нейтрально','Скорее похоже','Очень похоже'];
+  let readingTimer=null;
   function render(){
-    const it=items[qi], cur=state.ans.personality[it.id];
+    clearInterval(readingTimer);
+    const it=items[qi],cur=state.ans.personality[it.id];
+    let readMs=0,lastTick=performance.now(),fastHere=0,advancing=false,paused=false;
     app.innerHTML=`<div class="question-meta"><span>Личностный тест</span><b>Вопрос ${qi+1} из ${items.length}</b></div>
-      <section class="card question-card"><p class="muted">Насколько это похоже на вас?</p><h1 tabindex="-1" id="questionTitle">${esc(it.text)}</h1>
+      <section class="card question-card"><p class="muted">${it.factor==='ATT'?'Проверка внимательного чтения':'Насколько это похоже на вас?'}</p><h1 tabindex="-1" id="questionTitle">${esc(it.text)}</h1>
       <div class="answer-list">${labels.map((label,i)=>`<button class="answer ${cur===i+1?'selected':''}" aria-pressed="${cur===i+1}" data-answer="${i+1}"><span>${i+1}</span>${label}</button>`).join('')}</div>
-      <p class="muted">Нет правильных или неправильных ответов. Выбирайте то, что обычно вам свойственно.</p></section>`;
-    setProgress(qi/items.length); setFoot(true,{next:qi===items.length-1?'Завершить тест':'Далее',prev:qi>0,nextEnabled:cur!=null});
-    let advancing=false;
-    const advance=()=>{if(advancing)return;advancing=true;if(qi<items.length-1){qi++;render()}else nextModule()};
-    app.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>{state.ans.personality[it.id]=+b.dataset.answer;saveDraft();advance()});
-    nextBtn.onclick=advance;prevBtn.onclick=()=>{qi--;render()};
+      <p id="readingHint" class="muted">Прочитайте утверждение, затем выберите ответ.</p>
+      <div id="qualityMessage" role="status" aria-live="polite"></div>
+      <p class="muted">Нет правильных или неправильных ответов о вашей личности. В заданиях на внимательность следуйте инструкции.</p></section>`;
+    readingTimer=setInterval(()=>{const now=performance.now();if(!paused&&!document.hidden&&document.hasFocus())readMs+=Math.min(250,Math.max(0,now-lastTick));lastTick=now;if(readMs>=policy.MIN_READ_MS)$('#readingHint').textContent='Можно ответить. Не торопитесь — выбирайте то, что обычно вам свойственно.'},100);
+    setProgress(qi/items.length);setFoot(true,{next:qi===items.length-1?'Завершить тест':'Далее',prev:qi>0,nextEnabled:cur!=null});
+    function warn(text,pause=false){
+      const msg=$('#qualityMessage');msg.className='note warn';msg.textContent=text;
+      if(pause){paused=true;app.querySelectorAll('[data-answer]').forEach(b=>b.disabled=true);nextBtn.disabled=true;const b=document.createElement('button');b.className='btn ghost';b.textContent='Понятно, перечитаю';b.onclick=()=>{paused=false;fastHere=0;readMs=0;lastTick=performance.now();msg.textContent='Перечитайте вопрос и выберите ответ.';app.querySelectorAll('[data-answer]').forEach(x=>x.disabled=false);nextBtn.disabled=cur==null;b.remove()};msg.append(document.createElement('br'),b);b.focus();}
+    }
+    function accept(value){
+      if(advancing||paused)return;
+      if(readMs<policy.MIN_READ_MS){quality.fastClicks++;fastHere++;saveDraft();warn(fastHere>=3?'Вы нажимаете быстрее, чем появляется время на чтение. Эти нажатия не засчитаны. Сделайте паузу и внимательно перечитайте вопрос.':'Ответ пока не засчитан: сначала прочитайте вопрос. Не нужно отвечать на скорость.',fastHere>=3);return;}
+      if(it.factor==='ATT'&&value!==it.attn_answer){quality.attentionRetries++;saveDraft();if(quality.attentionRetries>=3){quality.failed=true;saveDraft();clearInterval(readingTimer);screenFinish();return;}readMs=0;warn('Ответ не соответствует инструкции в вопросе. Он не засчитан. Перечитайте задание и попробуйте ещё раз.');return;}
+      if(!Number.isInteger(value)||value<1||value>5)return;
+      state.ans.personality[it.id]=value;quality.readMs[it.id]=Math.round(readMs);saveDraft();advancing=true;clearInterval(readingTimer);
+      if(qi<items.length-1){qi++;render()}else{
+        const issue=policy.issue(items,state.ans.personality,quality);
+        if(issue){qi=items.findIndex(x=>state.ans.personality[x.id]==null||!(quality.readMs[x.id]>=policy.MIN_READ_MS)||(x.factor==='ATT'&&state.ans.personality[x.id]!==x.attn_answer));if(qi<0)qi=0;render();$('#qualityMessage').textContent=issue;return;}
+        nextModule();
+      }
+    }
+    app.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>accept(+b.dataset.answer));
+    nextBtn.onclick=()=>accept(state.ans.personality[it.id]);prevBtn.onclick=()=>{qi--;render()};
     $('#questionTitle').focus({preventScroll:true});window.scrollTo(0,0);
   }
-  moduleIntro('Личностный тест','Выберите один ответ. Следующий вопрос появится сразу. К предыдущему можно вернуться кнопкой «Назад».',render);
+  moduleIntro('Личностный тест','Читайте каждое утверждение и отвечайте о себе. Слишком быстрые нажатия не засчитываются. Внутри есть задания на внимательность: следуйте их инструкции. После трёх ошибок в заданиях на внимательность понадобится повторное прохождение. На одинаковые ответы ограничений нет. Можно вернуться кнопкой «Назад».',render);
 }
 /* ============ Когнитивный (секции с таймером) ============ */
 let timerHandle=null;
@@ -523,9 +549,11 @@ function submitToServer(payload){
 }
 function renderDone(passed,sent,code,payload){
   const personality=state.stage!=='iq';
-  const title=!sent?'Результат ещё не отправлен':personality?'Личностный тест завершён':passed?'Порог упражнений пройден':'Порог упражнений пока не пройден';
-  const text=!sent?'Ответы сохранены на этом устройстве. Проверьте интернет и повторите отправку.':personality?'Спасибо за ответы. Результаты переданы менеджеру по набору персонала для рассмотрения. Менеджер свяжется с вами для уточнения деталей.':passed?'По итогам теста менеджер по набору персонала свяжется с вами для уточнения деталей.':'Результат ниже порога этого набора упражнений. Ответы переданы менеджеру для рассмотрения. Это не автоматический отказ в найме.';
+  const needsRetry=personality&&state.telemetry.personalityQuality?.failed;
+  const title=!sent?'Результат ещё не отправлен':personality?(needsRetry?'Тест не пройден':'Тест пройден'):passed?'Порог упражнений пройден':'Порог упражнений пока не пройден';
+  const text=!sent?'Ответы сохранены на этом устройстве. Проверьте интернет и повторите отправку.':personality?(needsRetry?'В трёх попытках не выполнена инструкция заданий на внимательность. Результат личностного опросника не принят: нужно пройти тест заново, внимательно читая вопросы. Это не отказ в работе.':'Спасибо за внимательное прохождение. Менеджер по набору персонала свяжется с вами для уточнения результатов.'):passed?'По итогам теста менеджер по набору персонала свяжется с вами для уточнения деталей.':'Результат ниже порога этого набора упражнений. Ответы переданы менеджеру для рассмотрения. Это не автоматический отказ в найме.';
   app.innerHTML=`<section class="card result-card"><p class="muted">${sent?'Ответы получены':'Нужна отправка'}</p><h1>${title}</h1><p>${text}</p><p class="muted">${esc(state.cand.name)} · ${esc(state.cand.phone)}</p>${!sent?'<button class="btn primary" id="retrySubmit">Повторить отправку</button>':''}</section>`;
+  if(sent&&needsRetry){const b=document.createElement('button');b.className='btn primary';b.textContent='Пройти тест заново';b.onclick=()=>{state.ans.personality={};delete state.telemetry.personalityQuality;state.mi=state.modules.indexOf('personality');state.attempt=null;state.startTs=Date.now();saveDraft();registerAttempt();runModule()};app.querySelector('.result-card').append(b);}
   if(!sent){
     $('#retrySubmit').onclick=async()=>{const b=$('#retrySubmit');b.disabled=true;b.textContent='Отправляем…';const ok=await submitToServer(payload);if(ok)clearDraft();renderDone(passed,ok,code,payload)};
     const box=document.createElement('details');box.className='card';box.innerHTML=`<summary>Резервный код для менеджера</summary><p class="muted">Код содержит ваши ответы и контакты. Передавайте только менеджеру по найму.</p><div class="codebox">${code}</div>`;app.append(box);

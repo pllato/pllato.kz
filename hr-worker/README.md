@@ -21,3 +21,9 @@ Configure a paired P-256 `VAPID_PUBLIC_KEY` variable and `VAPID_PRIVATE_JWK` sec
 Existing deployments: apply `migrations/0003_test_attempts.sql` once before deploying the updated Worker. New installations: use `schema.sql`.
 
 `node tests/hr-assessment.test.mjs` checks server IQ scoring, auth, attempts, summary/read state and duplicate submissions using an in-memory SQLite database (modern Node required). Frontend browser checks cover complete personality/IQ flows, draft recovery, preserved deadline, dashboard search and new-result filter. Production checks must not insert artificial candidates.
+
+## Personality interaction safeguards
+
+New clients require at least 1.5 seconds of visible, focused reading per question; time in a background tab does not count. Three premature clicks on one question require explicit acknowledgement and rereading. Existing attention-instruction items are distributed through the questionnaire; failed instructions are not accepted. Three instruction failures stop the attempt with `needs_retry` and an immediate repeat action. This is an incomplete/invalid assessment outcome, never an automatic employment rejection. Repeated identical personality answers are allowed.
+
+Versioned `telemetry.personalityQuality` records accepted reading time, premature clicks and instruction retries. The server checks completeness, attention answers and reading metadata for new clients. Legacy complete records without timing remain supported. Client telemetry is an interaction safeguard, not tamper-proof evidence of attention or a detector of dishonesty. Recruiters see concrete attempt counts without personality-based rejection. Results requiring repetition do not display a personality interpretation.

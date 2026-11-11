@@ -1,4 +1,6 @@
 import '../app/hr/core.js';
+import '../app/hr/data/personality.js';
+import '../app/hr/personality-quality.js';
 import '../app/hr/data/cognitive.js';
 import '../app/hr/data/abstract.js';
 export function assessSubmission(b){
@@ -10,6 +12,12 @@ export function assessSubmission(b){
  const d=JSON.parse(raw);
  if(!['manager','itr','sales','worker'].includes(d.fam)||d.fam!==b.fam||!d.ans)throw new Error('Некорректная анкета');
  const stage=['personality','iq'].includes(d.stage)?d.stage:b.stage==='personality'?'personality':b.stage==='iq'?'iq':'full';
+ if(stage==='personality'||d.telemetry?.personalityQuality){
+  const q=d.telemetry?.personalityQuality;
+  if(q?.version===1&&q.failed===true&&Number.isInteger(q.attentionRetries)&&q.attentionRetries>=3)return {stage,status:'needs_retry',fit:null};
+  const issue=globalThis.HR_PERSONALITY_QUALITY.issue(globalThis.HR_PERSONALITY.items,d.ans.personality,d.telemetry?.personalityQuality);
+  if(issue)throw new Error(issue);
+ }
  if(stage!=='iq')return {stage,status:'review',fit:null};
  const form=['A','B','C'].includes(d.cform)?d.cform:'A';
  const bank=[...globalThis.HR_COGNITIVE.items,...globalThis.HR_ABSTRACT.items.map(x=>({...x,section:'A'}))].filter(x=>x.form===form);

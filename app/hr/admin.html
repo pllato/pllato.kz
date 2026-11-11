@@ -224,7 +224,7 @@ function renderHome(){
 }
 function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='reserve'?{label:'Резерв',tone:'warn'}:d==='reject'?{label:'Отказ',tone:'bad'}:{label:'',tone:'neutral'}}
 function stageInfo(s){return s==='personality'?{label:'Этап 1 · личность',tone:'neutral'}:s==='iq'?{label:'Этап 2 · IQ',tone:'warn'}:{label:'Полная оценка',tone:'neutral'}}
-function statusInfo(s){return s==='in_progress'?{label:'Проходит тест',tone:'neutral'}:s==='review'?{label:'На рассмотрении',tone:'neutral'}:s==='passed'?{label:'Порог IQ пройден',tone:'good'}:s==='failed'?{label:'Ниже порога IQ',tone:'warn'}:{label:'Ожидает проверки',tone:'neutral'}}
+function statusInfo(s){if(s==='needs_retry')return {label:'Нужно повторить тест',tone:'warn'};return s==='in_progress'?{label:'Проходит тест',tone:'neutral'}:s==='review'?{label:'На рассмотрении',tone:'neutral'}:s==='passed'?{label:'Порог IQ пройден',tone:'good'}:s==='failed'?{label:'Ниже порога IQ',tone:'warn'}:{label:'Ожидает проверки',tone:'neutral'}}
 async function enableHrPush(){
  const status=$('#hrPushState');
  try{
@@ -246,7 +246,7 @@ function paintCandidates(){
   const stageRows=hrRows.filter(r=>!hrStage||r.stage===hrStage);
   const isNew=r=>r.status!=='in_progress'&&!r.reviewed_at&&!r.decision;
   const matches=(r,key)=>key==='all'||(key==='new'?isNew(r):r.status===key);
-  const groups=[['new','Новые на проверку'],['all','Все результаты'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
+  const groups=[['new','Новые на проверку'],['all','Все результаты'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['needs_retry','Нужно повторить'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
   $('#hrStats').innerHTML=groups.map(([key,label])=>`<button class="hr-stat ${hrFilter===key?'active':''}" data-filter="${key}"><b>${stageRows.filter(r=>matches(r,key)).length}</b>${label}</button>`).join('');
   $('#hrStats').querySelectorAll('button').forEach(b=>b.onclick=()=>{hrFilter=b.dataset.filter;paintCandidates()});
   const decision=$('#hrDecision').value,q=hrQuery.toLowerCase().trim();
@@ -293,6 +293,7 @@ function barRow(label,val,opt){
 function renderReport(){
   const s=SCORED, P=s.P, d=D, c=s.combined;
   const dec=decInfo(REC.decision), status=statusInfo(REC.status), stage=stageInfo(REC.stage);
+  if(REC.status==='needs_retry'){app.innerHTML=`<div class="card"><h1>${esc(REC.name||'Кандидат')}</h1><h2>Тест не пройден: требуется повторение</h2><p>В трёх попытках не выполнена инструкция задания на внимательность. Личностный профиль по этим ответам не интерпретируется. Это не решение о найме.</p><p>${esc(REC.phone||'')}</p><button class="btn ghost" onclick="renderHome()">К кандидатам</button></div>`;return;}
   let h=`<div class="card"><div class="row" style="justify-content:space-between">
       <div><h1>${esc(REC.name||'Кандидат')} ${REC.status?`<span class="pill ${status.tone}" style="vertical-align:middle;font-size:12px">${status.label}</span>`:''}</h1>
       <div class="muted">${stage.label}</div>
@@ -303,6 +304,7 @@ function renderReport(){
 
     <div class="note" style="margin-top:16px"><b>Решение принимает менеджер</b><p>Результаты тестов — материал для беседы. Личностный профиль не используется для автоматического отказа. Шкала упражнений не является стандартизированным IQ.</p></div>
 
+    ${d.telemetry?.personalityQuality?`<div class="note"><b>Как проходил личностный тест</b><p>Незасчитанных быстрых нажатий: ${Number(d.telemetry.personalityQuality.fastClicks)||0}. Повторных попыток в заданиях на внимательность: ${Number(d.telemetry.personalityQuality.attentionRetries)||0}. Это наблюдения о прохождении, а не вывод о личности или основание для автоматического отказа.</p></div>`:''}
     <h3>Решение по кандидату</h3>
     <div class="row" style="align-items:flex-start">
       <div class="seg dec" id="decSeg">
@@ -419,6 +421,7 @@ function renderInterview(s){
   ['C','ES','H'].forEach(k=>{const sc=s.pers.scales[k];if(sc&&sc.pct<30)zones.push('Низкий балл по «'+domLabel(k)+'» — попросить конкретные примеры.')});
   if(s.pers.sdMean>=3.6)zones.push('Высокая социальная желательность — верификационные вопросы: «пример, когда сорвали срок / ошиблись».');
   const iv=s.interview;
+  if(REC.status==='needs_retry'){app.innerHTML=`<div class="card"><h1>${esc(REC.name||'Кандидат')}</h1><h2>Тест не пройден: требуется повторение</h2><p>В трёх попытках не выполнена инструкция задания на внимательность. Личностный профиль по этим ответам не интерпретируется. Это не решение о найме.</p><p>${esc(REC.phone||'')}</p><button class="btn ghost" onclick="renderHome()">К кандидатам</button></div>`;return;}
   let h=`<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Структурированное интервью</h2>
     <span class="pill ${iv.pct==null?'neutral':iv.pct>=80?'good':iv.pct>=60?'warn':'bad'}">${iv.answered?('балл '+iv.pct+' · '+iv.total+'/'+ (iv.answered*5)):'не заполнено'}</span></div>
     <p>Задайте одинаковые вопросы всем кандидатам, ставьте балл 1–5 сразу после ответа (шкала внизу). Итог влияет на общий вердикт вверху.</p>`;
@@ -445,6 +448,7 @@ function renderSettings(){
   const P=HR.effectivePosition(fam,SETTINGS);
   const combine=(SETTINGS.combine)||{interview:55,tests:45};
   const bands=window.HR_BANDS.fit;
+  if(REC.status==='needs_retry'){app.innerHTML=`<div class="card"><h1>${esc(REC.name||'Кандидат')}</h1><h2>Тест не пройден: требуется повторение</h2><p>В трёх попытках не выполнена инструкция задания на внимательность. Личностный профиль по этим ответам не интерпретируется. Это не решение о найме.</p><p>${esc(REC.phone||'')}</p><button class="btn ghost" onclick="renderHome()">К кандидатам</button></div>`;return;}
   let h=`<div class="card"><div class="row" style="justify-content:space-between"><h1 style="margin:0">Настройки оценки</h1>
     <button class="btn ghost sm" onclick="renderHome()">← Готово</button></div>
     <p class="muted">Изменения применяются ко всем кандидатам и, при подключённом сервере, ко всей команде. Значения по умолчанию — из доказательной базы; меняйте под свою компанию.</p></div>`;
