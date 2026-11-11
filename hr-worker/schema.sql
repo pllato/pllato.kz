@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   status       TEXT,               -- 'passed' | 'failed' (по порогам, оценка кандидатом)
   fit          INTEGER,            -- Fit Score на момент отправки
   code         TEXT,               -- полный код-результат HR1 (источник для разбора в панели)
+  reviewed_at  TEXT,
   decision     TEXT,               -- решение ответственного: hire|reserve|reject
   notes        TEXT,               -- заметки ответственного
   interview    TEXT,               -- JSON оценок собеседования (BARS)
@@ -26,3 +27,12 @@ CREATE TABLE IF NOT EXISTS settings (
   data       TEXT NOT NULL,
   updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS hr_attempts (
+ id TEXT PRIMARY KEY, token TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL,
+ fam TEXT NOT NULL, stage TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'in_progress',
+ progress INTEGER NOT NULL DEFAULT 0, started_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_hr_attempts_status ON hr_attempts(status, updated_at);
+
+CREATE TABLE IF NOT EXISTS hr_push_subscriptions (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT NOT NULL);

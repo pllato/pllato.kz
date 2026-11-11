@@ -127,7 +127,7 @@ export async function sendWebPush(env, sub, payloadObj) {
     res = await fetch(sub.endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `vapid t=${jwt}, k=${VAPID_PUBLIC_KEY}`,
+        'Authorization': `vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY}`,
         'Content-Encoding': 'aes128gcm',
         'Content-Type': 'application/octet-stream',
         'TTL': '86400',
