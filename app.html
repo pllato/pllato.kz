@@ -1052,6 +1052,8 @@ body {
 .fc-week-task-actions .move:hover { color:var(--bronze-deep); background:#fff7ed; }
 .fc-week-task-actions .del:hover { color:#dc2626; background:var(--surface-2); }
 .fc-week-task-actions .auto-badge { margin:0 2px; }
+.auto-badge.auto-payment-badge { width:22px; height:22px; padding:0; justify-content:center; flex:0 0 22px; }
+.auto-payment-badge svg { width:14px; height:14px; display:block; }
 .fc-week-tasks-empty { color:var(--text-3); font-size:10px; padding:7px 0 2px; }
 .fc-week-task-editor input { width:100%; }
 .fc-week-task-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.42fr); gap:12px; margin-top:14px; }
@@ -8558,7 +8560,8 @@ function financeWeekTaskAmount(value){
 function financeWeekTaskIsAutomatic(task){ return task?.automatic===true && task?.source==='payment-plan'; }
 function financeWeekTaskAutoBadge(task){
   if(!financeWeekTaskIsAutomatic(task)) return '';
-  return `<span class="auto-badge" title="Создано автоматически из плана платежей">Авто · ${task.autoType==='planned-release'?'выпуск':'платёж'}</span>`;
+  if(task.autoType!=='planned-release')return '<span class="auto-badge auto-payment-badge" role="img" aria-label="Автоматический платёж" title="Автоматический платёж · создан из плана платежей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5M4 17a9 9 0 0 0 15 2l3-3m0 5v-5h-5"/><path d="M10 9h5m-2.5 0v7M10 12h5"/></svg></span>';
+  return '<span class="auto-badge" title="Создано автоматически из плана платежей">Авто · выпуск</span>';
 }
 function financeWeekTaskOpenAction(task,kind,start,end){
   return financeWeekTaskIsAutomatic(task)
