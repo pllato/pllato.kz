@@ -44,3 +44,10 @@ test('overlapping reloads share the active request',async()=>{
   const first=x.run('loadTodayCalendar()'); await x.run('loadTodayCalendar()');
   assert.equal(calls,1); resolve([]);await first;
 });
+test('hidden tab does not request calendar sources',async()=>{
+ const x=setup();x.ctx.document.hidden=true;
+ x.ctx.calFetchToday=()=>{throw new Error('Should not fetch');};
+ await x.run('loadTodayCalendar()');
+ assert.equal(x.writes.length,0);assert.equal(x.run('CAL_ERROR'),false);
+ assert.equal(x.timers.at(-1),60000);
+});

@@ -1,4 +1,4 @@
-import {initProjectContext} from './project-context.js?v=1';
+import {initProjectContext} from './project-context.js?v=20261117-lazy';
 import {initMeetingProgress} from './meeting-progress.js?v=20261028-history';
 import {mountProjectMeetings} from './project-meetings.js?v=20261028-copy-label';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261027-delivery';
