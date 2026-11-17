@@ -6143,7 +6143,7 @@ import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-no
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 let transcriptDemoController;
-function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261109-context').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token,projectTasks:{getTasks:()=>FINANCE_WEEK_TASKS,taskText:financeDemoTaskText,canEdit:t=>canConfigureFinanceChart(t.kind)&&canEditFinanceTask(t),onToggle:(t,done)=>toggleFinanceWeekTask(t.id,done),onOpen:t=>financeWeekTaskIsAutomatic(t)?openPaymentPlanSource(paymentPlanProjectToken(t.sourceProjectId)):openFinanceWeekTaskEditor(t.kind,t.start,t.end,t.id),kindTitle:kind=>FINANCE_CHART_META[kind]?.title||kind}});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261117-lazy').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token,projectTasks:{getTasks:()=>FINANCE_WEEK_TASKS,taskText:financeDemoTaskText,canEdit:t=>canConfigureFinanceChart(t.kind)&&canEditFinanceTask(t),onToggle:(t,done)=>toggleFinanceWeekTask(t.id,done),onOpen:t=>financeWeekTaskIsAutomatic(t)?openPaymentPlanSource(paymentPlanProjectToken(t.sourceProjectId)):openFinanceWeekTaskEditor(t.kind,t.start,t.end,t.id),kindTitle:kind=>FINANCE_CHART_META[kind]?.title||kind}});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
 
 
 initProjectRecordings({ getSession });
@@ -9281,7 +9281,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
     analyticsSlot.innerHTML=kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'';
   }
   const analyticsEl=analyticsSlot?.querySelector('#leadAnalytics');
-  if(analyticsEl) renderLeadAnalytics(analyticsEl);
+  if(analyticsEl && !cached) renderLeadAnalytics(analyticsEl);
   applyFinanceChartsFold();
   mountTranscriptDemoTasks();
   if(position.hasGrid)restoreFinanceChartPosition(el,position);
@@ -9289,7 +9289,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   return true;
 }
 async function renderFinanceCharts(){
-  if(!CURRENT) return;
+  if(!CURRENT || document.hidden) return;
   const el=ensureFinanceCharts();
   if(!el) return;
   const requestId=++FINANCE_CHART_REQUEST;
@@ -9366,7 +9366,7 @@ async function renderFinanceCharts(){
       applyFinanceChartsFold();
     }
     clearTimeout(FINANCE_CHART_RETRY_TIMER);
-    FINANCE_CHART_RETRY_TIMER=setTimeout(()=>renderFinanceCharts(),15000);
+    FINANCE_CHART_RETRY_TIMER=setTimeout(()=>renderFinanceCharts(),60000);
   }
 }
 window.addEventListener('online',()=>renderFinanceCharts());
@@ -10221,6 +10221,11 @@ async function calLoadZoomLinks(items){
 }
 async function loadTodayCalendar(){
   if(!calCanSee() || CAL_LOADING) return;
+  if(document.hidden){
+    clearTimeout(CAL_TIMER);
+    CAL_TIMER=setTimeout(loadTodayCalendar,60000);
+    return;
+  }
   CAL_LOADING=true;
   clearTimeout(CAL_TIMER);
   const cached=calReadCache();
