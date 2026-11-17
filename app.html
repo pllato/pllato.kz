@@ -9865,14 +9865,14 @@ async function saveFinanceAccess(kind){
    иначе видны только свои задачи, а встречи, поставленные другими
    сотрудниками, в виджет не попадают (а в календаре они есть). */
 const CAL_WORKER='https://pllato-elc-worker.uurraa.workers.dev';
-let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null;
+let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null, CAL_ERROR=false, CAL_LOADING=false;
 
 function calCanSee(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_shared_calendar); }
 // Кнопку «На iPhone» видит тот, кому её открыли в правах общего календаря.
 // Право хранится в apps: calendarAccess воркер портала не сохраняет.
 function calCanSeeWidget(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_ios_widget); }
 function calDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function calCacheKey(){ return `pllato_two_day_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
+function calCacheKey(){ return `pllato_two_day_meetings_v2:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
 function calReadCache(){
   try{
     const c=JSON.parse(localStorage.getItem(calCacheKey())||'null');
@@ -9887,6 +9887,11 @@ function calFetch(url,ms=12000,options={}){
   const ctrl=new AbortController();
   const timer=setTimeout(()=>ctrl.abort(),ms);
   return fetch(url,{...options,cache:'no-store',signal:ctrl.signal}).finally(()=>clearTimeout(timer));
+}
+async function calFetchJson(url){
+  const response=await calFetch(url);
+  if(!response.ok) throw new Error(`Календарь: HTTP ${response.status}`);
+  return response.json();
 }
 /* Ссылка на сделку из crm_links задачи. Форматы встречаются разные:
    "deal_353226", "deal_local_abc123", "D_353226", "353226",
@@ -9929,8 +9934,7 @@ async function calFetchToday(){
   // 1. Сделки по всем воронкам: и ради «первого Zoom», и чтобы подставить
   // название сделки в события-задачи, которые на неё ссылаются.
   try{
-    const pipesResponse=await calFetch(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`);
-    const pipes=pipesResponse.ok?await pipesResponse.json():null;
+    const pipes=await calFetchJson(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`);
     const ids=Object.entries(pipes||{}).map(([id,value])=>(value&&value.id)||id);
     for(const [id,value] of Object.entries(pipes||{})){
       const pid=(value&&value.id)||id;
@@ -9941,8 +9945,7 @@ async function calFetchToday(){
     const chunks=[];
     for(let i=0;i<ids.length;i+=2){
       const part=await Promise.all(ids.slice(i,i+2).map(id=>
-        calFetch(`${CAL_WORKER}/api/list/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(id)}&sort=modified&allEvents=1&auth=${encodeURIComponent(token)}`)
-          .then(r=>r.ok?r.json():{items:[]}).catch(()=>({items:[]}))));
+        calFetchJson(`${CAL_WORKER}/api/list/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(id)}&sort=modified&allEvents=1&auth=${encodeURIComponent(token)}`)));
       chunks.push(...part);
     }
     for(const chunk of chunks){
@@ -9963,7 +9966,7 @@ async function calFetchToday(){
           href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
       }
     }
-  }catch(e){ console.warn('встречи · сделки:',e); }
+  }catch(e){ throw e; }
 
   // 2. События и задачи. Окно по дедлайну широкое (как в Календаре): у события
   // время лежит в startDatePlan и может сильно расходиться с дедлайном.
@@ -9971,8 +9974,7 @@ async function calFetchToday(){
   try{
     const url=`${CAL_WORKER}/api/list/tasks?page=1&pageSize=500&status=active&sort=deadline`
       +`&deadlineFrom=${shift(-90)}&deadlineTo=${shift(90)}T23:59:59&includePublic=1&allEvents=1&auth=${encodeURIComponent(token)}`;
-    const response=await calFetch(url);
-    const data=response.ok?await response.json():{items:[]};
+    const data=await calFetchJson(url);
     for(const task of (data.items||[])){
       const isMeet=task.mark==='zoom_meeting';
       const when=new Date((isMeet?(task.startDatePlan||task.deadline):task.deadline)||'');
@@ -9995,7 +9997,7 @@ async function calFetchToday(){
           ? `team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}`
           : `team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
     }
-  }catch(e){ console.warn('встречи · задачи:',e); }
+  }catch(e){ throw e; }
 
   // Один и тот же Zoom приходит и задачей, и полем сделки: если они по одной
   // сделке и в одну минуту — оставляем событие-задачу, у него есть название.
@@ -10041,6 +10043,11 @@ function renderCalendarDay(id,label,offset){
   const items=CAL_EVENTS===null?null:CAL_EVENTS.filter(e=>calDayKey(new Date(e.at))===calDayKey(day));
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
+  if(CAL_ERROR && !items?.length){
+    box.className='cal-widget on empty';
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">Не удалось загрузить календарь. Повторим автоматически.</span><button type="button" onclick="loadTodayCalendar()">Повторить</button></div><div class="cw-list"></div>';
+    return;
+  }
   if(items===null){
     box.className='cal-widget on empty';
     box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>';
@@ -10061,7 +10068,7 @@ function renderCalendarDay(id,label,offset){
     return;
   }
   const nextItem=upcoming[0];
-  const status=running
+  const status=CAL_ERROR ? 'Не удалось обновить · сохранённые встречи' : running
     ? (nextItem?`идёт сейчас · следующая в ${calTimeLabel(nextItem.at)}`:'идёт сейчас · последняя на сегодня')
     : (nextItem?`ближайшая в ${calTimeLabel(nextItem.at)}`:'все прошли');
   // Показываем всё, что есть на сегодня в календаре: список прокручивается,
@@ -10179,24 +10186,29 @@ async function calLoadZoomLinks(items){
   }
 }
 async function loadTodayCalendar(){
-  if(!calCanSee()) return;
+  if(!calCanSee() || CAL_LOADING) return;
+  CAL_LOADING=true;
+  clearTimeout(CAL_TIMER);
   const cached=calReadCache();
-  if(cached){ CAL_EVENTS=cached; renderTodayCalendar(); }
-  else renderTodayCalendar();
+  if(CAL_EVENTS===null && cached) CAL_EVENTS=cached;
+  renderTodayCalendar();
   try{
     const items=await calFetchToday();
     CAL_EVENTS=items;
+    CAL_ERROR=false;
     calSaveCache(items);
   }catch(e){
     console.warn('виджет встреч:',e);
-    if(CAL_EVENTS===null) CAL_EVENTS=[];
+    CAL_ERROR=true;
+  }finally{
+    CAL_LOADING=false;
   }
   renderTodayCalendar();
-  void calLoadZoomLinks(CAL_EVENTS);
+  if(!CAL_ERROR) void calLoadZoomLinks(CAL_EVENTS);
   clearInterval(CAL_TICK);
-  CAL_TICK=setInterval(renderTodayCalendar,60000);          // «идёт» и «через N мин» — без новых запросов
-  clearTimeout(CAL_TIMER);
-  CAL_TIMER=setTimeout(loadTodayCalendar,10*60000);          // свежие данные раз в 10 минут
+  CAL_TICK=setInterval(renderTodayCalendar,60000);
+  // Give the overloaded source time to recover; never cache a failed load as empty.
+  CAL_TIMER=setTimeout(loadTodayCalendar,CAL_ERROR?60000:10*60000);
 }
 
 /* ===== Рабочее пространство Pixel English =====
