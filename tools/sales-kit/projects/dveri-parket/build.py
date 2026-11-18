@@ -32,9 +32,9 @@ g0=s.index('<section class="gate" id="gate">');g1=s.index('</section>',g0)+len('
 gate=f'''<section class="gate" id="gate">
  <div class="gate-l">
   <div class="glogo">{MARK.format(w=54)}<div><b class="gname">ДУБ И ДВЕРЬ</b><small class="gsub">ДВЕРИ И ПАРКЕТ · АЛМАТЫ · АСТАНА · ШЫМКЕНТ</small></div></div>
-  <span class="gtag">демо для Алексея и Айкеры · по встрече 17.11</span>
+  <span class="gtag">демо для Алексея и Айкеры · по встрече 17.11 и вашей системе</span>
   <h1>Только нужное вам — <em>на вашем сервере, без абонплаты.</em></h1>
-  <p>Колл-центр и продажи по салонам, карточка сделки со всеми чатами, звонками и расчётами, калькуляторы дверей и паркета, согласования скидок, оплат и договоров по шагам. Данные клиентов — на сервере в Казахстане, переезд с Битрикс24 без остановки.</p>
+  <p>По вашей системе: лиды с вашими стадиями, 13 воронок сделок с правами, документация и таймлайн сделки, согласование выплат и автоматизации. Колл-центр и продажи по салонам, карточка сделки со всеми чатами, звонками и расчётами, калькуляторы дверей и паркета, согласования скидок, оплат и договоров по шагам. Данные клиентов — на сервере в Казахстане, переезд с Битрикс24 без остановки.</p>
   <div class="gstat"><div><small>Экранов</small><b class="a">21</b></div><div><small>Ролей</small><b>6</b></div><div><small>Города</small><b>3</b></div><div><small>Без НДС</small><b>2,5 млн ₸</b></div></div>
  </div>
  <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только нужное.</p><div class="roles" id="roles"></div>
@@ -69,6 +69,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/dveri-parket.js"></
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/dveri-parket.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'd{i}.js'),encoding='utf-8').read() for i in range(1,5))
+js=''.join(open(os.path.join(D,f'd{i}.js'),encoding='utf-8').read() for i in range(1,6))
 open(ROOT+'/app/dveri-parket.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
