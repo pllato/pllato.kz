@@ -15,11 +15,11 @@ export async function handleCalendarUpcoming(request,env,deps){
   const [pipes,tasks,deals]=await env.DB.batch([
    env.DB.prepare('SELECT id,name,stages FROM pipelines'),
    env.DB.prepare(`SELECT id,title,mark,start_date_plan,end_date_plan,deadline,crm_links,bitrix_crm_links,calendar_deal_title FROM tasks WHERE id IN (
-    SELECT id FROM tasks WHERE status IN (1,2,3) AND archived_at IS NULL AND start_date_plan >= ? AND start_date_plan <= ?
+    SELECT id FROM tasks INDEXED BY idx_calendar_tasks_start WHERE status IN (1,2,3) AND archived_at IS NULL AND start_date_plan >= ? AND start_date_plan <= ?
     UNION
-    SELECT id FROM tasks WHERE status IN (1,2,3) AND archived_at IS NULL AND deadline >= ? AND deadline <= ?
+    SELECT id FROM tasks INDEXED BY idx_calendar_tasks_deadline WHERE status IN (1,2,3) AND archived_at IS NULL AND deadline >= ? AND deadline <= ?
    )`).bind(from,to,from,to),
-   env.DB.prepare(`SELECT id,title,pipeline_id,stage_id,opportunity,custom_fields,bitrix_id FROM deals WHERE (archived IS NULL OR archived=0) AND json_valid(custom_fields) AND substr(json_extract(custom_fields,'$.firstZoomAt'),1,10) IN (?,?,?,?)${access.where}`).bind(...dates,...access.params)
+   env.DB.prepare(`SELECT id,title,pipeline_id,stage_id,opportunity,custom_fields,bitrix_id FROM deals INDEXED BY idx_calendar_deals_first_zoom WHERE (archived IS NULL OR archived=0) AND json_valid(custom_fields) AND substr(json_extract(custom_fields,'$.firstZoomAt'),1,10) IN (?,?,?,?)${access.where}`).bind(...dates,...access.params)
   ]);
   const parse=(s,fallback)=>{try{return JSON.parse(s)||fallback;}catch{return fallback;}};
   const books=new Map((pipes.results||[]).map(p=>[p.id,{name:p.name,stages:parse(p.stages,{})}]));
