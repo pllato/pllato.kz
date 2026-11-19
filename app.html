@@ -1305,6 +1305,7 @@ body {
 
 .demo-correction{display:grid;gap:12px;padding:16px;border:1px solid var(--line-2);border-radius:10px;margin:16px 0}.demo-correction label{display:grid;gap:6px}.demo-correction input{width:100%;box-sizing:border-box;padding:10px;font:inherit}.demo-correction small{line-height:1.5;color:var(--text-3)}
 
+.cw-retry{border:1px solid var(--line,#ece7df);background:transparent;border-radius:6px;padding:4px 8px;color:var(--text-2,#646b7b);font:inherit;cursor:pointer}
 .project-context{margin:12px 0 16px;padding:12px 0;border-top:1px solid var(--line,#ece7df);border-bottom:1px solid var(--line,#ece7df);font-size:13px;min-width:0}.pc-contact:empty,.pc-tasks:empty{display:none}.pc-contact small{display:block;color:#8b8f9b;font-size:11px;margin-bottom:4px}.pc-contact b{display:block;font-size:14px;overflow-wrap:anywhere}.pc-contact a{display:inline-block;color:#90683d;text-decoration:none;margin-top:4px;font-variant-numeric:tabular-nums}.pc-contact button{border:0;background:none;color:#90683d;cursor:pointer}.pc-tasks:not(:empty){margin-top:12px}.pc-tasks>strong{font-size:12px;color:#545b6d}.pc-task{display:flex;gap:8px;align-items:flex-start;margin-top:9px}.pc-task input{margin:3px 0 0;flex:none;accent-color:#b8895a}.pc-task>div{min-width:0}.pc-task button{border:0;background:none;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}.pc-task small{display:block;color:#8b8f9b;font-size:11px;margin-top:3px}.pc-tasks summary{font-size:12px;color:#90683d;cursor:pointer;margin-top:10px}
 
 .task-week-picker{width:min(480px,94vw);max-height:90dvh;overflow:auto;margin:auto;padding:20px;border:1px solid #e8e3d9;border-radius:14px;background:#fff;color:#171e29}.task-week-picker::backdrop{background:#11182780}.task-week-picker header,.task-week-picker footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.task-week-picker h3{margin:0;font-size:19px}.task-week-picker label{display:block;font-size:13px;font-weight:600;margin-top:12px}.task-week-picker input,.task-week-picker select{display:block;width:100%;margin-top:5px;padding:8px;border:1px solid #ddd4c7;border-radius:8px;font-family:inherit;font-size:14px;line-height:1.5;background:white;color:inherit}.task-week-picker option{padding:8px}.task-week-picker option:disabled{color:#9ca3af}.task-week-picker button{padding:8px 12px;border:1px solid #ddd4c7;border-radius:8px;background:white;cursor:pointer;font:inherit}.task-week-picker [type=submit]{background:#101c2b;color:white}.task-week-picker footer{margin-top:16px;justify-content:flex-end}.task-week-name{margin:12px 0;line-height:1.4;overflow-wrap:anywhere}.task-week-hint{font-size:12px;color:#697180;margin:12px 0 0}
@@ -9991,92 +9992,12 @@ function calDealRecordId(deal){
 async function calFetchToday(){
   const token=getSession()?.token;
   if(!token) throw new Error('нет сессии App');
-  const today=new Date();
-  const shift=n=>{ const d=new Date(today); d.setDate(d.getDate()+n); return calDayKey(d); };
-  const days=new Set([shift(0),shift(1)]);
-  const events=[];
-  const dealsById=new Map();
-  const pipeBook={};
-
-  // 1. Сделки по всем воронкам: и ради «первого Zoom», и чтобы подставить
-  // название сделки в события-задачи, которые на неё ссылаются.
-  try{
-    const pipes=await calFetchJson(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`);
-    const ids=Object.entries(pipes||{}).map(([id,value])=>(value&&value.id)||id);
-    for(const [id,value] of Object.entries(pipes||{})){
-      const pid=(value&&value.id)||id;
-      pipeBook[pid]={ name:(value&&value.name)||'', stages:(value&&value.stages)||{} };
-    }
-    // Не больше двух параллельных запросов: воронок может быть много,
-    // а залп на восемь тяжёлых выборок мешает остальным данным портала.
-    const chunks=[];
-    for(let i=0;i<ids.length;i+=2){
-      const part=await Promise.all(ids.slice(i,i+2).map(id=>
-        calFetchJson(`${CAL_WORKER}/api/list/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(id)}&sort=modified&allEvents=1&auth=${encodeURIComponent(token)}`)));
-      chunks.push(...part);
-    }
-    for(const chunk of chunks){
-      for(const deal of (chunk.items||[])){
-        const recordId=calDealRecordId(deal);
-        if(recordId) dealsById.set(recordId.replace(/^deal_/,''),deal);
-        if(deal?.bitrixId!=null) dealsById.set(String(deal.bitrixId),deal);
-        const raw=deal?.customFields?.firstZoomAt;
-        if(!raw) continue;
-        const when=new Date(raw);
-        if(isNaN(when)||!days.has(calDayKey(when))) continue;
-        const book=pipeBook[deal.pipelineId]||null;
-        events.push({ at:when.getTime(), end:when.getTime()+60*60000,
-          title:'Zoom: '+(deal.title||'сделка'), src:'первый Zoom', kind:'meet',
-          deal:recordId, zoomPath:'/deals/'+encodeURIComponent(recordId)+'/first-meeting',
-          pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
-          sum:Number(deal.opportunity)||0,
-          href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
-      }
-    }
-  }catch(e){ throw e; }
-
-  // 2. События и задачи. Окно по дедлайну широкое (как в Календаре): у события
-  // время лежит в startDatePlan и может сильно расходиться с дедлайном.
-  // allEvents=1 — иначе не видно встреч, поставленных другими сотрудниками.
-  try{
-    const url=`${CAL_WORKER}/api/list/tasks?page=1&pageSize=500&status=active&sort=deadline`
-      +`&deadlineFrom=${shift(-90)}&deadlineTo=${shift(90)}T23:59:59&includePublic=1&allEvents=1&auth=${encodeURIComponent(token)}`;
-    const data=await calFetchJson(url);
-    for(const task of (data.items||[])){
-      const isMeet=task.mark==='zoom_meeting';
-      const when=new Date((isMeet?(task.startDatePlan||task.deadline):task.deadline)||'');
-      if(isNaN(when)||!days.has(calDayKey(when))) continue;
-      const end=task.endDatePlan?new Date(task.endDatePlan):null;
-      const dealId=calLinkedDealId(task);
-      const deal=dealId?dealsById.get(String(dealId)):null;
-      const dealTitle=deal?.title||task.calendarDealTitle||'';
-      const book=deal?pipeBook[deal.pipelineId]:null;
-      events.push({ at:when.getTime(),
-        end:(end&&!isNaN(end))?end.getTime():when.getTime()+(isMeet?60:30)*60000,
-        title:dealTitle?('Сделка: '+dealTitle):(task.title||(isMeet?'Встреча':'Задача')),
-        note:dealTitle&&task.title?task.title:'',
-        src:isMeet?'встреча':'задача', kind:isMeet?'meet':'task',
-        zoomPath:isMeet?'/tasks/'+encodeURIComponent(task.id||task.bitrixKey||''):'',
-        deal:deal?calDealRecordId(deal):'',
-        pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
-        sum:deal?Number(deal.opportunity)||0:0,
-        href:deal
-          ? `team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}`
-          : `team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
-    }
-  }catch(e){ throw e; }
-
-  // Один и тот же Zoom приходит и задачей, и полем сделки: если они по одной
-  // сделке и в одну минуту — оставляем событие-задачу, у него есть название.
-  const byDeal=new Set();
-  for(const e of events) if(e.kind==='meet'&&e.deal&&e.src==='встреча') byDeal.add(e.deal+'|'+e.at);
-  const seen=new Set();
-  return events.filter(item=>{
-    if(item.src==='первый Zoom'&&item.deal&&byDeal.has(item.deal+'|'+item.at)) return false;
-    const key=item.at+'|'+item.title;
-    if(seen.has(key)) return false;
-    seen.add(key); return true;
-  }).sort((a,b)=>a.at-b.at);
+  const params=new URLSearchParams({date:calDayKey(new Date()),tzo:String(new Date().getTimezoneOffset())});
+  const response=await calFetch(`${CAL_WORKER}/api/calendar/upcoming?${params}`,20000,{headers:{Authorization:`Bearer ${token}`}});
+  if(!response.ok) throw new Error(`Календарь: HTTP ${response.status}`);
+  const data=await response.json();
+  if(!data.ok || !Array.isArray(data.items)) throw new Error('Календарь: некорректный ответ');
+  return data.items;
 }
 
 function calTimeLabel(ms){
@@ -10112,7 +10033,7 @@ function renderCalendarDay(id,label,offset){
   if(!calCanSee()){ box.classList.remove('on'); return; }
   if(CAL_ERROR && !items?.length){
     box.className='cal-widget on empty';
-    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">Не удалось загрузить календарь. Повторим автоматически.</span><button type="button" onclick="loadTodayCalendar()">Повторить</button></div><div class="cw-list"></div>';
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 '+label+'</span><span class="cw-sub">Не удалось загрузить календарь. Повторим автоматически.</span><button class="cw-retry" type="button" onclick="loadTodayCalendar()">Повторить</button></div><div class="cw-list"></div>';
     return;
   }
   if(items===null){

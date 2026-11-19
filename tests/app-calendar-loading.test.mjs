@@ -6,7 +6,7 @@ const html=fs.readFileSync(new URL('../app.html',import.meta.url),'utf8');
 const source=html.slice(html.indexOf("const CAL_WORKER="),html.indexOf('/* ===== Рабочее пространство Pixel'));
 function setup(){
   const writes=[],timers=[];
-  const ctx=vm.createContext({console:{warn(){}},CURRENT:{isAdmin:true,email:'test'},getSession:()=>({token:'test'}),Date,Map,Set,AbortController,
+  const ctx=vm.createContext({console:{warn(){}},CURRENT:{isAdmin:true,email:'test'},getSession:()=>({token:'test'}),Date,Map,Set,AbortController,URLSearchParams,
     localStorage:{getItem:()=>null,setItem:(...args)=>writes.push(args)},
     document:{getElementById:()=>null},setTimeout:(fn,ms)=>{timers.push(ms);return 1;},clearTimeout(){},setInterval(){},clearInterval(){}});
   vm.runInContext(source,ctx);
@@ -50,4 +50,11 @@ test('hidden tab does not request calendar sources',async()=>{
  await x.run('loadTodayCalendar()');
  assert.equal(x.writes.length,0);assert.equal(x.run('CAL_ERROR'),false);
  assert.equal(x.timers.at(-1),60000);
+});
+
+test('two-day calendar makes one authenticated request, without loading pipeline lists',async()=>{
+ const x=setup(),calls=[];x.ctx.fetch=async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({ok:true,items:[{title:'Meeting'}]})};};
+ const items=await x.run('calFetchToday()');assert.equal(items.length,1);assert.equal(calls.length,1);
+ assert.match(calls[0].url,/api\/calendar\/upcoming/);assert.doesNotMatch(calls[0].url,/auth=/);
+ assert.equal(calls[0].options.headers.Authorization,'Bearer test');
 });
