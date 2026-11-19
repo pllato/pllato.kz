@@ -1,3 +1,4 @@
+import {handleCalendarUpcoming} from './calendar-upcoming.js';
 import { META_TEST, isMetaTestChat, handleMetaTest, sendMetaTest, ensureMetaTestSchema } from './wa-meta-test.js';
 import {waDeliveryStatus} from './wa-delivery-status.js';
 import {writtenPlacement} from './written-placement.js';
@@ -12481,6 +12482,10 @@ export default {
     const leadDistributionMatch=path.match(/^\/api\/pipelines\/([^/]+)\/lead-distribution$/);
     if(leadDistributionMatch) return handleLeadDistribution(request,env,{json,requireAdmin},decodeURIComponent(leadDistributionMatch[1]));
     if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
+
+    if(path==='/api/calendar/upcoming' && request.method==='GET'){
+      return handleCalendarUpcoming(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,widgetDayBounds,widgetParseWhen,widgetLinkedDealId});
+    }
 
     if (path.startsWith("/api/zoom/")) {
       return handleZoomRequest(request, env, { json, corsHeaders, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord, ensureQualRecordingsTable });
