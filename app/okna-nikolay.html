@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Норд Профиль · окна, двери, витражи · демо</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2318242e'/><rect x='22' y='18' width='56' height='64' fill='none' stroke='%237cc3dc' stroke-width='7'/><path d='M50 18v64M22 50h56' stroke='%237cc3dc' stroke-width='5'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=PT+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+ --ink:#18242e;--ink2:#22323e;--ink3:#2d4150;--frost:#eef3f6;--frost2:#e1e9ee;--paper:#f8fafb;--card:#fff;
+ --acc:#2a7d9c;--acc2:#7cc3dc;--accl:#e3f1f6;--text:#1a2630;--muted:#5f6f7a;--muted2:#93a1ab;
+ --line:#dde5ea;--line2:#c7d3da;--ok:#2f7d4f;--okl:#e1f0e6;--bad:#b0412f;--badl:#f7e2dd;--warn:#94660f;--warnl:#f7ecd2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Golos Text',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--frost);line-height:1.45}
+.mono,.num{font-family:'PT Mono',monospace;font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+button{font:inherit;cursor:pointer}
+/* гейт: окно-рама */
+.gate{min-height:100vh;display:grid;grid-template-columns:1fr 470px;background:var(--ink);color:#fff}
+.gate-l{padding:56px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.gate-l:before{content:"";position:absolute;right:-60px;top:40px;width:340px;height:460px;border:14px solid #2d4150;outline:2px solid #3a5263;outline-offset:-40px}
+.gate-l:after{content:"";position:absolute;right:110px;top:40px;width:14px;height:460px;background:#2d4150}
+.glogo{display:flex;gap:14px;align-items:center;position:relative;z-index:1}.glogo b{font:800 20px 'Golos Text';letter-spacing:.08em}.glogo small{display:block;font:11px 'PT Mono';color:#9fb4c1;margin-top:2px}
+.gtag{display:inline-block;margin-top:40px;font:12px 'PT Mono';color:var(--acc2);position:relative;z-index:1}
+.gate h1{font-size:38px;line-height:1.1;margin:14px 0;max-width:600px;font-weight:700;position:relative;z-index:1}.gate h1 em{font-style:normal;color:var(--acc2)}
+.gate-l p{color:#c3d0d8;max-width:560px;font-size:15px;position:relative;z-index:1}
+.gstat{display:flex;gap:34px;margin-top:34px;position:relative;z-index:1}.gstat small{font:11px 'PT Mono';color:#8aa0ae}.gstat b{display:block;font:700 24px 'Golos Text'}
+.gate-r{background:var(--paper);color:var(--text);display:flex;align-items:center;padding:40px 34px}
+.lform{width:100%}.lform h2{font-size:22px}.lform>p{color:var(--muted);margin:6px 0 16px}
+.role{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);background:var(--card);margin-bottom:7px;cursor:pointer;border-radius:3px}
+.role:hover{border-color:var(--acc)}.role .rav{width:44px;height:44px;display:grid;place-items:center;border:2px solid var(--ink);color:var(--ink);font:700 13px 'PT Mono'}
+.role b{font-size:14px}.role span{display:block;font-size:12px;color:var(--muted)}
+.lnote{margin-top:14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}.lnote b{display:block;color:var(--text)}
+/* каркас: левая колонка-дерево */
+.app{min-height:100vh;display:grid;grid-template-columns:248px 1fr}
+.side{background:var(--ink);color:#d3dee5;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.brandm{display:flex;align-items:center;gap:10px;padding:16px 16px 14px;border-bottom:1px solid #2d4150}.brandm b{font:800 14px 'Golos Text';letter-spacing:.06em;color:#fff}.brandm small{display:block;font:10px 'PT Mono';color:#8aa0ae}
+#rail{padding:8px 0;flex:1}
+.ri{padding:10px 16px 4px;font:600 11px 'PT Mono';letter-spacing:.06em;color:#7f97a6;text-transform:uppercase;display:flex;gap:8px}
+.ri.on{color:var(--acc2)}
+.si{display:block;padding:6px 16px 6px 30px;cursor:pointer;font-size:13.5px;color:#c9d6de;border-left:3px solid transparent}
+.si:hover{color:#fff;background:#22323e}.si.on{color:#fff;background:#22323e;border-left-color:var(--acc2)}
+.side-f{padding:12px 16px;border-top:1px solid #2d4150;font-size:12px}
+.rsel{width:100%;height:32px;background:var(--ink2);color:#fff;border:1px solid #3a5263;padding:0 8px;font:inherit;font-size:12.5px;margin-top:6px}.rsel option{color:#000}
+.wrap{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;padding:12px 22px;background:var(--card);border-bottom:1px solid var(--line)}
+.top .crumb{font:12px 'PT Mono';color:var(--muted)}.top .crumb b{color:var(--text);font-family:'Golos Text';font-size:15px;margin-left:6px}
+.top-r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.ib{height:32px;padding:0 12px;background:var(--card);border:1px solid var(--line2);font-size:12.5px}
+.me{width:32px;height:32px;display:grid;place-items:center;border:2px solid var(--acc);color:var(--acc);font:700 11px 'PT Mono'}
+.main{flex:1;padding:20px 22px;max-width:1380px;width:100%;min-width:0}
+.vh{position:absolute;left:-9999px}
+/* элементы */
+.hd{display:flex;justify-content:space-between;gap:14px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap}
+.hd h2{font-size:22px;font-weight:700}.hd p{color:var(--muted);max-width:780px;margin-top:3px}
+.btns{display:flex;gap:7px;flex-wrap:wrap}.btns.l{margin-top:12px}
+.bt{border:1px solid var(--line2);background:var(--card);padding:7px 13px;font-size:13px;color:var(--text);border-radius:3px}.bt:hover{border-color:var(--ink)}
+.bt.p{background:var(--ink);border-color:var(--ink);color:#fff}.bt.a{background:var(--acc);border-color:var(--acc);color:#fff}.bt.sm{padding:4px 9px;font-size:12px}
+.pan{background:var(--card);border:1px solid var(--line);padding:14px 16px;margin-bottom:12px;min-width:0;border-radius:3px}
+.pan h3{font-size:14.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}.pan h3 small{font:11px 'PT Mono';color:var(--muted2);font-weight:400}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.g21{display:grid;grid-template-columns:2fr 1fr;gap:12px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.g12{display:grid;grid-template-columns:1fr 1.3fr;gap:12px}
+.g2>*,.g21>*,.g3>*,.g12>*{min-width:0}
+.nums{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-bottom:12px;border-top:3px solid var(--ink);background:var(--card)}
+.nums>div{padding:12px 14px;border-right:1px solid var(--line)}.nums>div:last-child{border-right:0}
+.nums small{display:block;font:11px 'PT Mono';color:var(--muted)}.nums b{display:block;font:700 22px 'Golos Text';margin:2px 0;font-variant-numeric:tabular-nums}.nums span{font-size:12px;color:var(--muted)}
+.tw{overflow-x:auto;max-width:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font:11px 'PT Mono';color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--line2);white-space:nowrap;font-weight:400}
+table.t td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.t tr[onclick]{cursor:pointer}table.t tr[onclick]:hover td{background:var(--accl)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted2);margin-right:6px}.dot.g{background:var(--ok)}.dot.r{background:var(--bad)}.dot.w{background:var(--warn)}.dot.i{background:var(--acc)}
+.lbl{font:11px 'PT Mono';color:var(--muted)}.lbl.ok{color:var(--ok)}.lbl.bad{color:var(--bad)}.lbl.w{color:var(--warn)}.lbl.i{color:var(--acc)}
+.bar{height:6px;background:var(--frost2)}.bar i{display:block;height:100%;background:var(--acc)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}.kv span{color:var(--muted)}.kv.tot{border-bottom:0;border-top:2px solid var(--ink);margin-top:4px;padding-top:9px}.kv.tot b{font:700 19px 'Golos Text'}
+.said{border-left:3px solid var(--acc);background:var(--paper);padding:9px 13px;margin-bottom:12px;font-size:13px}.said b{font:11px 'PT Mono';color:var(--acc);display:block}.said i{display:block;margin:2px 0}.said .sa{color:var(--muted)}
+.mut{color:var(--muted)}.sm2{font-size:12px}.bad{color:var(--bad)}.ok{color:var(--ok)}
+.kan{display:grid;grid-template-columns:repeat(8,minmax(168px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px}
+.kcol{background:var(--paper);border:1px solid var(--line);min-width:0}.kh{padding:8px 10px;border-bottom:2px solid var(--acc);font:600 12.5px 'Golos Text';display:flex;justify-content:space-between}.kh span{font:11px 'PT Mono';color:var(--muted)}
+.kc{margin:7px;padding:9px;background:var(--card);border:1px solid var(--line);cursor:pointer;font-size:12.5px}.kc:hover{border-color:var(--acc)}.kc b{display:block;font-size:13px}.kc .num{font-size:12px}
+.fld{display:block;margin-bottom:9px}.fld span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.inp{width:100%;height:34px;border:1px solid var(--line2);background:var(--card);padding:0 9px;font:inherit;color:var(--text)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.chips a{padding:5px 11px;border:1px solid var(--line2);cursor:pointer;font-size:12.5px;background:var(--card)}.chips a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chat{display:grid;grid-template-columns:290px 1fr;gap:12px}
+.cl a{display:block;padding:9px 10px;border-bottom:1px solid var(--line);cursor:pointer}.cl a.on{background:var(--accl)}.cl a b{display:block;font-size:13px}.cl a span{font-size:12px;color:var(--muted)}
+.msg{max-width:78%;overflow-wrap:anywhere;padding:8px 11px;margin:6px 0;font-size:13px;background:var(--paper);border:1px solid var(--line)}.msg.me{margin-left:auto;background:var(--accl);border-color:var(--acc2)}.msg small{display:block;font:10px 'PT Mono';color:var(--muted)}
+.steps{display:flex;gap:0;margin:6px 0 2px}.steps i{flex:1;height:8px;background:var(--frost2);margin-right:2px}.steps i.d{background:var(--ok)}.steps i.c{background:var(--acc)}
+.step{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.step code{font:12px 'PT Mono';color:var(--acc)}
+.sk{background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;padding:12px;min-height:240px}
+.phone{max-width:340px;margin:0 auto;border:10px solid var(--ink);border-radius:26px;background:var(--paper);padding:14px 12px;min-height:560px}
+.phone .pt{font:11px 'PT Mono';color:var(--muted);display:flex;justify-content:space-between;margin-bottom:10px}
+.pc{display:block;background:var(--card);border:1px solid var(--line);padding:10px;margin-bottom:8px;cursor:pointer;font-size:13px}.pc b{display:block}
+.cal{display:grid;grid-template-columns:120px repeat(6,1fr);font-size:12px;border:1px solid var(--line);background:var(--card)}
+.cal>div{padding:7px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:52px}.cal .h{font:11px 'PT Mono';color:var(--muted);min-height:0}
+.cal .job{background:var(--accl);border-left:3px solid var(--acc);padding:4px 6px;margin-bottom:3px;cursor:pointer}
+.mbg{position:fixed;inset:0;background:#0f182099;display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.mbg.show{display:flex}
+.modal{background:var(--card);max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:18px 20px;border-top:4px solid var(--acc)}.modal h3{font-size:18px}.modal .ms{color:var(--muted);margin:3px 0 12px;font-size:13px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(140px);background:var(--ink);color:#fff;padding:11px 16px;font-size:13px;max-width:560px;width:calc(100% - 32px);transition:.25s;z-index:60}.toast.show{transform:translateX(-50%) translateY(0)}
+@media (max-width:900px){
+ .gate{grid-template-columns:1fr}.gate-l{padding:30px 18px}.gate-l:before,.gate-l:after{display:none}.gate h1{font-size:26px}.gstat{gap:18px;flex-wrap:wrap}.gate-r{padding:20px 16px}
+ .app{grid-template-columns:1fr}.side{position:static;height:auto}
+ #rail{display:flex;overflow-x:auto;padding:0}.ri{display:none}.si{padding:9px 12px;white-space:nowrap;border-left:0;border-bottom:3px solid transparent}.si.on{border-bottom-color:var(--acc2)}
+ .side-f{padding:8px 12px}.top{padding:10px 12px}.ib{display:none}
+ .g2,.g21,.g3,.g12,.chat{grid-template-columns:1fr}.nums{grid-template-columns:repeat(2,1fr)}.nums>div{border-bottom:1px solid var(--line)}
+ .main{padding:12px}.cal{grid-template-columns:80px repeat(6,minmax(90px,1fr))}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="48" height="48" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#22323e"/><rect x="22" y="18" width="56" height="64" fill="none" stroke="#7cc3dc" stroke-width="7"/><path d="M50 18v64M22 50h56" stroke="#7cc3dc" stroke-width="5"/></svg><div><b>НОРД ПРОФИЛЬ</b><small>окна · двери · витражи · входные группы</small></div></div>
+  <span class="gtag">демо для Николая · по встрече 20.11.2026</span>
+  <h1>От заявки в Instagram до акта монтажа — <em>в одной своей системе.</em></h1>
+  <p>Воронка заказа, выезды замерщика, калькулятор изделий с эскизом и КП, цех по этапам, монтажные бригады, склад профиля и стекла, деньги по каждому заказу. С телефона — для замерщика и монтажника. Вместо блокнотов.</p>
+  <div class="gstat"><div><small>экранов</small><b>20</b></div><div><small>ролей</small><b>5</b></div><div><small>склад</small><b>1</b></div><div><small>абонплата</small><b>0 ₸</b></div></div>
+ </div>
+ <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — система покажет только то, что ей разрешено.</p><div id="roles"></div>
+  <div class="lnote"><b>Демо на вымышленных данных</b>Компания, клиенты, цены и люди придуманы. Ваши изделия, прайс и этапы подставим после согласования.</div></div></div>
+</section>
+<div class="app hidden" id="app">
+ <aside class="side">
+  <div class="brandm"><svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#22323e"/><rect x="22" y="18" width="56" height="64" fill="none" stroke="#7cc3dc" stroke-width="7"/><path d="M50 18v64M22 50h56" stroke="#7cc3dc" stroke-width="5"/></svg><div><b>НОРД ПРОФИЛЬ</b><small>Петропавловск · цех + монтаж</small></div></div>
+  <nav id="rail"></nav>
+  <div class="side-f">Роль<select class="rsel" id="rsel"></select></div>
+ </aside>
+ <div class="wrap">
+  <div class="top"><div class="crumb" id="crumb"></div><div class="top-r"><button class="ib" onclick="tour()">▶ Сценарий</button><div class="me" id="me">СБ</div></div></div>
+  <main class="main"><h1 id="ttl" class="vh">Норд Профиль</h1><div id="content"></div></main>
+ </div>
+</div>
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()"><div class="modal"><h3 id="mt"></h3><div class="ms" id="ms"></div><div id="mbody"></div><div class="btns l"><button class="bt" onclick="closeM()">Закрыть</button></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/app/okna-nikolay.js"></script>
+</body></html>
