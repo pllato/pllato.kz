@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Поликлиника «Шипагер» и 7 аптек · демо системы</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='10' fill='%23173a5e'/><circle cx='50' cy='50' r='26' fill='none' stroke='%23e9a23b' stroke-width='10'/><path d='M50 34v32M34 50h32' stroke='%23fff' stroke-width='9'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Lora:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --navy:#173a5e;--navy2:#1f4a75;--navy3:#2a5d8f;--ink:#152536;--text:#1d2a38;--muted:#5d6c7c;--muted2:#8e9bab;
+ --bg:#f3f1ec;--card:#fff;--line:#e2ddd3;--line2:#cfc8bb;
+ --gov:#3a6ea5;--govl:#e3edf8;--paid:#c27a12;--paidl:#fbefd9;--paidd:#93590a;
+ --ok:#2d7a4a;--okl:#e1f1e7;--bad:#b53a3a;--badl:#f8e2e2;--warn:#8a6a10;--warnl:#f6eed0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Onest',system-ui,sans-serif;font-size:14.5px;color:var(--text);background:var(--bg);line-height:1.5}
+.num,.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+button{font:inherit;cursor:pointer}
+/* вход */
+.gate{min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr}
+.gl{background:var(--navy);color:#fff;padding:44px 48px;display:flex;flex-direction:column;gap:18px}
+.glogo{display:flex;gap:12px;align-items:center}.glogo b{font:700 22px 'Lora',serif}.glogo small{display:block;font:500 10px 'JetBrains Mono';letter-spacing:.12em;color:#a9c0d8}
+.gl h1{font:700 34px/1.18 'Lora',serif;max-width:620px}.gl h1 em{font-style:normal;color:#f0b75c}
+.gl p{color:#cfdbe8;font-size:15.5px;max-width:600px}
+.gsplit{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:600px;margin-top:6px}
+.gsplit div{border:1px solid #ffffff26;padding:12px 14px}.gsplit small{font:500 10px 'JetBrains Mono';letter-spacing:.1em;color:#a9c0d8;display:block}
+.gsplit b{font-size:17px}.gsplit .p{border-color:#f0b75c88}.gsplit .p b{color:#f0b75c}
+.gnote{margin-top:auto;font-size:12.5px;color:#a9c0d8;border-left:3px solid #f0b75c;padding-left:10px;max-width:600px}
+.gr{padding:44px 40px;display:flex;flex-direction:column;gap:12px}
+.gr h2{font-size:19px}.gr>p{color:var(--muted)}
+#roles{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.role{display:grid;grid-template-columns:44px 1fr 18px;gap:12px;align-items:center;padding:13px 6px;border-bottom:1px solid var(--line);cursor:pointer}
+.role:hover{background:#fff}.role .rav{width:44px;height:44px;border:2px solid var(--navy);color:var(--navy);display:grid;place-items:center;font:700 13px 'Onest'}
+.role b{font-size:15px}.role span{display:block;font-size:12.5px;color:var(--muted)}.role i{font-style:normal;color:var(--paid);font-weight:700}
+.heard{background:#fff;border:1px solid var(--line);padding:14px 16px;font-size:13px}.heard h3{font-size:13px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.heard li{margin:0 0 5px 18px}
+/* каркас: верхняя тёмная полоса разделов + узкая лента подпунктов слева от контента */
+.app{min-height:100vh;display:flex;flex-direction:column}
+.bar1{background:var(--navy);color:#fff;display:flex;align-items:stretch;gap:0;padding:0 16px;min-height:56px;position:sticky;top:0;z-index:6}
+.bbrand{display:flex;align-items:center;gap:9px;padding-right:18px;border-right:1px solid #ffffff22;margin-right:6px}
+.bbrand b{font:700 16px 'Lora',serif}.bbrand small{display:block;font:500 9px 'JetBrains Mono';color:#a9c0d8;letter-spacing:.1em}
+#rail{display:flex;overflow-x:auto;min-width:0}#rail::-webkit-scrollbar{height:0}
+.ri{display:flex;align-items:center;gap:7px;padding:0 14px;color:#cfdbe8;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer;border-bottom:3px solid transparent}
+.ri:hover{color:#fff;background:var(--navy2)}.ri.on{color:#fff;border-bottom-color:#f0b75c;background:var(--navy2)}
+.ri .cnt{font:700 10px 'JetBrains Mono';background:#f0b75c;color:var(--ink);padding:1px 6px;border-radius:9px}
+.bar1-r{margin-left:auto;display:flex;align-items:center;gap:8px;padding-left:12px}
+.rsel{height:32px;border:1px solid #ffffff44;background:var(--navy2);color:#fff;padding:0 8px;font:inherit;font-size:12.5px;max-width:190px}
+.ib{width:32px;height:32px;border:1px solid #ffffff44;background:transparent;color:#f0b75c}
+.me{width:32px;height:32px;border-radius:50%;background:#f0b75c;color:var(--ink);display:grid;place-items:center;font:700 11px 'Onest'}
+.body{display:grid;grid-template-columns:210px 1fr;flex:1;min-height:0}
+.sub{border-right:1px solid var(--line);background:#faf8f4;padding:16px 0}
+.sub h4{font:500 10px 'JetBrains Mono';letter-spacing:.12em;color:var(--muted2);text-transform:uppercase;padding:0 18px 8px}
+.si{display:block;padding:8px 18px;font-size:13.5px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+.si:hover{background:#fff}.si.on{border-left-color:var(--paid);background:#fff;font-weight:700}
+.main{padding:20px 26px 70px;min-width:0}
+.crumb{font:500 11px 'JetBrains Mono';color:var(--muted2);letter-spacing:.04em;margin-bottom:2px}
+.vh{position:absolute;left:-9999px}
+/* блоки */
+.hd{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.hd h2{font:700 23px/1.2 'Lora',serif;color:var(--ink)}.hd p{color:var(--muted);max-width:780px;margin-top:4px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.bt{border:1px solid var(--line2);background:#fff;padding:7px 13px;font-size:13px;color:var(--text)}
+.bt:hover{border-color:var(--navy)}.bt.p{background:var(--navy);border-color:var(--navy);color:#fff}.bt.p:hover{background:var(--navy2)}
+.bt.a{background:var(--paid);border-color:var(--paid);color:#fff}.bt.s{padding:4px 9px;font-size:12px}
+.pan{background:var(--card);border:1px solid var(--line);margin-bottom:14px;min-width:0}
+.pan>h3{font-size:14.5px;padding:11px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pan>h3 small{font:500 11px 'JetBrains Mono';color:var(--muted2)}
+.pb{padding:12px 14px;overflow-wrap:anywhere}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.g21{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g2>*,.g21>*,.g3>*{min-width:0}
+/* «простыми цифрами» — крупные строки */
+.big{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);background:#fff;margin-bottom:14px}
+.big>div{padding:14px 16px;border-right:1px solid var(--line)}.big>div:last-child{border-right:0}
+.big small{display:block;font-size:12.5px;color:var(--muted)}.big b{display:block;font:700 24px 'Onest';font-variant-numeric:tabular-nums;margin-top:2px}
+.big i{font-style:normal;font-size:12px;color:var(--muted)}.big .up{color:var(--ok)}.big .dn{color:var(--bad)}
+.say{font-size:15px;line-height:1.55;padding:14px 16px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--paid);margin-bottom:14px}
+.say b{color:var(--ink)}
+.flow{display:inline-block;font:700 10.5px 'JetBrains Mono';padding:1px 6px;letter-spacing:.04em}
+.f-g{background:var(--govl);color:var(--gov)}.f-p{background:var(--paidl);color:var(--paidd)}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}.d-ok{background:var(--ok)}.d-bad{background:var(--bad)}.d-warn{background:#d1a21f}.d-gov{background:var(--gov)}.d-paid{background:var(--paid)}.d-mut{background:var(--muted2)}
+.tw{overflow-x:auto;max-width:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:left;font:500 10.5px 'JetBrains Mono';letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+table.t td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.t tr.cl{cursor:pointer}table.t tr.cl:hover td{background:#faf6ee}
+.bar{height:7px;background:#ece7dd;min-width:60px}.bar i{display:block;height:100%;background:var(--navy3)}.bar.p i{background:var(--paid)}
+.split{display:flex;height:26px;border:1px solid var(--line);margin:6px 0 4px}.split .g{background:var(--gov)}.split .p{background:var(--paid)}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+/* календарь */
+.cal{border-collapse:collapse;font-size:12.5px;min-width:860px;width:100%}
+.cal th{font:500 10.5px 'JetBrains Mono';color:var(--muted);padding:6px 4px;border-bottom:1px solid var(--line2);text-align:center}
+.cal th.dn{text-align:left;width:170px}
+.cal td{border:1px solid var(--line);height:46px;padding:3px;vertical-align:top;width:64px}
+.cal td.dn{background:#faf8f4;font-size:12.5px;padding:6px 8px}.cal td.dn small{display:block;color:var(--muted);font-size:11px}
+.slot{display:block;height:100%;padding:3px 5px;font-size:11.5px;line-height:1.25;cursor:pointer;overflow:hidden}
+.slot.g{background:var(--govl);border-left:3px solid var(--gov)}.slot.p{background:var(--paidl);border-left:3px solid var(--paid)}
+.slot.fp{border:1px dashed var(--paid);color:var(--paidd);text-align:center;padding-top:10px}.slot.ff{color:var(--muted2);text-align:center;padding-top:10px}
+.slot.paid{background:#f3dcae}
+/* воронка */
+.kb{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:8px;min-width:1050px}
+.kc{background:#faf8f4;border:1px solid var(--line);min-height:240px}.kc h4{font-size:12.5px;padding:8px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.lc{background:#fff;border:1px solid var(--line);margin:7px;padding:8px 9px;font-size:12.5px;cursor:pointer}.lc:hover{border-color:var(--paid)}
+.lc b{display:block;font-size:13px}.lc small{color:var(--muted)}
+.src{font:600 10px 'JetBrains Mono';color:var(--navy3)}
+/* чат */
+.chat{display:grid;grid-template-columns:260px 1fr;min-height:420px}
+.cl2{border-right:1px solid var(--line)}.ci{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}.ci.on{background:#faf6ee}.ci small{display:block;color:var(--muted)}
+.msgs{padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.m{max-width:78%;padding:8px 11px;font-size:13.5px;background:#f1eee7;overflow-wrap:anywhere}.m.me{align-self:flex-end;background:#dfe9f4}.m small{display:block;font-size:10.5px;color:var(--muted)}
+.cin{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--line)}.inp{border:1px solid var(--line2);padding:7px 10px;font:inherit;font-size:13.5px;width:100%;background:#fff}
+.fld{display:block;margin-bottom:10px}.fld span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:6px 12px;font-size:13.5px}.kv span{color:var(--muted)}
+.tag{display:inline-block;font-size:11.5px;padding:1px 7px;border:1px solid var(--line2);margin:0 4px 4px 0}
+.note{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line2);padding-left:9px;margin-top:8px}
+.ext{background:var(--govl);border:1px dashed var(--gov);padding:10px 12px;font-size:13px;color:#2b4f75}
+.cart{border-top:2px solid var(--ink);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:16px}
+.play{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;padding:3px 8px;font-size:12px}
+.stage{display:grid;grid-template-columns:40px 1fr auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start}
+.stage .n{font:700 20px 'Lora',serif;color:var(--paid)}
+/* модалка, тост */
+.mbg{position:fixed;inset:0;background:#0f1d2c88;display:none;align-items:center;justify-content:center;z-index:30;padding:14px}.mbg.show{display:flex}
+.modal{background:#fff;width:min(520px,100%);max-height:90vh;overflow:auto;padding:18px 20px;border-top:4px solid var(--paid)}
+.modal h3{font:700 18px 'Lora',serif}.ms{color:var(--muted);font-size:13px;margin:2px 0 12px}.btns.l{margin-top:12px}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--ink);color:#fff;padding:12px 16px;max-width:420px;font-size:13.5px;opacity:0;transform:translateY(10px);transition:.25s;z-index:40;pointer-events:none}.toast.show{opacity:1;transform:none}
+@media (max-width:900px){
+ .gate{grid-template-columns:1fr}.gl{padding:26px 18px}.gl h1{font-size:25px}.gr{padding:20px 16px 30px}.gsplit{grid-template-columns:1fr}
+ .bar1{flex-wrap:wrap;padding:0 10px;position:static}.bbrand{border:0;padding:8px 0}.bbrand small{display:none}#rail{order:3;width:100%}.ri{padding:12px 10px}
+ .body{grid-template-columns:1fr}.sub{display:flex;overflow-x:auto;padding:0;border-right:0;border-bottom:1px solid var(--line)}.sub h4{display:none}.si{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;padding:10px 12px}.si.on{border-bottom-color:var(--paid)}
+ .main{padding:14px 12px 50px}.g2,.g21,.g3{grid-template-columns:1fr}.big{grid-template-columns:1fr 1fr}.big>div{border-bottom:1px solid var(--line)}.big>div:nth-child(2){border-right:0}
+ .chat{display:block}.cl2{border-right:0;border-bottom:1px solid var(--line)}.kv{grid-template-columns:110px 1fr}.toast{left:12px;right:12px;max-width:none}.cin{flex-wrap:wrap}
+ .hd h2{font-size:20px}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+ <div class="gl">
+  <div class="glogo"><svg width="44" height="44" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="10" fill="#1f4a75"/><circle cx="50" cy="50" r="26" fill="none" stroke="#f0b75c" stroke-width="10"/><path d="M50 34v32M34 50h32" stroke="#fff" stroke-width="9"/></svg><div><b>Поликлиника «Шипагер»</b><small>ГОБМП · ОСМС · ПЛАТНЫЙ ПРИЁМ · 7 АПТЕК</small></div></div>
+  <h1>Госзаказ остаётся как есть. <em>Платный приём и аптеки</em> — в одной своей программе.</h1>
+  <p>Дамумед, МедЭлемент и 1С не трогаем и не дублируем. Рядом строим коммерческий контур: заявки из Instagram и звонков, продажники, запись в платные слоты, касса и аптеки с остатками онлайн.</p>
+  <div class="gsplit"><div><small>ПОТОК 1 · ГОСЗАКАЗ</small><b>как сейчас, в гос. системах</b></div><div class="p"><small>ПОТОК 2 · ПЛАТНО</small><b>цель — ×2 выручки</b></div></div>
+  <div class="gnote">Демо на вымышленных данных: поликлиника, посёлки, врачи, пациенты и все суммы придуманы.</div>
+ </div>
+ <div class="gr">
+  <h2>Вход в систему</h2><p>Выберите роль — каждая видит только своё.</p>
+  <div id="roles"></div>
+  <div class="heard"><h3>Что услышали 20.11</h3><ul>
+   <li>Поликлиника работает и по госзаказу, и на улицу — госуслуги терять нельзя.</li>
+   <li>Электронная очередь уже есть — драки в очередях закончились.</li>
+   <li>Потенциал платного приёма — в 2–3 раза больше; нужны реклама, звонки, запись, 2 продажника.</li>
+   <li>7 аптек: остатки передают вручную, центр заказывает вслепую.</li></ul></div>
+ </div>
+</section>
+<div class="app hidden" id="app">
+ <header class="bar1"><div class="bbrand"><svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="30" fill="none" stroke="#f0b75c" stroke-width="10"/><path d="M50 32v36M32 50h36" stroke="#fff" stroke-width="9"/></svg><div><b>Шипагер</b><small>ПОЛИКЛИНИКА + АПТЕКИ</small></div></div>
+  <nav id="rail"></nav>
+  <div class="bar1-r"><button class="ib" onclick="tour()" title="Сценарий показа">&#9654;</button><select class="rsel" id="rsel"></select><div class="me" id="me">СБ</div></div></header>
+ <div class="body"><aside class="sub" id="sub"></aside>
+  <main class="main"><div class="crumb" id="shint"></div><h1 id="ttl" class="vh">Шипагер</h1><div id="content"></div></main></div>
+</div>
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()"><div class="modal"><h3 id="mt"></h3><div class="ms" id="ms"></div><div id="mbody"></div><div class="btns l"><button class="bt" onclick="closeM()">Закрыть</button></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/app/poliklinika-zhanbolat.js"></script>
+</body></html>
