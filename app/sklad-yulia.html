@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Чистая Линия · оптовый склад ухода и косметики · демо</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231e3a33'/><path d='M38 22h24v12l6 8v36H32V42l6-8z' fill='none' stroke='%23f0b49a' stroke-width='6'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --ink:#1e3a33;--ink2:#28493f;--ink3:#3b5f54;--paper:#f6f3ee;--paper2:#ece6dc;--card:#fffdf9;
+ --acc:#d0643f;--acc2:#f0b49a;--accl:#fbe9e0;--sage:#7da393;--sagel:#e3eee8;
+ --text:#1f2a27;--muted:#62706b;--muted2:#9aa5a0;--line:#e2dbcf;--line2:#cfc6b7;
+ --ok:#2f7a4f;--okl:#dff0e5;--bad:#b23b2c;--badl:#f8e0db;--warn:#8f6410;--warnl:#f6ebcf;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Onest',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--paper);line-height:1.45}
+.num,.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:.93em}
+.hidden{display:none!important}
+button{font:inherit;cursor:pointer}
+/* гейт: этикетка флакона */
+.gate{min-height:100vh;display:grid;grid-template-columns:1.1fr 440px}
+.gate-l{background:var(--ink);color:#f6efe6;padding:56px 64px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.gate-l:after{content:"";position:absolute;right:-70px;bottom:-60px;width:260px;height:380px;border:12px solid var(--ink3);border-radius:46px 46px 30px 30px}
+.glogo{display:flex;align-items:center;gap:14px;margin-bottom:34px}
+.glogo b{display:block;font-size:20px;letter-spacing:.08em}.glogo small{color:var(--acc2);font-size:12px}
+.gtag{display:inline-block;align-self:flex-start;border:1px solid var(--ink3);padding:4px 10px;font-size:12px;color:var(--acc2);margin-bottom:18px}
+.gate-l h1{font-size:38px;line-height:1.12;max-width:620px;margin-bottom:16px;font-weight:800}
+.gate-l h1 em{font-style:normal;color:var(--acc2)}
+.gate-l p{max-width:560px;color:#cfd8d3;font-size:15px}
+.gstat{display:flex;gap:30px;margin-top:34px;position:relative;z-index:1}
+.gstat small{display:block;color:#9fb5ab;font-size:11px;text-transform:uppercase;letter-spacing:.08em}.gstat b{font-size:24px;font-family:'JetBrains Mono',monospace}
+.gate-r{background:var(--paper);display:flex;align-items:center;justify-content:center;padding:40px 30px}
+.lform{width:100%;max-width:360px}.lform h2{font-size:22px;margin-bottom:6px}.lform>p{color:var(--muted);margin-bottom:18px;font-size:13px}
+.role{display:flex;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line);background:var(--card);margin-bottom:8px;cursor:pointer;border-left:4px solid var(--sage)}
+.role:hover{border-left-color:var(--acc)}
+.rav{width:36px;height:36px;display:grid;place-items:center;background:var(--ink);color:var(--acc2);font-weight:700;font-size:12px;flex:none}
+.role b{display:block;font-size:14px}.role span{font-size:12px;color:var(--muted)}
+.lnote{margin-top:16px;font-size:12px;color:var(--muted);border-top:1px dashed var(--line2);padding-top:12px}.lnote b{display:block;color:var(--text)}
+/* приложение: верхняя полка + горизонтальные вкладки + правая колонка «на сегодня» */
+.app{min-height:100vh;display:flex;flex-direction:column}
+.shelf{background:var(--ink);color:#f3ece2;display:flex;align-items:center;gap:18px;padding:0 22px;height:56px}
+.brandm{display:flex;align-items:center;gap:10px;flex:none}.brandm b{font-size:14px;letter-spacing:.08em;display:block}.brandm small{font-size:11px;color:var(--acc2)}
+#rail{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
+#rail .ri{padding:8px 12px;font-size:13px;color:#c9d6d0;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent}
+#rail .ri span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sage);margin-right:6px}
+#rail .ri.on{color:#fff;border-bottom-color:var(--acc)}
+.shelf-r{display:flex;align-items:center;gap:10px;flex:none}
+.rsel{background:var(--ink2);color:#fff;border:1px solid var(--ink3);padding:5px 6px;font:inherit;font-size:12px}
+.me{width:32px;height:32px;display:grid;place-items:center;background:var(--acc);color:#fff;font-weight:700;font-size:12px}
+.ib{background:transparent;border:1px solid var(--ink3);color:#f3ece2;padding:6px 10px;font-size:12px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line2);background:var(--paper2);padding:0 22px;overflow-x:auto}
+.tabs a{padding:10px 14px;font-size:13px;cursor:pointer;color:var(--muted);white-space:nowrap;border-bottom:2px solid transparent}
+.tabs a.on{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+.crumb{font-size:12px;color:var(--muted);padding:12px 22px 0}
+.crumb b{color:var(--text)}
+.main{padding:14px 22px 60px;max-width:1340px;width:100%}
+.vh{font-size:24px;font-weight:800;margin:4px 0 14px;color:var(--ink)}
+/* блоки */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.g31{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.g2>*,.g3>*,.g31>*,.chat>*{min-width:0}
+.box{background:var(--card);border:1px solid var(--line);padding:16px;margin-bottom:16px}
+.box h3{font-size:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.box h3 small{font-weight:400;color:var(--muted);font-size:12px}
+.strip{display:flex;border:1px solid var(--line);background:var(--card);margin-bottom:16px;flex-wrap:wrap}
+.strip>div{flex:1;min-width:150px;padding:12px 16px;border-right:1px solid var(--line)}
+.strip>div:last-child{border-right:0}
+.strip small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.strip b{font-size:21px;font-family:'JetBrains Mono',monospace;font-weight:600}
+.strip i{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:7px 8px;border-bottom:2px solid var(--line2);white-space:nowrap}
+.t td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.t .r,.t th.r{text-align:right}
+.t tr.hl td{background:var(--accl)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.d-ok{background:var(--ok)}.d-bad{background:var(--bad)}.d-warn{background:#d39b26}.d-n{background:var(--muted2)}
+.tag{font-size:11px;padding:1px 6px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag.ok{border-color:var(--ok);color:var(--ok)}.tag.bad{border-color:var(--bad);color:var(--bad)}.tag.warn{border-color:#c49020;color:var(--warn)}
+.bt{background:var(--ink);color:#fff;border:0;padding:8px 14px;font-size:13px}
+.bt.o{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.bt.a{background:var(--acc)}
+.bt.s{padding:4px 9px;font-size:12px}
+.chm .btns{margin-top:auto}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.bar{height:6px;background:var(--paper2)}.bar i{display:block;height:100%;background:var(--sage)}
+.said{border-left:3px solid var(--acc);background:var(--accl);padding:10px 14px;margin-bottom:16px;font-size:13px}
+.said b{font-size:11px;letter-spacing:.06em;color:var(--acc);display:block}.said i{display:block;margin:2px 0}
+.said .sa{color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;gap:10px}
+.kv:last-child{border-bottom:0}
+.kan{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:10px;overflow-x:auto}
+.col{background:var(--paper2);padding:8px;min-height:200px}
+.col h4{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.dl{background:var(--card);border:1px solid var(--line);padding:8px;margin-bottom:6px;font-size:12px;cursor:pointer;border-left:3px solid var(--sage)}
+.dl b{display:block;font-size:13px}.dl.hot{border-left-color:var(--acc)}
+.inp{border:1px solid var(--line2);padding:7px 8px;font:inherit;font-size:13px;background:#fff;width:100%}
+.qty{width:70px;text-align:right}
+.phone{width:340px;max-width:100%;border:10px solid var(--ink);border-radius:30px;background:var(--paper);padding:14px 12px;margin:0 auto}
+.phone .ph{font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px}
+.pc{background:var(--card);border:1px solid var(--line);padding:10px;margin-bottom:8px;font-size:13px;cursor:pointer}
+.pc b{display:block}
+.chat{display:grid;grid-template-columns:240px 1fr;border:1px solid var(--line);background:var(--card);min-height:380px}
+.chl{border-right:1px solid var(--line)}.chl div{padding:10px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}.chl div.on{background:var(--sagel)}
+.chl small{display:block;color:var(--muted)}
+.chm{padding:14px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:78%;padding:8px 11px;font-size:13px;background:var(--paper2)}.msg.me{align-self:flex-end;background:var(--sagel)}
+.mbg{position:fixed;inset:0;background:rgba(20,30,27,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}
+.mbg.show{display:flex}
+.modal{background:var(--card);max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:20px;border-top:5px solid var(--acc)}
+.modal h3{font-size:18px}.ms{color:var(--muted);font-size:13px;margin:4px 0 12px}
+.btns.l{justify-content:flex-end}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 16px;font-size:13px;max-width:560px;width:calc(100% - 28px);opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.toast.show{opacity:1}
+.steps{display:flex;gap:0;margin-bottom:14px;flex-wrap:wrap}
+.steps div{flex:1;min-width:110px;padding:8px 10px;border:1px solid var(--line);background:var(--card);font-size:12px;color:var(--muted)}
+.steps div.on{background:var(--ink);color:#fff;border-color:var(--ink)}.steps div.dn{background:var(--sagel);color:var(--ok)}
+@media (max-width:900px){
+ .gate{grid-template-columns:1fr}.gate-l{padding:34px 22px}.gate-l h1{font-size:27px}.gate-l:after{display:none}.gstat{gap:16px;flex-wrap:wrap}
+ .g2,.g3,.g31{grid-template-columns:1fr}
+ .shelf{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}.brandm small{display:none}#rail{order:3;flex-basis:100%}
+ .tabs,.crumb,.main{padding-left:12px;padding-right:12px}
+ .chat{grid-template-columns:minmax(0,1fr);overflow:hidden}.chl{border-right:0;border-bottom:1px solid var(--line)}
+ .kan{grid-template-columns:repeat(6,170px)}
+ .toast{left:14px;right:14px;width:auto;transform:none}
+ .strip>div{min-width:50%;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="46" height="46" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#28493f"/><path d="M38 22h24v12l6 8v36H32V42l6-8z" fill="none" stroke="#f0b49a" stroke-width="6"/></svg><div><b>ЧИСТАЯ ЛИНИЯ</b><small>оптовый склад · уход и косметика</small></div></div>
+  <span class="gtag">демо для Юлии · по встрече 20.11.2026</span>
+  <h1>От накладной завода до отгрузки клиенту — <em>в одной своей системе.</em></h1>
+  <p>Приход коробками и штуками, заказ с проверкой остатка и лимита клиента, лист сборки, списание в деньгах и количестве. Воронка B2B, торговые представители с телефона, расчёты с заводом, зарплата реализаторов и сигнал «пора заказывать».</p>
+  <div class="gstat"><div><small>экранов</small><b>20</b></div><div><small>ролей</small><b>5</b></div><div><small>пользователей</small><b>6</b></div><div><small>аренда</small><b>0 ₸</b></div></div>
+ </div>
+ <div class="gate-r"><div class="lform"><h2>Вход в систему</h2><p>Выберите роль — у каждой свой набор разделов и прав.</p><div id="roles"></div>
+  <div class="lnote"><b>Демо на вымышленных данных</b>Компания, бренды, клиенты и цены придуманы. Вашу номенклатуру и прайс подставим после согласования.</div></div></div>
+</section>
+<div class="app hidden" id="app">
+ <header class="shelf">
+  <div class="brandm"><svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#28493f"/><path d="M38 22h24v12l6 8v36H32V42l6-8z" fill="none" stroke="#f0b49a" stroke-width="7"/></svg><div><b>ЧИСТАЯ ЛИНИЯ</b><small>склад · B2B</small></div></div>
+  <nav id="rail"></nav>
+  <div class="shelf-r"><button class="ib" onclick="tour()">▶ Сценарий</button><select class="rsel" id="rsel" aria-label="Роль"></select><div class="me" id="me">СБ</div></div>
+ </header>
+ <div class="tabs" id="tabs"></div>
+ <div class="crumb" id="crumb"></div>
+ <main class="main"><h1 id="ttl" class="vh">Чистая Линия</h1><div id="content"></div></main>
+</div>
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()"><div class="modal"><h3 id="mt"></h3><div class="ms" id="ms"></div><div id="mbody"></div><div class="btns l"><button class="bt" onclick="closeM()">Закрыть</button></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/app/sklad-yulia.js"></script>
+</body></html>
