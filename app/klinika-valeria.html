@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Клиника «Мейрим» · 3 филиала · демо системы</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23114a4f'/><path d='M50 22v56M22 50h56' stroke='%23f2b8a8' stroke-width='12' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=PT+Serif:wght@700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --side:#0f3f44;--side2:#145056;--side3:#1c6268;--ink:#16302f;--acc:#1b7a74;--accd:#11605b;--accl:#e1f1ef;
+ --rose:#c0546a;--rosel:#f8e4e8;--bg:#eef3f2;--card:#fff;--text:#1d2a2a;--muted:#5f7070;--muted2:#8fa0a0;
+ --line:#dbe5e3;--line2:#c7d4d2;--ok:#2c7a46;--okl:#e2f1e6;--bad:#b23b3b;--badl:#f8e1e1;--warn:#8c6410;--warnl:#f7edd2;--info:#2f5f8a;--infol:#e2ecf6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Golos Text',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--bg);line-height:1.45}
+.mono,.num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+button{font:inherit;cursor:pointer}
+/* гейт */
+.gate{min-height:100vh;display:flex;flex-direction:column}
+.gtop{background:var(--side);color:#fff;padding:34px 48px 30px;position:relative;overflow:hidden}
+.gtop:after{content:"";position:absolute;right:40px;top:-30px;width:220px;height:220px;border:28px solid #ffffff10;border-radius:50%}
+.glogo{display:flex;gap:14px;align-items:center}.glogo b{font:700 22px 'PT Serif',serif}.glogo small{display:block;font:500 10px 'JetBrains Mono';letter-spacing:.12em;color:#9fc7c3;margin-top:2px}
+.gtag{display:inline-block;margin-top:24px;font:500 11px 'JetBrains Mono';color:#f2b8a8;border:1px solid #3d7a7c;padding:4px 10px}
+.gtop h1{font:700 32px/1.15 'PT Serif',serif;margin:14px 0 10px;max-width:760px}.gtop h1 em{font-style:normal;color:#f2b8a8}
+.gtop p{color:#c8dcda;max-width:760px;font-size:15px}
+.gstat{display:flex;gap:34px;margin-top:22px;flex-wrap:wrap}.gstat small{font:500 10px 'JetBrains Mono';letter-spacing:.08em;color:#9fc7c3;text-transform:uppercase}.gstat b{display:block;font:700 22px 'Golos Text'}
+.gbody{flex:1;padding:28px 48px 40px;display:grid;grid-template-columns:1.2fr 1fr;gap:34px;align-items:start}
+.gbody h2{font-size:18px;margin-bottom:4px}.gbody>div>p{color:var(--muted);margin-bottom:14px}
+#roles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role{display:grid;grid-template-columns:40px 1fr;gap:11px;align-items:center;padding:11px 12px;border:1px solid var(--line);background:var(--card);border-radius:4px;cursor:pointer}
+.role:hover{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}.role .rav{width:40px;height:40px;display:grid;place-items:center;background:var(--accl);color:var(--accd);font:700 13px 'Golos Text';border-radius:50%}
+.role b{font-size:14px}.role span{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.gnote{background:var(--card);border:1px solid var(--line);padding:16px 18px;border-radius:4px}
+.gnote h3{font-size:14px;margin-bottom:8px}.gnote li{margin:0 0 6px 18px;font-size:13px;color:#33494a}
+.gnote .w{margin-top:10px;font-size:12px;color:var(--muted);border-left:3px solid var(--rose);padding-left:9px}
+/* каркас как в мед. программе: слева меню-дерево, сверху филиалы */
+.app{min-height:100vh;display:grid;grid-template-columns:236px 1fr}
+.side{background:var(--side);color:#cfe2e0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sbrand{display:flex;gap:10px;align-items:center;padding:16px 16px 14px;border-bottom:1px solid #ffffff14}
+.sbrand b{font:700 15px 'PT Serif',serif;color:#fff}.sbrand small{display:block;font:500 9px 'JetBrains Mono';color:#8fbcb8;letter-spacing:.1em}
+#rail{padding:8px 0 20px}
+.sg{font:500 10px 'JetBrains Mono';letter-spacing:.12em;color:#7fb0ab;text-transform:uppercase;padding:14px 16px 5px}
+.ri{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;font-size:13.5px;color:#d6e8e6;border-left:3px solid transparent}
+.ri svg{flex:none;opacity:.75}.ri:hover{background:var(--side2)}.ri.on{background:var(--side3);color:#fff;border-left-color:#f2b8a8}.ri.on svg{opacity:1}
+.ri .cnt{margin-left:auto;font:600 10px 'JetBrains Mono';background:var(--rose);color:#fff;padding:1px 6px;border-radius:8px}
+.wrap{min-width:0;display:flex;flex-direction:column}
+.top{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px;height:54px;position:sticky;top:0;z-index:5}
+.btabs{display:flex;gap:2px;min-width:0;overflow-x:auto}.btabs::-webkit-scrollbar{height:0}
+.bt-b{border:1px solid var(--line);background:var(--bg);padding:6px 12px;font-size:13px;white-space:nowrap;border-radius:3px;color:var(--muted)}
+.bt-b.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tdate{font:500 12px 'JetBrains Mono';color:var(--muted);white-space:nowrap}
+.top-r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.rsel{height:32px;border:1px solid var(--line2);background:#fff;padding:0 8px;font:inherit;font-size:12.5px;max-width:200px;border-radius:3px}
+.ib{width:32px;height:32px;border:1px solid var(--line2);background:#fff;border-radius:3px;color:var(--acc)}
+.me{width:32px;height:32px;border-radius:50%;background:var(--rose);color:#fff;display:grid;place-items:center;font:700 11px 'Golos Text'}
+.main{padding:18px 22px 60px;min-width:0}
+.vh{position:absolute;left:-9999px}
+.crumb{font:500 11px 'JetBrains Mono';color:var(--muted2);margin-bottom:4px;letter-spacing:.04em}
+/* блоки */
+.hd{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.hd h2{font-size:21px;font-weight:700;color:var(--ink)}.hd p{color:var(--muted);max-width:760px;margin-top:3px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.bt{border:1px solid var(--line2);background:#fff;padding:7px 12px;font-size:13px;border-radius:3px;color:var(--text)}
+.bt:hover{border-color:var(--acc)}.bt.p{background:var(--acc);border-color:var(--acc);color:#fff}.bt.p:hover{background:var(--accd)}
+.bt.r{background:var(--rose);border-color:var(--rose);color:#fff}.bt.s{padding:4px 9px;font-size:12px}
+.pan{background:var(--card);border:1px solid var(--line);border-radius:4px;margin-bottom:14px}
+.pan>h3{font-size:14px;padding:11px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.pan>h3 small{font:500 11px 'JetBrains Mono';color:var(--muted2)}
+.pb{padding:12px 14px}
+.g2>*,.g3>*,.g21>*,.pt>*,.chat>*,.cm,.pan{min-width:0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.g21{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border:1px solid var(--line);border-radius:4px;margin-bottom:14px}
+.strip>div{padding:12px 14px;border-right:1px solid var(--line)}.strip>div:last-child{border-right:0}
+.strip small{display:block;font:500 10px 'JetBrains Mono';letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.strip b{display:block;font:700 21px 'Golos Text';margin-top:3px;font-variant-numeric:tabular-nums}.strip i{font-style:normal;font-size:12px;color:var(--muted)}
+.tw{overflow-x:auto;max-width:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font:500 10.5px 'JetBrains Mono';letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line2);background:#f7faf9;white-space:nowrap}
+.t td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.t .r,.t th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t tr[onclick]{cursor:pointer}.t tr[onclick]:hover td{background:#f3f9f8}
+.t tr.lo td{background:#fdf3f3}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--muted2)}
+.d-ok{background:var(--ok)}.d-bad{background:var(--bad)}.d-warn{background:#d39a1c}.d-info{background:var(--info)}.d-rose{background:var(--rose)}
+.st{font-size:12px;white-space:nowrap}
+.bar{height:6px;background:#e4ecea;border-radius:3px;overflow:hidden;min-width:60px}.bar i{display:block;height:100%;background:var(--acc)}
+.mut{color:var(--muted)}.sm{font-size:12px}
+.said{border-left:3px solid var(--rose);background:var(--rosel);padding:9px 12px;margin-bottom:14px;font-size:13px}
+.said b{display:block;font:500 10px 'JetBrains Mono';letter-spacing:.1em;color:var(--rose);margin-bottom:2px}.said i{color:#5a2f39}.said .sa{margin-top:5px;color:#33494a}
+.note{background:var(--accl);border:1px solid #bfdeda;padding:10px 12px;font-size:13px;color:#174b47;border-radius:3px;margin-bottom:14px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;font-size:13px}.kv span{color:var(--muted)}
+.inp{width:100%;border:1px solid var(--line2);padding:7px 9px;font:inherit;font-size:13px;border-radius:3px;background:#fff}
+.fld{display:block;margin-bottom:9px}.fld span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+/* расписание */
+.sch{display:grid;border:1px solid var(--line2);background:#fff;min-width:760px}
+.sch .h{background:#f2f7f6;border-bottom:1px solid var(--line2);border-right:1px solid var(--line);padding:7px 8px;font-size:12px;font-weight:600;position:sticky;top:0}
+.sch .h small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.sch .tm{font:500 11px 'JetBrains Mono';color:var(--muted);padding:3px 6px;border-right:1px solid var(--line2);border-bottom:1px solid var(--line);height:34px;background:#fafcfc}
+.sch .c{border-right:1px solid var(--line);border-bottom:1px solid var(--line);height:34px;position:relative;cursor:pointer}
+.sch .c:hover{background:#f1f8f7}
+.ap{position:absolute;left:2px;right:2px;top:2px;padding:3px 6px;font-size:11.5px;line-height:1.25;border-left:4px solid var(--acc);background:var(--accl);overflow:hidden;cursor:pointer;z-index:2;border-radius:2px}
+.ap b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap.s-come{border-color:#d39a1c;background:#fbf2dc}.ap.s-in{border-color:var(--info);background:var(--infol)}.ap.s-paid{border-color:var(--ok);background:var(--okl)}.ap.s-no{border-color:var(--bad);background:var(--badl);text-decoration:line-through}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0 12px}
+/* карточка пациента */
+.pt{display:grid;grid-template-columns:260px 1fr;gap:14px}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px}
+.pav{width:54px;height:54px;border-radius:50%;background:var(--rosel);color:var(--rose);display:grid;place-items:center;font:700 18px 'Golos Text';margin-bottom:8px}
+.ptabs{display:flex;gap:0;border-bottom:1px solid var(--line2);margin-bottom:12px;overflow-x:auto}
+.ptab{padding:8px 13px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--muted)}.ptab.on{border-bottom-color:var(--rose);color:var(--text);font-weight:600}
+/* воронка */
+.fn{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:8px;overflow-x:auto}
+.fc{background:#f5f8f8;border:1px solid var(--line);border-radius:4px;padding:8px;min-height:200px}
+.fc h4{font-size:12px;display:flex;justify-content:space-between;margin-bottom:7px;color:var(--ink)}
+.pc{background:#fff;border:1px solid var(--line);padding:7px 9px;margin-bottom:6px;font-size:12.5px;cursor:pointer;border-radius:3px}
+.pc:hover{border-color:var(--acc)}.pc b{display:block;font-size:13px}.pc small{color:var(--muted)}
+/* чат */
+.chat{display:grid;grid-template-columns:260px 1fr;border:1px solid var(--line);background:#fff;border-radius:4px;min-height:440px}
+.cl{border-right:1px solid var(--line)}.ci{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}.ci.on{background:var(--accl)}.ci small{display:block;color:var(--muted);font-size:12px}
+.cm{display:flex;flex-direction:column}.msgs{flex:1;padding:14px;display:flex;flex-direction:column;gap:7px;background:#f6f9f8}
+.m{max-width:76%;padding:7px 11px;border-radius:8px;font-size:13px;background:#fff;border:1px solid var(--line)}.m.me{align-self:flex-end;background:#dff1ea;border-color:#c4e2d6}.m small{display:block;font-size:10.5px;color:var(--muted2);margin-top:2px}
+.cin{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+/* телефон */
+.phone{width:290px;border:10px solid #1e2b2b;border-radius:28px;background:#fff;padding:14px 12px;margin:0 auto;min-height:520px}
+.phone h4{font:700 15px 'PT Serif',serif;color:var(--side);margin-bottom:8px}
+.pi{border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:7px;font-size:12.5px}
+.pi b{display:block}
+/* списание */
+.wo{border:1px dashed var(--rose);background:#fffafa;padding:10px 12px;border-radius:4px;font-size:13px}
+.wo li{margin:3px 0 3px 18px}
+.chip{display:inline-block;font-size:11.5px;padding:2px 8px;border:1px solid var(--line2);border-radius:3px;margin:2px 4px 2px 0;background:#fff}
+.chip.ro{border-color:#e8b4bf;background:var(--rosel);color:#7c2c3d}
+.pr{display:grid;grid-template-columns:170px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+/* модалка, тост */
+.mbg{position:fixed;inset:0;background:#0d262680;display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.mbg.show{display:flex}
+.modal{background:#fff;width:100%;max-width:520px;max-height:90vh;overflow:auto;padding:18px 20px;border-radius:5px}
+.modal h3{font-size:17px}.ms{color:var(--muted);font-size:13px;margin:2px 0 12px}
+.btns.l{margin-top:12px}
+.toast{position:fixed;right:18px;bottom:18px;max-width:420px;background:var(--side);color:#fff;padding:12px 15px;font-size:13.5px;border-radius:4px;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;z-index:60;border-left:4px solid #f2b8a8}
+.toast.show{opacity:1;transform:none}
+@media (max-width:900px){
+ .gtop{padding:26px 18px}.gtop h1{font-size:25px}.gbody{grid-template-columns:1fr;padding:18px 16px 30px}#roles{grid-template-columns:1fr}
+ .app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;overflow-x:auto}
+ .sbrand{border:0;flex:none;padding:10px 12px}.sbrand small{display:none}
+ #rail{display:flex;padding:0;align-items:center}.sg{display:none}.ri{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;padding:16px 10px}.ri.on{border-bottom-color:#f2b8a8}
+ .top{height:auto;flex-wrap:wrap;padding:8px 12px;position:static}.tdate{display:none}.top-r{margin-left:0}
+ .main{padding:14px 12px 50px}
+ .g2,.g3,.g21,.pt{grid-template-columns:1fr}.strip{grid-template-columns:1fr 1fr}.strip>div:nth-child(2){border-right:0}.strip>div{border-bottom:1px solid var(--line)}
+ .chat{display:block}.ci{overflow-wrap:anywhere}.toast{left:12px;right:12px;max-width:none}.msgs{min-width:0;overflow:hidden}.m{overflow-wrap:anywhere;max-width:88%}.cl{border-right:0;border-bottom:1px solid var(--line)}
+ .pr{grid-template-columns:1fr 60px}.pr .bar{grid-column:1/-1}
+ .kv{grid-template-columns:110px 1fr}.kv b{min-width:0;overflow-wrap:anywhere}.cin{flex-wrap:wrap}.cin .inp{min-width:0}.wo,.pb{overflow-wrap:anywhere}
+ .phone{width:100%;max-width:290px}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+ <div class="gtop">
+  <div class="glogo"><svg width="46" height="46" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1c6268"/><path d="M50 24v52M24 50h52" stroke="#f2b8a8" stroke-width="12" stroke-linecap="round"/></svg><div><b>Клиника «Мейрим»</b><small>ГИНЕКОЛОГИЯ · УЗИ 3D/4D · РЕПРОДУКЦИЯ · КОСМЕТОЛОГИЯ</small></div></div>
+  <span class="gtag">демо для Валерии и Меруерт · по встрече 20.11</span>
+  <h1>Три филиала, расписание, касса и склад расходников — <em>в одной своей программе.</em></h1>
+  <p>Привычная регистратуре логика: сетка врачей и кабинетов, карточка пациента, оплата. Новое — то, чего не было: при оплате услуги расходники сами списываются со склада филиала, руководитель видит деньги и остатки по всем трём точкам.</p>
+  <div class="gstat"><div><small>Филиалов</small><b>3</b></div><div><small>Экранов</small><b>21</b></div><div><small>Перенос из старой программы</small><b>все данные</b></div><div><small>Абонплата</small><b>0 ₸</b></div></div>
+ </div>
+ <div class="gbody">
+  <div><h2>Вход в систему</h2><p>Выберите роль — каждая видит только своё.</p><div id="roles"></div></div>
+  <div class="gnote"><h3>Что услышали на встрече</h3><ul>
+   <li>Сейчас — облачная программа для стоматологий, ≈200 тыс. ₸ в месяц.</li>
+   <li>Расход материалов и общий склад не ведутся — «надо собрать в одну программу и работать по-взрослому».</li>
+   <li>Работают в программе в основном медрегистраторы, 6–7 человек; интерфейс должен быть знакомым.</li>
+   <li>Все пациенты, продажи и номера телефонов переносятся — ничего не теряем.</li></ul>
+   <div class="w">Демо на вымышленных данных: клиника, врачи, пациенты и суммы придуманы.</div></div>
+ </div>
+</section>
+<div class="app hidden" id="app">
+ <aside class="side"><div class="sbrand"><svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1c6268"/><path d="M50 24v52M24 50h52" stroke="#f2b8a8" stroke-width="12" stroke-linecap="round"/></svg><div><b>Мейрим</b><small>3 ФИЛИАЛА · АСТАНА</small></div></div><nav id="rail"></nav></aside>
+ <div class="wrap">
+  <header class="top"><div class="btabs" id="btabs"></div><span class="tdate">пт, 20.11.2026</span>
+   <div class="top-r"><button class="ib" onclick="tour()" title="Сценарий показа">&#9654;</button><select class="rsel" id="rsel"></select><div class="me" id="me">СБ</div></div></header>
+  <main class="main"><div class="crumb" id="shint"></div><h1 id="ttl" class="vh">Мейрим</h1><div id="content"></div></main>
+ </div>
+</div>
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()"><div class="modal"><h3 id="mt"></h3><div class="ms" id="ms"></div><div id="mbody"></div><div class="btns l"><button class="bt" onclick="closeM()">Закрыть</button></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/app/klinika-valeria.js"></script>
+</body></html>
