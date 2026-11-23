@@ -8,6 +8,8 @@
 export function canChangeAnyDealStage(me, pipelineId) {
   const permissions = me?.orgPerms;
   if (!permissions || permissions.dealScope !== 'all') return false;
+  // Именованный доступ ко всей воронке даёт просмотр, не смену стадий чужих сделок.
+  if((permissions.viewAllPipelineIds||[]).map(String).includes(String(pipelineId||'')))return false;
   const allowedPipelineIds = permissions.pipelineIds;
   if (allowedPipelineIds == null) return true;
   return allowedPipelineIds.map(String).includes(String(pipelineId || ''));

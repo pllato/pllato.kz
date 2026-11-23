@@ -3914,6 +3914,7 @@ function currentScopeDefault() {
   // Эффективные права из оргструктуры важнее роли: agent/manager может иметь
   // на своём узле dealScope='all' (видит все сделки) или 'team' (свой отдел).
   // Раньше учитывали только роль → agent с правом «все сделки» видел лишь свои.
+  if(u.orgPerms?.viewAllPipelineIds?.includes(dealsState.activePipelineId))return 'all';
   const ds = u.orgPerms?.dealScope;
   if (ds === 'all') return 'all';
   if (ds === 'team') return 'team';
