@@ -1369,6 +1369,28 @@ body {
 .fc-week-task.has-unread-comment{box-shadow:inset 2px 0 var(--bronze);background:var(--bronze-tint);}
 .fc-week-task.has-unread-comment .fc-task-comment-preview{color:var(--bronze-deep);font-weight:600;}
 .fc-week-task.has-unread-comment .fc-task-comment-dot{width:6px;height:6px;opacity:1;}
+
+.fc-task-assignee{display:block;min-width:0;color:var(--text-3);font-size:11px;line-height:18px;}
+.fc-task-assignee>button,.fc-task-assignee>span{display:flex;align-items:center;gap:4px;max-width:100%;min-width:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;}
+.fc-task-assignee>button{cursor:pointer;border-radius:4px;}
+.fc-task-assignee>button:hover{color:var(--bronze-deep);background:var(--bronze-tint);}
+.fc-task-assignee>button:focus-visible{outline:2px solid var(--bronze);outline-offset:2px;}
+.fc-assignee-avatar{display:grid;place-items:center;width:16px;height:16px;flex:none;border:1px dashed var(--line-2);border-radius:50%;}
+.fc-assignee-avatar.assigned{background:var(--bronze-tint);border:0;color:var(--bronze-deep);font-size:8px;font-weight:800;}
+.fc-assignee-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.task-assignee-pop{position:fixed;z-index:500;width:min(280px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;box-sizing:border-box;border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--surface);color:var(--text);box-shadow:0 12px 40px #0a162826;font-size:13px;}
+.task-assignee-pop *{box-sizing:border-box;}
+.task-assignee-pop header{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.task-assignee-pop header button{border:0;background:transparent;color:var(--text-3);cursor:pointer;padding:4px;}
+.task-assignee-pop>p{font-size:11px;color:var(--text-3);margin:3px 0 10px;}
+.task-assignee-pop input{width:100%;font:inherit;border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;background:var(--bg);color:var(--text);}
+.task-assignee-options{max-height:200px;overflow:auto;margin-top:8px;}
+.task-assignee-options button{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:var(--text);text-align:left;font:inherit;cursor:pointer;overflow-wrap:anywhere;}
+.task-assignee-options button:hover,.task-assignee-options button[aria-pressed=true]{background:var(--bronze-tint);color:var(--bronze-deep);}
+.task-assignee-options button:disabled{opacity:.5;cursor:wait;}
+.task-assignee-status{font-size:11px;color:var(--text-3);margin-top:6px;}
+.task-assignee-status:empty{display:none;}
+@media(pointer:coarse){.fc-task-assignee>button{min-height:24px;}.task-assignee-options button{min-height:40px;}.task-assignee-pop input{font-size:16px;}}
 </style>
 <link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
@@ -6278,6 +6300,7 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
+import {createTaskAssigneePicker} from './app/task-assignee.js?v=20261123';
 import {initTaskCommentPreviews} from './app/task-comment-previews.js?v=20261123';
 import {mountTaskDiscussion} from './app/task-discussion.js?v=20261123-preview';
 import {storeMeetStaffAccess} from '/meet-staff-access.js';
@@ -7639,7 +7662,7 @@ function financeManagerLegend(kind){
 }
 function canEditFinanceTask(task){return !!(CURRENT && task && !task.deleted && !task._virtual && (canSeeProjectMoney() || FINANCE_WEEK_TASKS.some(item=>item.id===task.id)));}
 function canManageFinanceTasks(kind){return canConfigureFinanceChart(kind)||['all','own','selected'].includes(CHART_EFFECTIVE_ACCESS[kind]?.tasks);}
-function financeTaskManagerLabel(task){return `<small style="display:block;color:var(--text-3);font-size:11px">${mEsc(managerName(task.managerEmail??PROJECT_MANAGERS[task.sourceProjectId]??task.author??''))}</small>`;}
+function financeTaskManagerLabel(task){return taskAssignees.render(task);}
 let CHART_VISIBILITY = { inquiries: [], kep: [], demos: [], orders: [], cash: [], releases: [] };
 function normalizeFinanceChartScale(raw={}){
   const normalized={};
@@ -8391,6 +8414,12 @@ let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
 initTaskCommentPreviews({apiFetch,getEmail:()=>CURRENT?.email});
 let FINANCE_WEEK_TASKS = [];
+const taskAssignees=createTaskAssigneePicker({
+  getTask:id=>FINANCE_WEEK_TASKS.find(t=>t.id===id&&!t.deleted),getUsers:()=>MANAGER_USERS,getName:managerName,canEdit:canEditFinanceTask,
+  save:async(id,email)=>{const task=FINANCE_WEEK_TASKS.find(t=>t.id===id&&!t.deleted);if(!task||!canEditFinanceTask(task))throw Error('Нет доступа');const item={...task,assigneeEmail:email,assigneeUpdatedAt:Date.now(),assigneeUpdatedBy:CURRENT?.email||'',updatedAt:Date.now(),updatedBy:CURRENT?.email||''};await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});return item;},
+  onSaved:item=>{const i=FINANCE_WEEK_TASKS.findIndex(t=>t.id===item.id);if(i>=0)FINANCE_WEEK_TASKS[i]=item;refreshFinanceWeekTaskBlock(item.kind);}
+});
+function openTaskAssignee(event,button){taskAssignees.open(event,button);}
 let FINANCE_WEEK_TASKS_LOADED = false;
 const FINANCE_WEEK_TASK_HISTORY_OPEN = new Set();
 const FINANCE_WEEK_TASK_HISTORY_START = {};
@@ -10712,7 +10741,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openTaskProjectCard, linkFinanceTaskProject, startFinanceTaskDrag, financeTaskGripKey, reorderFinanceWeekTask, openSocialDay, saveSocialDay, openSocialAccess, saveSocialAccess, setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openTaskAssignee, openTaskProjectCard, linkFinanceTaskProject, startFinanceTaskDrag, financeTaskGripKey, reorderFinanceWeekTask, openSocialDay, saveSocialDay, openSocialAccess, saveSocialAccess, setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
