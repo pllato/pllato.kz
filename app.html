@@ -1310,6 +1310,54 @@ body {
 .project-context{margin:12px 0 16px;padding:12px 0;border-top:1px solid var(--line,#ece7df);border-bottom:1px solid var(--line,#ece7df);font-size:13px;min-width:0}.pc-contact:empty,.pc-tasks:empty{display:none}.pc-contact small{display:block;color:#8b8f9b;font-size:11px;margin-bottom:4px}.pc-contact b{display:block;font-size:14px;overflow-wrap:anywhere}.pc-contact a{display:inline-block;color:#90683d;text-decoration:none;margin-top:4px;font-variant-numeric:tabular-nums}.pc-contact button{border:0;background:none;color:#90683d;cursor:pointer}.pc-tasks:not(:empty){margin-top:12px}.pc-tasks>strong{font-size:12px;color:#545b6d}.pc-task{display:flex;gap:8px;align-items:flex-start;margin-top:9px}.pc-task input{margin:3px 0 0;flex:none;accent-color:#b8895a}.pc-task>div{min-width:0}.pc-task button{border:0;background:none;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}.pc-task small{display:block;color:#8b8f9b;font-size:11px;margin-top:3px}.pc-tasks summary{font-size:12px;color:#90683d;cursor:pointer;margin-top:10px}
 
 .task-week-picker{width:min(480px,94vw);max-height:90dvh;overflow:auto;margin:auto;padding:20px;border:1px solid #e8e3d9;border-radius:14px;background:#fff;color:#171e29}.task-week-picker::backdrop{background:#11182780}.task-week-picker header,.task-week-picker footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.task-week-picker h3{margin:0;font-size:19px}.task-week-picker label{display:block;font-size:13px;font-weight:600;margin-top:12px}.task-week-picker input,.task-week-picker select{display:block;width:100%;margin-top:5px;padding:8px;border:1px solid #ddd4c7;border-radius:8px;font-family:inherit;font-size:14px;line-height:1.5;background:white;color:inherit}.task-week-picker option{padding:8px}.task-week-picker option:disabled{color:#9ca3af}.task-week-picker button{padding:8px 12px;border:1px solid #ddd4c7;border-radius:8px;background:white;cursor:pointer;font:inherit}.task-week-picker [type=submit]{background:#101c2b;color:white}.task-week-picker footer{margin-top:16px;justify-content:flex-end}.task-week-name{margin:12px 0;line-height:1.4;overflow-wrap:anywhere}.task-week-hint{font-size:12px;color:#697180;margin:12px 0 0}
+
+/* Редактор дела: общий ритм полей, отдельная прокрутка и доступные действия. */
+#financeWeekTaskOvl{padding:24px 16px;align-items:center;}
+#financeWeekTaskOvl *,#financeWeekTaskOvl *::before,#financeWeekTaskOvl *::after{box-sizing:border-box;}
+#financeWeekTaskOvl .task-editor{width:100%;max-width:680px;max-height:calc(100dvh - 48px);display:flex;flex-direction:column;overflow:hidden;outline:none;}
+#financeWeekTaskOvl .mm-h{padding:16px 24px;flex:none;}
+#financeWeekTaskOvl .mm-h h3{margin:0;font-size:18px;}
+.task-editor-close{display:grid;place-items:center;width:32px;height:32px;flex:none;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:19px;cursor:pointer;}
+.task-editor-close:hover{background:var(--bg);color:var(--text);}
+.task-editor-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;}
+#financeWeekTaskOvl .mm-b{padding:18px 24px 20px;}
+.task-editor-context{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text-2);font-size:12px;line-height:1.5;}
+.task-editor-period{flex:none;background:var(--bg);border:1px solid var(--line-2);border-radius:6px;padding:3px 8px;font-variant-numeric:tabular-nums;}
+#financeWeekTaskOvl .fc-week-task-fields{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;margin-top:16px;}
+#financeWeekTaskOvl .fc-week-task-fields label{min-width:0;margin:0;font-size:12px;font-weight:600;line-height:1.5;}
+.task-editor-title-field{grid-column:1/-1;}
+#financeWeekTaskOvl .has-amount .task-editor-project{grid-column:1/-1;grid-row:2;}
+#financeWeekTaskOvl .fc-week-task-fields input,#financeWeekTaskOvl .fc-week-task-fields select,#financeWeekTaskOvl .fc-week-task-fields textarea{display:block;width:100%;max-width:100%;min-width:0;margin:6px 0 0;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--text);padding:10px 12px;font:inherit;font-size:14px;font-weight:400;line-height:1.5;}
+#financeWeekTaskOvl .fc-week-task-fields select{height:42px;text-overflow:ellipsis;padding-right:28px;}
+#financeWeekTaskOvl .fc-week-task-fields textarea{resize:vertical;min-height:76px;max-height:200px;}
+#financeWeekTaskOvl :is(input,select,textarea,button):focus-visible{outline:2px solid var(--bronze);outline-offset:2px;}
+#financeWeekTaskOvl :is(select,input):disabled{opacity:.65;cursor:not-allowed;}
+#financeWeekTaskOvl .task-chat{padding:18px 24px 22px;background:var(--bg);}
+#financeWeekTaskOvl .task-chat h4{font-size:14px;}
+#financeWeekTaskOvl .task-chat-list{max-height:260px;margin:12px 0;display:flex;flex-direction:column;gap:8px;}
+#financeWeekTaskOvl .task-chat article{padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface);}
+#financeWeekTaskOvl .task-chat article small{font-size:11px;line-height:1.5;}
+#financeWeekTaskOvl .task-chat article p{margin-top:4px;line-height:1.55;}
+#financeWeekTaskOvl .task-chat-empty{margin:4px 0;color:var(--text-3);}
+#financeWeekTaskOvl .task-chat [data-status]:empty{display:none;}
+#financeWeekTaskOvl .task-chat form{align-items:stretch;}
+#financeWeekTaskOvl .task-chat textarea{background:var(--surface);font-size:13px;line-height:1.5;min-height:64px;max-height:160px;}
+#financeWeekTaskOvl .task-chat form button{align-self:flex-end;height:40px;font:inherit;font-size:13px;font-weight:600;}
+#financeWeekTaskOvl .mm-f{padding:14px 24px;flex:none;background:var(--surface);}
+@media(max-width:560px){
+ #financeWeekTaskOvl{padding:12px 8px;}
+ #financeWeekTaskOvl .task-editor{max-height:calc(100dvh - 24px);border-radius:14px;}
+ #financeWeekTaskOvl .mm-h,#financeWeekTaskOvl .mm-b,#financeWeekTaskOvl .task-chat,#financeWeekTaskOvl .mm-f{padding-left:16px;padding-right:16px;}
+ #financeWeekTaskOvl .fc-week-task-fields{grid-template-columns:minmax(0,1fr);gap:12px;}
+ #financeWeekTaskOvl .fc-week-task-fields :is(input,select,textarea),#financeWeekTaskOvl .task-chat textarea{font-size:16px;}
+ .task-editor-context{align-items:flex-start;}
+ #financeWeekTaskOvl .task-chat-list{max-height:210px;}
+ #financeWeekTaskOvl .task-chat form{flex-wrap:wrap;}
+ #financeWeekTaskOvl .task-chat textarea{flex-basis:100%;}
+ #financeWeekTaskOvl .task-chat form button{margin-left:auto;}
+ #financeWeekTaskOvl .mm-f button{padding:9px 12px;}
+}
+
 </style>
 <link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
@@ -9021,12 +9069,12 @@ function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
   const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount"${automatic?' readonly':''} type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?financeDemoTaskText(existing):'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Проект / сделка<select id="financeTaskProject"${automatic?' disabled':''}><option value="">Без привязки</option>${existing?.sourceProjectId&&!appDemoRecords().some(r=>r.projectId===existing.sourceProjectId)?`<option selected value="${mEsc(existing.sourceProjectId)}">${mEsc(existing.sourceProjectId)}</option>`:''}${appDemoRecords().map(r=>`<option value="${mEsc(r.projectId)}"${r.projectId===existing?.sourceProjectId?' selected':''}>${mEsc(r.contactName||r.title)}</option>`).join('')}</select></label><label>Ответственный менеджер<select id="financeTaskManager"${automatic?' disabled':''}>${managerOptions(existing?(existing.managerEmail??''):(CURRENT?.email||''))}</select></label></div></div><section class="task-chat" data-task-chat${existing?'':' hidden'}></section><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Закрыть</button><button style="background:var(--navy);color:#fff" data-task-save onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal task-editor" role="dialog" aria-modal="true" aria-labelledby="taskEditorTitle" tabindex="-1"><div class="mm-h"><h3 id="taskEditorTitle">${existing?'Дело недели':'Новое дело'}</h3><button type="button" class="task-editor-close" aria-label="Закрыть окно дела" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</button></div><div class="task-editor-scroll"><div class="mm-b fc-week-task-editor"><div class="task-editor-context"><span>${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</span><span class="task-editor-period">${mEsc(financeWeekTaskPeriod({start,end}))}</span></div><div class="fc-week-task-fields${showAmount?' has-amount':''}"><label class="task-editor-title-field" for="financeWeekTaskText">Что нужно сделать<textarea id="financeWeekTaskText" rows="2" maxlength="300" placeholder="Например: закрыть сделку с клиентом">${mEsc(existing?financeDemoTaskText(existing):'')}</textarea></label>${amountField}<label class="task-editor-project">Проект / сделка<select id="financeTaskProject"${automatic?' disabled':''}><option value="">Без привязки</option>${existing?.sourceProjectId&&!appDemoRecords().some(r=>r.projectId===existing.sourceProjectId)?`<option selected value="${mEsc(existing.sourceProjectId)}">${mEsc(existing.sourceProjectId)}</option>`:''}${appDemoRecords().map(r=>`<option value="${mEsc(r.projectId)}"${r.projectId===existing?.sourceProjectId?' selected':''}>${mEsc(r.contactName||r.title)}</option>`).join('')}</select></label><label>Ответственный<select id="financeTaskManager"${automatic?' disabled':''}>${managerOptions(existing?(existing.managerEmail??''):(CURRENT?.email||''))}</select></label></div></div><section class="task-chat" data-task-chat${existing?'':' hidden'}></section></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Закрыть</button><button style="background:var(--navy);color:#fff" data-task-save onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить изменения</button></div></div>`;
   document.body.appendChild(ovl);
   if(existing)mountTaskDiscussion(ovl.querySelector('[data-task-chat]'),{taskId:existing.id,apiFetch});
   const input=document.getElementById('financeWeekTaskText');
   ovl.querySelectorAll('input').forEach(field=>field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}}));
-  setTimeout(()=>input?.focus(),30);
+  setTimeout(()=>existing?ovl.querySelector('.task-editor')?.focus():input?.focus(),30);
 }
 async function saveFinanceWeekTask(kind,start,end,taskId=''){
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
