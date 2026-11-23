@@ -24,3 +24,23 @@ export async function handleTaskDiscussion(request,env,actor,taskId,deps){
   .bind(teamId,TASK_COMMENTS_COLLECTION,item.id,JSON.stringify(item),now,now).run();
  return {ok:true,item};
 }
+
+// Один ограниченный запрос вместо загрузки переписки для каждой строки списка.
+export async function handleTaskDiscussionSummaries(request,actor,deps){
+ const {getTasks,canAccess,db,teamId,HttpError}=deps;
+ if(request.method!=='POST')throw new HttpError(405,'Метод не поддерживается');
+ let body;try{body=await request.json();}catch{throw new HttpError(400,'Некорректный запрос');}
+ if(!Array.isArray(body?.ids)||body.ids.length>40||body.ids.some(id=>typeof id!=='string'||!id||id.length>500))throw new HttpError(400,'Укажите до 40 дел');
+ const ids=[...new Set(body.ids)];if(!ids.length)return {ok:true,items:[]};
+ const allowed=[];
+ for(const task of await getTasks(ids))if(ids.includes(task.id)&&sharedTaskEditable(task,await canAccess(task)))allowed.push(task);
+ if(!allowed.length)return {ok:true,items:[]};
+ const values=allowed.map(()=>'(?,?)').join(',');
+ const args=allowed.flatMap(task=>[task.id,encodeURIComponent(task.discussionId||task.id)+':']);
+ const {results}=await db.prepare(`WITH threads(task_id,prefix) AS (VALUES ${values}) SELECT task_id,(SELECT data FROM store WHERE team_id=? AND collection=? AND id>=threads.prefix AND id<threads.prefix||'~' ORDER BY id DESC LIMIT 1) AS data FROM threads`)
+  .bind(...args,teamId,TASK_COMMENTS_COLLECTION).all();
+ return {ok:true,items:(results||[]).map(row=>{
+  const c=row.data?JSON.parse(row.data):null;
+  return {taskId:row.task_id,latest:c?{id:c.id,text:String(c.text||'').slice(0,240),author:c.author,authorName:c.authorName,createdAt:c.createdAt}:null};
+ })};
+}

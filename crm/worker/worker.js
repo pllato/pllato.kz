@@ -1,4 +1,4 @@
-import {TASK_COMMENTS_COLLECTION,handleTaskDiscussion,sharedTaskEditable} from './chart-task-discussion.js';
+import {TASK_COMMENTS_COLLECTION,handleTaskDiscussion,handleTaskDiscussionSummaries,sharedTaskEditable} from './chart-task-discussion.js';
 import {insertChartTaskIfAbsent} from './chart-task-create.js';
 import {handleContractOtp} from './contract-otp.js';
 import {handleProjectProgrammers} from './project-programmers.js';
@@ -8950,6 +8950,16 @@ export default {
       if (request.method === "GET" && path === "/project-finance/chart-details") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartDetails(env, actor, url));
+      }
+
+      if(path==='/project-finance/task-discussion-summaries'){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        const finance=canAccessProjectFinance(actor)?null:await financeForAccess(env),db=requireStoreDb(env);
+        return json(request,env,await handleTaskDiscussionSummaries(request,actor,{
+          HttpError,teamId:TEAM_ID,db,
+          getTasks:async ids=>{const {results}=await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(TEAM_ID,'chart_week_tasks',...ids).all();return (results||[]).map(row=>JSON.parse(row.data));},
+          canAccess:task=>canAccessProjectFinance(actor)||financeTaskVisible(task,finance,actor)
+        }));
       }
 
       const taskDiscussion=path.match(/^\/project-finance\/tasks\/([^/]+)\/comments$/);
