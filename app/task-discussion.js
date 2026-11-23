@@ -4,6 +4,8 @@ export function mountTaskDiscussion(root,{taskId,apiFetch}){
  const list=root.querySelector('[role=log]'),status=root.querySelector('[data-status]'),form=root.querySelector('form'),input=root.querySelector('textarea'),send=form.querySelector('button'),older=root.querySelector('[data-older]');
  const url='/project-finance/tasks/'+encodeURIComponent(taskId)+'/comments';
  let busy=false,cursor=null,items=new Map();
+ function notify(read=false){const latest=[...items.values()].sort((a,b)=>b.id.localeCompare(a.id))[0];if(latest)document.dispatchEvent(new CustomEvent('task-discussion-update',{detail:{taskId,item:latest,read:read&&!document.hidden}}));}
+ list.addEventListener('scroll',()=>{if(list.scrollHeight-list.scrollTop-list.clientHeight<40)notify(true);});
  function paint(){list.replaceChildren();const sorted=[...items.values()].sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
   if(!sorted.length){const empty=document.createElement('p');empty.className='task-chat-empty';empty.textContent='Комментариев пока нет';list.append(empty);}
   for(const c of sorted){const row=document.createElement('article'),meta=document.createElement('small'),text=document.createElement('p');meta.textContent=(c.authorName||c.author)+' · '+new Date(c.createdAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});text.textContent=c.text;row.append(meta,text);list.append(row);}
@@ -15,10 +17,11 @@ export function mountTaskDiscussion(root,{taskId,apiFetch}){
   for(const c of data.items||[])items.set(c.id,c);
   if(previous||items.size<=50)cursor=data.nextCursor;older.hidden=!cursor;paint();status.textContent='';
   if(previous)list.scrollTop+=list.scrollHeight-oldHeight;else list.scrollTop=nearBottom?list.scrollHeight:oldTop;
+  notify(!previous&&nearBottom);
  }catch(e){if(root.isConnected)status.textContent='Не удалось загрузить комментарии. Нажмите «Обновить».';}finally{busy=false;}}
  older.onclick=()=>load(true);root.querySelector('[data-refresh]').onclick=()=>load();
  form.onsubmit=async event=>{event.preventDefault();const text=input.value.trim();if(!text||send.disabled)return;send.disabled=true;status.textContent='';
-  try{const data=await apiFetch(url,{method:'POST',body:{text}});if(!root.isConnected)return;items.set(data.item.id,data.item);if(input.value.trim()===text)input.value='';paint();list.scrollTop=list.scrollHeight;}
+  try{const data=await apiFetch(url,{method:'POST',body:{text}});if(!root.isConnected)return;items.set(data.item.id,data.item);if(input.value.trim()===text)input.value='';paint();list.scrollTop=list.scrollHeight;notify(true);}
   catch(e){status.textContent='Комментарий не отправлен. Текст сохранён в поле — попробуйте ещё раз.';}finally{send.disabled=false;}
  };
  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();form.requestSubmit();}});

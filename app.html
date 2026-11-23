@@ -1358,6 +1358,17 @@ body {
  #financeWeekTaskOvl .mm-f button{padding:9px 12px;}
 }
 
+
+.fc-week-task.has-comment .text{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:6px;}
+.fc-week-task.has-comment .fc-week-task-title{grid-column:1/-1;overflow:hidden;text-overflow:ellipsis;}
+.fc-week-task.has-comment .text>small:not(.fc-overdue-label){grid-column:1;grid-row:2;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+.fc-week-task.has-comment .fc-overdue-label{grid-column:1/-1;grid-row:3;}
+.fc-task-comment-preview{grid-column:2;grid-row:2;display:flex;align-items:center;gap:5px;min-width:0;font-size:10.5px;line-height:1.4;color:var(--text-3);margin-top:0;font-weight:400;}
+.fc-task-comment-preview>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.fc-task-comment-dot{width:4px;height:4px;border-radius:50%;background:currentColor;flex:none;opacity:.45;}
+.fc-week-task.has-unread-comment{box-shadow:inset 2px 0 var(--bronze);background:var(--bronze-tint);}
+.fc-week-task.has-unread-comment .fc-task-comment-preview{color:var(--bronze-deep);font-weight:600;}
+.fc-week-task.has-unread-comment .fc-task-comment-dot{width:6px;height:6px;opacity:1;}
 </style>
 <link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
@@ -6267,7 +6278,8 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
-import {mountTaskDiscussion} from './app/task-discussion.js?v=20261123';
+import {initTaskCommentPreviews} from './app/task-comment-previews.js?v=20261123';
+import {mountTaskDiscussion} from './app/task-discussion.js?v=20261123-preview';
 import {storeMeetStaffAccess} from '/meet-staff-access.js';
 import {
   getSession,
@@ -8377,6 +8389,7 @@ function setFinanceChartPeriod(period){
 let FINANCE_CHART_REQUEST = 0;
 let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
+initTaskCommentPreviews({apiFetch,getEmail:()=>CURRENT?.email});
 let FINANCE_WEEK_TASKS = [];
 let FINANCE_WEEK_TASKS_LOADED = false;
 const FINANCE_WEEK_TASK_HISTORY_OPEN = new Set();
