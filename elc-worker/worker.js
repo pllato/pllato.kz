@@ -294,10 +294,9 @@ async function resolveOrgPermissions(env, uid, matchUids) {
   }
   for (const branch of (structure.branches || [])) walk(branch, []);
   if (!userNodes.length) {
-    return {
-      ...defaults,
-      pipelineIds: await applyPipelineAccessConfig(env, structure, ids, defaults.pipelineIds),
-    };
+    const viewAllPipelineIds=[];
+    const pipelineIds=await applyPipelineAccessConfig(env,structure,ids,defaults.pipelineIds,viewAllPipelineIds);
+    return {...defaults,pipelineIds,viewAllPipelineIds,hasAnyNode:viewAllPipelineIds.length>0};
   }
 
   // Эффективные права = UNION node.permissions всех userNodes + всех их descendants
@@ -333,9 +332,12 @@ async function resolveOrgPermissions(env, uid, matchUids) {
   }
 
   const basePipelineIds = pipelineAccess === 'all' ? null : Array.from(pipelineIdsSet);
+  const viewAllPipelineIds=[];
+  const pipelineIds=await applyPipelineAccessConfig(env,structure,ids,basePipelineIds,viewAllPipelineIds);
   return {
     isDirector: false,
-    pipelineIds: await applyPipelineAccessConfig(env, structure, ids, basePipelineIds),
+    pipelineIds,
+    viewAllPipelineIds,
     dealScope,
     teamUids,
     hasAnyNode: true,
@@ -365,7 +367,7 @@ function findOrgNodeById(structure, nodeId) {
 // Он является hard limit поверх унаследованных прав оргструктуры. Узел структуры
 // раскрывается динамически: новые сотрудники выбранного филиала получают доступ
 // без ручного добавления в ACL.
-async function applyPipelineAccessConfig(env, structure, ids, basePipelineIds) {
+async function applyPipelineAccessConfig(env, structure, ids, basePipelineIds, viewAllPipelineIds=[]) {
   let config = {};
   try {
     const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'org:fieldConfig'").first();
@@ -374,7 +376,7 @@ async function applyPipelineAccessConfig(env, structure, ids, basePipelineIds) {
     console.warn('[pipeline-access] config read failed:', error?.message || error);
     return basePipelineIds;
   }
-  const restricted = Object.entries(config).filter(([, cfg]) => cfg?.accessMode === 'restricted');
+  const restricted = Object.entries(config).filter(([,cfg])=>cfg?.accessMode==='restricted'||cfg?.viewAllMemberUids?.length);
   if (!restricted.length) return basePipelineIds;
 
   let allowed = new Set(Array.isArray(basePipelineIds) ? basePipelineIds : []);
@@ -383,12 +385,16 @@ async function applyPipelineAccessConfig(env, structure, ids, basePipelineIds) {
     allowed = new Set((results || []).map((row) => String(row.id)).filter(Boolean));
   }
   for (const [pipelineId, cfg] of restricted) {
+    const namedView=Array.isArray(cfg.viewAllMemberUids)&&cfg.viewAllMemberUids.some(uid=>ids.has(String(uid)));
+    if(cfg.accessMode!=='restricted'){if(namedView){allowed.add(String(pipelineId));viewAllPipelineIds.push(String(pipelineId));}continue;}
     const explicit = Array.isArray(cfg.accessMemberUids)
       && cfg.accessMemberUids.some((memberUid) => ids.has(String(memberUid)));
     const viaNode = Array.isArray(cfg.accessNodeIds)
       && cfg.accessNodeIds.some((nodeId) => orgNodeContainsAnyUid(findOrgNodeById(structure, nodeId), ids));
-    if (explicit || viaNode) allowed.add(String(pipelineId));
-    else allowed.delete(String(pipelineId));
+    if (explicit || viaNode) {
+      allowed.add(String(pipelineId));
+      if(Array.isArray(cfg.viewAllMemberUids)&&cfg.viewAllMemberUids.some(uid=>ids.has(String(uid))))viewAllPipelineIds.push(String(pipelineId));
+    } else allowed.delete(String(pipelineId));
   }
   return Array.from(allowed);
 }
@@ -841,11 +847,11 @@ function dealAccessSql(me) {
   }
   if (permissions.dealScope !== "all") {
     const uid = String(me?.canonicalUid || "");
-    if (!uid) clauses.push("1 = 0");
-    else {
-      clauses.push("(responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?)");
-      params.push(uid, uid, uid);
-    }
+    const allPipelines=(permissions.viewAllPipelineIds||[]).filter(id=>!Array.isArray(permissions.pipelineIds)||permissions.pipelineIds.includes(id));
+    const own=uid?'responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?':'1 = 0';
+    if(uid)params.push(uid,uid,uid);
+    clauses.push(`(${own}${allPipelines.length?` OR pipeline_id IN (${allPipelines.map(()=>'?').join(',')})`:''})`);
+    params.push(...allPipelines);
   }
   return { where: clauses.length ? ` AND ${clauses.join(" AND ")}` : "", params };
 }
@@ -2126,26 +2132,21 @@ async function handleList(request, env, entity) {
     // allEvents снимает персональный own/team scope внутри разрешённой воронки,
     // но никогда не снимает сам whitelist воронок.
     if (!calendarAllEvents && op.dealScope !== 'all') {
-      const fields = cfg.mineFields || [];
-      const jsonFields = cfg.mineJsonFields || [];
-      const uids = op.dealScope === 'team' ? Array.from(op.teamUids || []) : [me.canonicalUid].filter(Boolean);
-      if (uids.length === 0) {
-        whereParts.push("1 = 0");
-      } else if (fields.length || jsonFields.length) {
-        const ph = uids.map(() => "?").join(",");
-        const orC = [];
-        for (const f of fields) {
-          orC.push(`${f} IN (${ph})`);
-          for (const u of uids) whereParams.push(u);
-        }
-        for (const f of jsonFields) {
-          for (const u of uids) {
-            orC.push(`${f} LIKE ?`);
-            whereParams.push(`%"${u}"%`);
-          }
-        }
-        if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+      const fields=cfg.mineFields||[],jsonFields=cfg.mineJsonFields||[];
+      const uids=op.dealScope==='team'?Array.from(op.teamUids||[]):[me.canonicalUid].filter(Boolean);
+      const orC=[];
+      if(uids.length){
+        const ph=uids.map(()=>'?').join(',');
+        for(const f of fields){orC.push(`${f} IN (${ph})`);whereParams.push(...uids);}
+        for(const f of jsonFields)for(const uid of uids){orC.push(`${f} LIKE ?`);whereParams.push(`%"${uid}"%`);}
       }
+      const allPipelines=(op.viewAllPipelineIds||[]).filter(id=>!Array.isArray(op.pipelineIds)||op.pipelineIds.includes(id));
+      if(allPipelines.length){
+        const ph=allPipelines.map(()=>'?').join(',');
+        if(entity==='deals'){orC.push(`pipeline_id IN (${ph})`);whereParams.push(...allPipelines);}
+        else if(entity==='contacts'){orC.push(`id IN (SELECT contact_id FROM deals WHERE pipeline_id IN (${ph}))`);whereParams.push(...allPipelines);}
+      }
+      whereParts.push(orC.length?'('+orC.join(' OR ')+')':'1 = 0');
     }
   }
 
@@ -8536,6 +8537,7 @@ async function handleFieldConfigPut(request, env) {
     cfg.accessNodeIds = Array.isArray(cfg.accessNodeIds)
       ? [...new Set(cfg.accessNodeIds.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 100)
       : [];
+    cfg.viewAllMemberUids=Array.isArray(cfg.viewAllMemberUids)?[...new Set(cfg.viewAllMemberUids.map(uid=>String(uid||'').trim()).filter(uid=>uid&&cfg.accessMemberUids.includes(uid)))].slice(0,500):[];
     cfg.trialCalendarEnabled = cfg.trialCalendarEnabled === true;
   }
   const v = JSON.stringify(incoming);
@@ -12126,6 +12128,7 @@ async function handleMe(request, env) {
       hasAnyNode: me.orgPerms.hasAnyNode,
       pipelineIds: me.orgPerms.pipelineIds,  // null = все воронки
       dealScope: me.orgPerms.dealScope,      // own | team | all
+      viewAllPipelineIds: me.orgPerms.viewAllPipelineIds||[],
       teamSize: me.orgPerms.teamUids ? me.orgPerms.teamUids.size : 0,
     } : null,
   }, 200, request);
