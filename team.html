@@ -3703,7 +3703,11 @@ window.addEventListener('elc:visible', () => teamReadCache.invalidate());
     // Попытка отдать из кеша
     try {
       const cached = await idbGet(cacheKey);
-      if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
+      // Стадии и состав воронок меняются независимо от тяжёлых данных CRM.
+      // Обновляем маленький справочник раз в 5 минут при обращении к нему;
+      // фонового опроса нет. Явное no-store обязано обходить локальный кеш.
+      const ttlMs = parsed.path === 'pipelines.json' ? 5 * 60 * 1000 : CACHE_TTL_MS;
+      if (init?.cache !== 'no-store' && cached && (Date.now() - cached.fetchedAt) < ttlMs) {
         // Cheap validity check: JSON-объект/массив должен начинаться и
         // заканчиваться парными скобками. Truncated body завершается случайным
         // байтом (буква/цифра) — отлавливаем за O(1).
