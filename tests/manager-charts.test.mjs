@@ -1,15 +1,19 @@
+import {socialAccess,socialSeries,socialTotalSeries} from '../crm/worker/social-publications.js';
+import {TASK_COMMENTS_COLLECTION,sharedTaskEditable} from '../crm/worker/chart-task-discussion.js';
+import {paymentCardTitle,paymentLabel} from '../crm/worker/payment-card-fields.js';
+import {normalizeCustomPaymentPlan} from '../crm/worker/payment-plan.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 const source=fs.readFileSync(new URL('../crm/worker/worker.js',import.meta.url),'utf8').replace(/^import[\s\S]*?;\n/gm,'').replace('export default','const workerExport =');
 function setup(){
- const sandbox={PLAN_COLLECTION:"_financial_planning_private",PAYOUT_COLLECTION:"_project_payouts_private",console,URL,URLSearchParams,Request,Response,TextEncoder,TextDecoder,crypto:globalThis.crypto,fetch:async()=>Response.json({series:[]})};
+ const sandbox={socialAccess,socialSeries,socialTotalSeries,fetchDemoChartSeries:async()=>[],TASK_COMMENTS_COLLECTION,sharedTaskEditable,paymentCardTitle,paymentLabel,normalizeCustomPaymentPlan,PRODUCTION_COLLECTION:"_production_activity_private",SOCIAL_COLLECTION:"_social_publications_private",PLAN_COLLECTION:"_financial_planning_private",PAYOUT_COLLECTION:"_project_payouts_private",console,URL,URLSearchParams,Request,Response,TextEncoder,TextDecoder,crypto:globalThis.crypto,fetch:async()=>Response.json({series:[]})};
  const ctx=vm.createContext(sandbox);vm.runInContext(source,ctx);
  const now=Date.now();
  const stored={money:{a:{deal:100,cur:'KZT',managerEmail:'a@test.kz',pays:[{sum:100,at:now-10000}]},b:{deal:200,cur:'USD',managerEmail:'b@test.kz',pays:[{sum:100,at:now-10000}]},c:{deal:50,cur:'KZT',pays:[{sum:10,at:now-10000}]}},rate:500,chartVisibility:{cash:['a@test.kz'],orders:['a@test.kz'],releases:['a@test.kz']},chartAccess:{cash:{'a@test.kz':{total:false,managers:'own',tasks:'own'}}}};
- ctx.stored=stored;ctx.rows=[{id:'a',kind:'cash',managerEmail:'a@test.kz',text:'mine'},{id:'b',kind:'cash',managerEmail:'b@test.kz',text:'other'},{id:'auto',kind:'cash',automatic:true,sourceProjectId:'b',text:'other auto'},{id:'old',kind:'cash',author:'a@test.kz',text:'old mine'}];
- vm.runInContext('d1GetDoc=async(env,col,id)=>col===PRIVATE_PROJECT_FINANCE_COLLECTION?stored:rows.find(x=>x.id===id);d1ListCollection=async()=>rows;d1UpsertDoc=async(env,col,item)=>{if(col===PRIVATE_PROJECT_FINANCE_COLLECTION)stored=item;};',ctx);
+ ctx.stored=stored;ctx.saved=[];ctx.rows=[{id:'a',kind:'cash',managerEmail:'a@test.kz',text:'mine'},{id:'b',kind:'cash',managerEmail:'b@test.kz',text:'other'},{id:'auto',kind:'cash',automatic:true,sourceProjectId:'b',text:'other auto'},{id:'old',kind:'cash',author:'a@test.kz',text:'old mine'}];
+ vm.runInContext('listSocialDays=async()=>[];d1GetDoc=async(env,col,id)=>col===PRIVATE_PROJECT_FINANCE_COLLECTION?stored:rows.find(x=>x.id===id);d1ListCollection=async()=>rows;d1UpsertDoc=async(env,col,item)=>{if(col===PRIVATE_PROJECT_FINANCE_COLLECTION)stored=item;else saved.push(item);};',ctx);
  return ctx;
 }
 const actor={email:'a@test.kz',user:{}};
@@ -120,4 +124,23 @@ test('personal point details filter exact manager including unassigned and enfor
  await assert.rejects(c.handleProjectFinanceChartDetails({},actor,url('cash','b@test.kz')));
  const empty=await c.handleProjectFinanceChartDetails({},{isRoot:true},url('cash','missing@test.kz'));
  assert.equal(empty.items.length,0);assert.equal(empty.chartValue,0);
+});
+
+test('employee can update another manager task when shared visibility permits it',async()=>{
+ const c=setup();c.stored.chartAccess.cash['a@test.kz']={total:false,managers:'own',tasks:'all'};
+ const request=new Request('https://test',{method:'POST',body:JSON.stringify({ops:[{type:'upsert',collection:'chart_week_tasks',item:{...c.rows[1],text:'Updated by coworker'}}]})});
+ const result=await c.handleStorePush(request,{},actor);assert.equal(result.applied,1);
+});
+test('generic store cannot read or forge task comments',async()=>{
+ const c=setup();
+ await assert.rejects(c.handleStorePull(new Request('https://test',{method:'POST',body:JSON.stringify({collections:[TASK_COMMENTS_COLLECTION]})}),{},actor));
+ await assert.rejects(c.handleStorePush(new Request('https://test',{method:'POST',body:JSON.stringify({ops:[{type:'upsert',collection:TASK_COMMENTS_COLLECTION,item:{id:'forged'}}]})}),{},actor));
+});
+
+test('discussion identity cannot be forged and verified moves retain it',async()=>{
+ const c=setup();c.stored.chartAccess.cash['a@test.kz']={tasks:'all'};
+ const update=item=>c.handleStorePush(new Request('https://test',{method:'POST',body:JSON.stringify({ops:[{type:'upsert',collection:'chart_week_tasks',item}]})}),{},actor);
+ await update({...c.rows[1],discussionId:'private-thread'});assert.equal(c.saved.at(-1).discussionId,'b');
+ c.rows[1].movedToTaskId='next';c.rows[1].discussionId='b';
+ await update({id:'next',kind:'cash',managerEmail:'a@test.kz',movedFromTaskId:'b',discussionId:'private-thread'});assert.equal(c.saved.at(-1).discussionId,'b');
 });

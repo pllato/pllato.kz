@@ -1,3 +1,4 @@
+import {TASK_COMMENTS_COLLECTION,handleTaskDiscussion,sharedTaskEditable} from './chart-task-discussion.js';
 import {insertChartTaskIfAbsent} from './chart-task-create.js';
 import {handleContractOtp} from './contract-otp.js';
 import {handleProjectProgrammers} from './project-programmers.js';
@@ -879,6 +880,7 @@ async function handleStorePull(request, env, actor) {
     throw new HttpError(403, "Финансы проектов доступны только Super Admin");
   }
 
+  if(collections.includes(TASK_COMMENTS_COLLECTION))throw new HttpError(403,"Используйте обсуждение дела");
   const data = {};
   for (const collection of collections) {
     data[collection] = await d1ListCollection(env, collection, limit, updatedSince);
@@ -906,10 +908,12 @@ async function handleStorePush(request, env, actor) {
   }
 
   let applied = 0;
+  let taskFinance;
   const fieldDealsToNotify = []; // собираем — пошлём после всех upsert'ов
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if(collection===TASK_COMMENTS_COLLECTION)throw new HttpError(403,"Используйте обсуждение дела");
     if(collection === PRODUCTION_COLLECTION)throw new HttpError(403,"Используйте график активности");
     if(collection === SOCIAL_COLLECTION)throw new HttpError(403,"Используйте график публикаций");
     if(collection === PLAN_COLLECTION)throw new HttpError(403,"Используйте финансовое планирование");
@@ -917,13 +921,23 @@ async function handleStorePush(request, env, actor) {
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
     }
-    if (collection === "chart_week_tasks" && !canAccessProjectFinance(actor)) {
-      const finance = await financeForAccess(env);
+    if (collection === "chart_week_tasks") {
+      const finance = canAccessProjectFinance(actor)?null:(taskFinance??=await financeForAccess(env));
       const old = await d1GetDoc(env, collection, op.item?.id || op.id);
-      const mine = String(actor.email || "").toLowerCase();
-      if ((old && (financeTaskOwner(old, finance) !== mine || !financeTaskVisible(old, finance, actor)))
-          || (op.item && (financeTaskOwner(op.item, finance) !== mine || !financeTaskVisible(op.item, finance, actor)))) {
-        throw new HttpError(403, "Можно изменять только свои доступные дела");
+      const target=old||op.item;
+      const allowed=task=>canAccessProjectFinance(actor)||(Boolean(task)&&financeTaskVisible(task,finance,actor));
+      if ((!canAccessProjectFinance(actor) && !sharedTaskEditable(target,allowed(target))) || (old && op.item && old.kind!==op.item.kind)) {
+        throw new HttpError(403, "Нет доступа к изменению этого дела");
+      }
+      if(op.item){
+        // Thread identity is server-owned. Moving a task carries its discussion,
+        // but arbitrary client IDs cannot attach an unrelated private thread.
+        op.item.discussionId=old?.discussionId||old?.id||op.item.id;
+        if(!old && op.item.movedFromTaskId){
+          const source=await d1GetDoc(env,collection,op.item.movedFromTaskId);
+          if(source && allowed(source) && source.movedToTaskId===op.item.id && source.kind===op.item.kind)
+            op.item.discussionId=source.discussionId||source.id;
+        }
       }
     }
     if(collection === "chart_week_tasks" && op.createOnly === true && op.type === "upsert") {
@@ -8936,6 +8950,18 @@ export default {
       if (request.method === "GET" && path === "/project-finance/chart-details") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartDetails(env, actor, url));
+      }
+
+      const taskDiscussion=path.match(/^\/project-finance\/tasks\/([^/]+)\/comments$/);
+      if(taskDiscussion){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        const finance=await financeForAccess(env);
+        const taskId=decodeURIComponent(taskDiscussion[1]);
+        return json(request,env,await handleTaskDiscussion(request,env,actor,taskId,{
+          HttpError,teamId:TEAM_ID,db:requireStoreDb(env),
+          getTask:id=>d1GetDoc(env,'chart_week_tasks',id),
+          canAccess:task=>canAccessProjectFinance(actor)||financeTaskVisible(task,finance,actor)
+        }));
       }
 
       if (request.method === "PUT" && path === "/project-finance/charts") {

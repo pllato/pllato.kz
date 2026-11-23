@@ -901,6 +901,7 @@ body {
 .fc-aligned-grid > .fc-card > .fc-plot { grid-row:3; }
 .fc-aligned-grid > .fc-card > .fc-labels { grid-row:4; }
 .fc-aligned-grid > .fc-card > .fc-notes { grid-row:5; align-self:start; }
+.task-chat{border-top:1px solid var(--line-2);padding:16px 24px}.task-chat header{display:flex;align-items:center;justify-content:space-between;gap:12px}.task-chat h4{margin:0;font-size:14px}.task-chat header button,.task-chat [data-older]{border:0;background:none;color:var(--bronze-deep);font:inherit;cursor:pointer;font-size:12px}.task-chat-list{max-height:230px;overflow:auto;margin:12px 0;overscroll-behavior:contain}.task-chat article{padding:10px 0;border-bottom:1px solid var(--line-2)}.task-chat article small{color:var(--text-3);font-size:11px}.task-chat article p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5}.task-chat-empty,.task-chat [data-status]{font-size:12px;color:var(--text-3)}.task-chat form{display:flex;align-items:flex-end;gap:8px}.task-chat textarea{flex:1;min-width:0;resize:vertical;border:1px solid var(--line-2);border-radius:8px;padding:10px;font:inherit;font-size:13px}.task-chat form button{border:0;border-radius:8px;background:var(--navy);color:white;padding:10px 14px;cursor:pointer}.task-chat button:disabled{opacity:.5}#financeWeekTaskOvl .money-modal{max-height:90vh;overflow:auto}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 .fc-week-tasks { min-width:0; max-width:100%; box-sizing:border-box; }
 .fc-aligned-grid > .fc-card > .fc-week-tasks,
 .fc-aligned-grid > .fc-card > .social-daily { grid-row:6; align-self:start; }
@@ -6218,6 +6219,7 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
+import {mountTaskDiscussion} from './app/task-discussion.js?v=20261123';
 import {storeMeetStaffAccess} from '/meet-staff-access.js';
 import {
   getSession,
@@ -6276,7 +6278,7 @@ import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-no
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 let transcriptDemoController;
-function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261117-lazy').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token,projectTasks:{getTasks:()=>FINANCE_WEEK_TASKS,taskText:financeDemoTaskText,canEdit:t=>canConfigureFinanceChart(t.kind)&&canEditFinanceTask(t),onToggle:(t,done)=>toggleFinanceWeekTask(t.id,done),onOpen:t=>financeWeekTaskIsAutomatic(t)?openPaymentPlanSource(paymentPlanProjectToken(t.sourceProjectId)):openFinanceWeekTaskEditor(t.kind,t.start,t.end,t.id),kindTitle:kind=>FINANCE_CHART_META[kind]?.title||kind}});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261117-lazy').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token,projectTasks:{getTasks:()=>FINANCE_WEEK_TASKS,taskText:financeDemoTaskText,canEdit:t=>canManageFinanceTasks(t.kind)&&canEditFinanceTask(t),onToggle:(t,done)=>toggleFinanceWeekTask(t.id,done),onOpen:t=>openFinanceWeekTaskEditor(t.kind,t.start,t.end,t.id),kindTitle:kind=>FINANCE_CHART_META[kind]?.title||kind}});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
 
 
 initProjectRecordings({ getSession });
@@ -7575,7 +7577,8 @@ function financeManagerLegend(kind){
   const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><span aria-hidden="true" style="display:inline-block;width:18px;border-top:3.5px solid ${FINANCE_CHART_META[kind].color};vertical-align:middle"></span> Общая</span>`:'';
   return `<div class="fc-manager-legend">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><span aria-hidden="true" style="display:inline-block;width:18px;border-top:1.5px dashed ${managerColor(item.email)};opacity:.65;vertical-align:middle"></span> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
 }
-function canEditFinanceTask(task){return canSeeProjectMoney()||String(task?.managerEmail??task?.author??'').toLowerCase()===String(CURRENT?.email||'').toLowerCase();}
+function canEditFinanceTask(task){return !!(CURRENT && task && !task.deleted && !task._virtual && (canSeeProjectMoney() || FINANCE_WEEK_TASKS.some(item=>item.id===task.id)));}
+function canManageFinanceTasks(kind){return canConfigureFinanceChart(kind)||['all','own','selected'].includes(CHART_EFFECTIVE_ACCESS[kind]?.tasks);}
 function financeTaskManagerLabel(task){return `<small style="display:block;color:var(--text-3);font-size:11px">${mEsc(managerName(task.managerEmail??PROJECT_MANAGERS[task.sourceProjectId]??task.author??''))}</small>`;}
 let CHART_VISIBILITY = { inquiries: [], kep: [], demos: [], orders: [], cash: [], releases: [] };
 function normalizeFinanceChartScale(raw={}){
@@ -7785,7 +7788,7 @@ async function syncPaymentPlanTasks(id){
     const reached=custom ? (amount>0 && received>=(Number(item.planPaidBase ?? Math.max(0,mDeal(id)-stages.reduce((sum,next)=>sum+paymentPlanAmount(id,next),0)))+stages.slice(0,index+1).reduce((sum,next)=>sum+paymentPlanAmount(id,next),0))) : (stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount);
     desired.push({
       ...(oldCash||{}),id:cashId,kind:'cash',start:bounds.start,end:bounds.end,
-      text:custom?`${projName(id)} · ${String(stage.label||'платёж').toLowerCase()}`:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
+      text:oldCash?.taskTextOverride||(custom?`${projName(id)} · ${String(stage.label||'платёж').toLowerCase()}`:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`),amount:toKZT(id,amount),
       done:Boolean(oldCash?.done)||reached,completedAt:(Boolean(oldCash?.done)||reached)?(Number(oldCash?.completedAt)||Date.now()):0,
       managerEmail:item.managerEmail||'',automatic:true,source:'payment-plan',autoType:'planned-payment',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
       author:oldCash?.author||CURRENT?.email||'',authorName:oldCash?.authorName||CURRENT?.name||CURRENT?.email||'',
@@ -7798,7 +7801,7 @@ async function syncPaymentPlanTasks(id){
       const completed=projectIsComplete(id);
       desired.push({
         ...(oldRelease||{}),id:releaseId,kind:'releases',start:bounds.start,end:bounds.end,
-        text:`${projName(id)} · плановый выпуск`,amount:0,
+        text:oldRelease?.taskTextOverride||`${projName(id)} · плановый выпуск`,amount:0,
         done:Boolean(oldRelease?.done)||completed,completedAt:(Boolean(oldRelease?.done)||completed)?(Number(oldRelease?.completedAt)||Date.now()):0,
         managerEmail:item.managerEmail||'',automatic:true,source:'payment-plan',autoType:'planned-release',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
         author:oldRelease?.author||CURRENT?.email||'',authorName:oldRelease?.authorName||CURRENT?.name||CURRENT?.email||'',
@@ -8859,7 +8862,7 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
         ? `<button class="carry" type="button" onclick="carryFinanceWeekTaskToCurrent('${mEsc(task.id)}')" title="Создать это дело в текущей неделе">В текущую →</button>`
         : '');
     const remove=canEditFinanceTask(task) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
-    const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
+    const openAction=task._virtual?'':` onclick="${financeWeekTaskOpenAction(task,kind,task.start,task.end)}"`;
     return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(financeDemoTaskText(task))}"><span class="fc-week-task-title">${mEsc(financeDemoTaskText(task))}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${financeDemoTaskLink(task)}${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
@@ -8883,9 +8886,7 @@ function financeWeekTaskAutoBadge(task){
   return '<span class="auto-badge" title="Создано автоматически из плана платежей">Авто · выпуск</span>';
 }
 function financeWeekTaskOpenAction(task,kind,start,end){
-  return financeWeekTaskIsAutomatic(task)
-    ? `openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')`
-    : `openFinanceWeekTaskEditor('${kind}',${Number(start)},${Number(end)},'${mEsc(task.id)}')`;
+  return `openFinanceWeekTaskEditor('${kind}',${Number(start)},${Number(end)},'${mEsc(task.id)}')`;
 }
 function financeWeekTaskBlock(kind,series){
   return financeWeekTaskBlockForPoint(kind,financeCurrentWeekPoint(series));
@@ -8909,7 +8910,7 @@ async function reorderFinanceWeekTask(button,taskId,direction,targetId=null){
   if(FINANCE_TASK_REORDER_BUSY)return;
   const section=button.closest('.fc-week-tasks');
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId);
-  if(!section || !task || !canConfigureFinanceChart(task.kind) || !canEditFinanceTask(task))return;
+  if(!section || !task || !canManageFinanceTasks(task.kind) || !canEditFinanceTask(task))return;
   const ids=[...section.querySelectorAll('.fc-week-tasks-list > [data-task-id]')].map(row=>row.dataset.taskId);
   const tasks=ids.map(id=>FINANCE_WEEK_TASKS.find(item=>item.id===id)).filter(Boolean);
   const items=financeTaskReorderItems(tasks,taskId,direction,targetId).filter(item=>item.rowOrder!==FINANCE_WEEK_TASKS.find(old=>old.id===item.id)?.rowOrder).map(item=>({...item,updatedAt:Date.now(),updatedBy:CURRENT?.email||''}));
@@ -8969,7 +8970,7 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
   const unfinished=tasks.filter(task=>!task.done);
   const planTotal=showAmounts ? unfinished.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
   const starredTotal=showAmounts ? unfinished.filter(task=>task.starred).reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
-  const add=canConfigureFinanceChart(kind)
+  const add=canManageFinanceTasks(kind)
     ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
     : '';
   const history=next?'':`<button class="history" type="button" onclick="toggleFinanceWeekTaskHistory('${kind}')">${FINANCE_WEEK_TASK_HISTORY_OPEN.has(kind)?'Скрыть историю':'История'}</button>`;
@@ -8977,7 +8978,7 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
     ? tasks.map((task,index)=>{
       const starred=Boolean(task.starred&&!task.done);
       const group=tasks.filter(item=>Boolean(item.starred&&!item.done)===starred);
-      const reorder=group.length>1&&canConfigureFinanceChart(kind)&&group.every(canEditFinanceTask)?`<button type="button" class="fc-task-grip" title="Перетащите для изменения порядка" aria-label="Изменить порядок дела: перетащите или используйте стрелки вверх и вниз" onpointerdown="startFinanceTaskDrag(event,this)" onkeydown="financeTaskGripKey(event,this,'${mEsc(task.id)}')"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`:'';
+      const reorder=group.length>1&&canManageFinanceTasks(kind)&&group.every(canEditFinanceTask)?`<button type="button" class="fc-task-grip" title="Перетащите для изменения порядка" aria-label="Изменить порядок дела: перетащите или используйте стрелки вверх и вниз" onpointerdown="startFinanceTaskDrag(event,this)" onkeydown="financeTaskGripKey(event,this,'${mEsc(task.id)}')"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`:'';
       const divider=starredCount && index===0?'<div class="fc-task-group">★ В работе сегодня</div>':starredCount && index===starredCount?'<div class="fc-task-group other">Остальные дела</div>':'';
       const star=!task.done&&canEditFinanceTask(task)?`<button type="button" class="fc-task-star${starred?' selected':''}" aria-pressed="${starred}" title="${starred?'Снять отметку на сегодня':'В работу сегодня'}" aria-label="${starred?'Снять отметку на сегодня':'В работу сегодня'}" onclick="toggleFinanceWeekTaskStar('${mEsc(task.id)}')">${starred?'★':'☆'}</button>`:'';
       const automatic=financeWeekTaskIsAutomatic(task);
@@ -9009,27 +9010,27 @@ function refreshFinanceWeekTaskBlock(kind){
   });
 }
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
-  if(!canConfigureFinanceChart(kind)) return;
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(!existing && !canManageFinanceTasks(kind)) return;
   if(existing && !canEditFinanceTask(existing)) return;
-  if(financeWeekTaskIsAutomatic(existing)){
-    openPaymentPlanSource(paymentPlanProjectToken(existing.sourceProjectId));
-    return;
-  }
+
+  const automatic=financeWeekTaskIsAutomatic(existing);
   const showAmount=kind==='cash';
   document.getElementById('financeWeekTaskOvl')?.remove();
   const ovl=document.createElement('div');
   ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
-  const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount" type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?financeDemoTaskText(existing):'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Проект / сделка<select id="financeTaskProject"><option value="">Без привязки</option>${existing?.sourceProjectId&&!appDemoRecords().some(r=>r.projectId===existing.sourceProjectId)?`<option selected value="${mEsc(existing.sourceProjectId)}">${mEsc(existing.sourceProjectId)}</option>`:''}${appDemoRecords().map(r=>`<option value="${mEsc(r.projectId)}"${r.projectId===existing?.sourceProjectId?' selected':''}>${mEsc(r.contactName||r.title)}</option>`).join('')}</select></label><label>Ответственный менеджер<select id="financeTaskManager"${canSeeProjectMoney()?'':' disabled'}>${managerOptions(existing?.managerEmail||CURRENT?.email||'')}</select></label></div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount"${automatic?' readonly':''} type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?financeDemoTaskText(existing):'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Проект / сделка<select id="financeTaskProject"${automatic?' disabled':''}><option value="">Без привязки</option>${existing?.sourceProjectId&&!appDemoRecords().some(r=>r.projectId===existing.sourceProjectId)?`<option selected value="${mEsc(existing.sourceProjectId)}">${mEsc(existing.sourceProjectId)}</option>`:''}${appDemoRecords().map(r=>`<option value="${mEsc(r.projectId)}"${r.projectId===existing?.sourceProjectId?' selected':''}>${mEsc(r.contactName||r.title)}</option>`).join('')}</select></label><label>Ответственный менеджер<select id="financeTaskManager"${automatic?' disabled':''}>${managerOptions(existing?(existing.managerEmail??''):(CURRENT?.email||''))}</select></label></div></div><section class="task-chat" data-task-chat${existing?'':' hidden'}></section><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Закрыть</button><button style="background:var(--navy);color:#fff" data-task-save onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
   document.body.appendChild(ovl);
+  if(existing)mountTaskDiscussion(ovl.querySelector('[data-task-chat]'),{taskId:existing.id,apiFetch});
   const input=document.getElementById('financeWeekTaskText');
   ovl.querySelectorAll('input').forEach(field=>field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}}));
   setTimeout(()=>input?.focus(),30);
 }
 async function saveFinanceWeekTask(kind,start,end,taskId=''){
-  if(!canConfigureFinanceChart(kind)) return;
+  const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(existing?!canEditFinanceTask(existing):!canManageFinanceTasks(kind)) return;
   const input=document.getElementById('financeWeekTaskText');
   const amountInput=document.getElementById('financeWeekTaskAmount');
   const text=String(input?.value||'').trim();
@@ -9038,24 +9039,30 @@ async function saveFinanceWeekTask(kind,start,end,taskId=''){
   const amountRaw=String(amountInput?.value||'').trim();
   const amount=kind==='cash' ? Number(amountRaw) : Math.max(0,Number(old?.amount)||0);
   if(kind==='cash' && (amountRaw==='' || !Number.isFinite(amount) || amount<0)){ alert('Укажите сумму плана в тенге.'); amountInput?.focus(); return; }
+  const saveButton=document.querySelector('#financeWeekTaskOvl [data-task-save]');
+  if(saveButton?.disabled)return;
+  if(saveButton)saveButton.disabled=true;
   const now=Date.now();
   const item=old
     ? {...old,text,amount,updatedAt:now,updatedBy:CURRENT?.email||''}
     : {id:`chart-task-${kind}-${Number(start)}-${now}`,kind,start:Number(start),end:Number(end),text,amount,done:false,author:CURRENT?.email||'',authorName:CURRENT?.name||CURRENT?.email||'',createdAt:now,updatedAt:now};
   item.managerEmail=document.getElementById('financeTaskManager')?.value||'';
+  if(financeWeekTaskIsAutomatic(old))item.taskTextOverride=text;
   const projectInput=document.getElementById('financeTaskProject');
   if(projectInput){const project=appDemoRecords().find(r=>r.projectId===projectInput.value);if(project || (old?.sourceProjectId&&!projectInput.value)){item.sourceProjectId=project?.projectId||'';item.crmDealId=project?.crmDealId||'';}}
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
     const index=FINANCE_WEEK_TASKS.findIndex(entry=>entry.id===item.id);
     if(index>=0) FINANCE_WEEK_TASKS[index]=item; else FINANCE_WEEK_TASKS.push(item);
-    document.getElementById('financeWeekTaskOvl')?.remove();
     refreshFinanceWeekTaskBlock(kind);
+    if(!old)openFinanceWeekTaskEditor(kind,start,end,item.id);
+    else if(saveButton){saveButton.textContent='Сохранено';setTimeout(()=>{if(saveButton.isConnected)saveButton.textContent='Сохранить';},1500);}
   }catch(error){ alert('Не удалось сохранить дело: '+error.message); }
+  finally{if(saveButton)saveButton.disabled=false;}
 }
 async function toggleFinanceWeekTaskStar(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || !canConfigureFinanceChart(task.kind) || !canEditFinanceTask(task)) return;
+  if(!task || task.done || !canManageFinanceTasks(task.kind) || !canEditFinanceTask(task)) return;
   const item={...task,starred:!task.starred,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
@@ -9065,7 +9072,7 @@ async function toggleFinanceWeekTaskStar(taskId){
 }
 async function toggleFinanceWeekTask(taskId,done){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || !canConfigureFinanceChart(task.kind) || !canEditFinanceTask(task)) return;
+  if(!task || !canManageFinanceTasks(task.kind) || !canEditFinanceTask(task)) return;
   const item={...task,starred:done?false:Boolean(task.starred),done:Boolean(done),completedAt:done?Date.now():0,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
@@ -9113,10 +9120,10 @@ function chooseFinanceTaskWeek(task){
 }
 async function moveFinanceWeekTaskForward(taskId){
   let task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || !canConfigureFinanceChart(task.kind) || !canEditFinanceTask(task)) return;
+  if(!task || task.done || !canManageFinanceTasks(task.kind) || !canEditFinanceTask(task)) return;
   const target=await chooseFinanceTaskWeek(task);if(target===null)return;
   task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task||task.done||Number(task.movedToStart)>0||!canConfigureFinanceChart(task.kind)||!canEditFinanceTask(task))return;
+  if(!task||task.done||Number(task.movedToStart)>0||!canManageFinanceTasks(task.kind)||!canEditFinanceTask(task))return;
   if(target<financeCurrentWeekPoint([]).start||target===Number(task.start))return;
   if(financeWeekTaskIsAutomatic(task)){await moveAutomaticPaymentPlanTaskForward(task,target,true);return;}
   await copyFinanceWeekTask(task,target,target+7*86400000,true);
@@ -9153,7 +9160,7 @@ async function moveAutomaticPaymentPlanTaskForward(task,targetStart=0,confirmed=
 }
 async function carryFinanceWeekTaskToCurrent(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind) || !canEditFinanceTask(task)) return;
+  if(!task || task.done || Number(task.movedToStart)>0 || !canManageFinanceTasks(task.kind) || !canEditFinanceTask(task)) return;
   const current=document.getElementById('financeWeekTasks-'+task.kind);
   if(!current) return;
   const currentStart=Number(current.dataset.start), currentEnd=Number(current.dataset.end);
@@ -9162,7 +9169,7 @@ async function carryFinanceWeekTaskToCurrent(taskId){
   await copyFinanceWeekTask(task,currentStart,currentEnd);
 }
 async function copyFinanceWeekTask(task,targetStart,targetEnd,confirmed=false){
-  if(!task || task.done || financeWeekTaskIsAutomatic(task) || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
+  if(!task || task.done || financeWeekTaskIsAutomatic(task) || Number(task.movedToStart)>0 || !canManageFinanceTasks(task.kind)) return;
   if(!Number.isFinite(targetStart)||!Number.isFinite(targetEnd)) return;
   const period=financeWeekTaskPeriod({start:targetStart,end:targetEnd});
   if(!confirmed && !confirm(`Перенести «${String(task.text||'Дело')}» на неделю ${period}? Исходная запись останется в истории.`)) return;
@@ -9181,7 +9188,7 @@ async function copyFinanceWeekTask(task,targetStart,targetEnd,confirmed=false){
 }
 async function deleteFinanceWeekTask(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || financeWeekTaskIsAutomatic(task) || !canConfigureFinanceChart(task.kind) || !confirm('Удалить это дело?')) return;
+  if(!task || financeWeekTaskIsAutomatic(task) || !canManageFinanceTasks(task.kind) || !confirm('Удалить это дело?')) return;
   const item={...task,deleted:true,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
