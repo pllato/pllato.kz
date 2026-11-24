@@ -24848,7 +24848,7 @@ async function renderSettingsPipelines(el) {
 function renderSettingsPipelinesList() {
   const wrap = document.getElementById('settings-pipelines-list');
   if (!wrap) return;
-  const all = Object.values(dealsState.pipelines || {});
+  const all = Object.values(dealsState.pipelines || {}).filter(p => isPipelineAllowed(p.id));
   const active = all.filter(p => p.isActive !== false && p.isActive !== 0);
   const archived = all.filter(p => isPipelineAllowed(p.id) && (p.isActive === false || p.isActive === 0));
   const renderRow = (p, isArch) => {

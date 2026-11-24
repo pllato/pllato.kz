@@ -6470,7 +6470,7 @@ async function handleWaListChannelsPublic(request, env) {
   }
 
   // Permission filter — если у юзера whitelist pipelineIds (orgPerms), скрываем
-  // каналы которые routing на чужие воронки. Admin/director — видит всё.
+  // каналы с маршрутизацией на чужие воронки, независимо от роли.
   let allowed = results;
   if (me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
     const whitelist = new Set(me.orgPerms.pipelineIds);
