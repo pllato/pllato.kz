@@ -41,6 +41,8 @@
       all[rec.id] = rec; writeAll(all);
       return Promise.resolve(rec);
     },
+    setCandidateStatus(id,decision) { const all=readAll(); if(!all[id])return Promise.reject(new Error('Кандидат не найден')); all[id].decision=decision||null;all[id].reviewed_at=decision?now():null;writeAll(all);return Promise.resolve(); },
+    markReviewed(id) { const all=readAll();if(!all[id])return Promise.reject(new Error('Кандидат не найден'));all[id].reviewed_at=now();writeAll(all);return Promise.resolve(); },
     getCandidate(id) { return Promise.resolve(readAll()[id] || null); },
     listCandidates() { return Promise.resolve(Object.values(readAll())); },
     deleteCandidate(id) { const all = readAll(); delete all[id]; writeAll(all); return Promise.resolve(); },
