@@ -9032,8 +9032,8 @@ function setPipelineOrder(ids) {
 // Исключение: если activePipelineId указывает на архивированную (например
 // юзер открыл «Просмотр архива» — устанавливается dealsState.viewArchivedId),
 // показываем её тоже.
-// Доступна ли воронка сотруднику. Админ/директор и «все воронки» (pipelineIds
-// === null) — видят всё. Иначе — только воронки из whitelist orgPerms.pipelineIds.
+// Доступна ли воронка сотруднику. Явный whitelist применяется ко всем ролям.
+// pipelineIds === null означает доступ ко всем воронкам.
 // ?pipeline=<id|название> — открыть СРМ сразу на нужной воронке. Ссылками
 // пользуется App (встроенный канбан проекта), поэтому имя воронки принимается
 // наравне с id: в App известно название, а не внутренний идентификатор.
@@ -9048,10 +9048,10 @@ function resolveRequestedPipelineId() {
 }
 
 function isPipelineAllowed(pid) {
-  if (window.currentUser?.role === 'admin') return true;
   const allowed = window.currentUser?.orgPerms?.pipelineIds;
-  if (!Array.isArray(allowed)) return true; // null = все воронки
-  return allowed.includes(pid);
+  // Явный whitelist важнее роли, в том числе для администраторов филиалов.
+  if (Array.isArray(allowed)) return allowed.includes(pid);
+  return allowed === null || window.currentUser?.role === 'admin';
 }
 
 function getSortedPipelines(opts = {}) {
@@ -9076,7 +9076,7 @@ function getSortedPipelines(opts = {}) {
 // Все архивированные воронки — для Настройки → Воронки.
 function getArchivedPipelines() {
   return Object.values(dealsState.pipelines || {})
-    .filter(p => p.isActive === false || p.isActive === 0);
+    .filter(p => isPipelineAllowed(p.id) && (p.isActive === false || p.isActive === 0));
 }
 
 // PATCH воронки — для архивации/восстановления.
@@ -24850,7 +24850,7 @@ function renderSettingsPipelinesList() {
   if (!wrap) return;
   const all = Object.values(dealsState.pipelines || {});
   const active = all.filter(p => p.isActive !== false && p.isActive !== 0);
-  const archived = all.filter(p => p.isActive === false || p.isActive === 0);
+  const archived = all.filter(p => isPipelineAllowed(p.id) && (p.isActive === false || p.isActive === 0));
   const renderRow = (p, isArch) => {
     const stages = p.stages ? (Array.isArray(p.stages) ? p.stages.length : Object.keys(p.stages).length) : 0;
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--b1);border-radius:8px">
