@@ -32,7 +32,7 @@ export async function practicalRoute(request,env,authorized,onComplete){
  if(path.endsWith('/grade')){
   if(!authorized)return output({error:'Нужен пароль команды'},401);
   const max=[4,3,4,3,3,3],scores=b.scores;
-  if(!Array.isArray(scores)||scores.length!==6||scores.some((v,i)=>!Number.isInteger(v)||v<0||v>max[i])||!['','hire','reserve','reject'].includes(b.decision||''))return output({error:'Проверьте баллы и решение'},400);
+  if(!Array.isArray(scores)||scores.length!==6||scores.some((v,i)=>!Number.isInteger(v)||v<0||v>max[i])||!['','hire','reserve','reject','internship'].includes(b.decision||''))return output({error:'Проверьте баллы и решение'},400);
   const row=await env.DB.prepare("SELECT id FROM submissions WHERE id=? AND stage='practical' AND status<>'in_progress'").bind(String(b.id)).first();
   if(!row)return output({error:'Завершённый результат не найден'},404);
   const total=scores.reduce((x,y)=>x+y,0);

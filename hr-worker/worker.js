@@ -125,7 +125,9 @@ export default {
         const id = decodeURIComponent(gm[1]);
         const b = await request.json();
         const fields = [], vals = [];
-        if(b.reviewed===true){fields.push("reviewed_at=?");vals.push(nowISO());}
+        if (b.decision !== undefined && ![null,'','hire','reserve','reject','internship'].includes(b.decision)) return json({error:'Неизвестный статус кандидата'},400,request);
+        if (b.reviewed !== undefined && typeof b.reviewed !== 'boolean') return json({error:'Некорректная отметка обработки'},400,request);
+        if (b.reviewed !== undefined || b.decision) { fields.push("reviewed_at=?"); vals.push(b.reviewed === false && !b.decision ? null : nowISO()); }
         if (b.decision !== undefined) { fields.push("decision=?"); vals.push(b.decision || null); }
         if (b.notes !== undefined) { fields.push("notes=?"); vals.push((b.notes || "").slice(0, 8000)); }
         if (b.interview !== undefined) { fields.push("interview=?"); vals.push(JSON.stringify(b.interview)); }

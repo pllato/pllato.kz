@@ -89,6 +89,7 @@ details summary{cursor:pointer;font-weight:700;padding:12px 0}
 .hr-home-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}.hr-home-head h1{font-size:26px;margin:0}.hr-home-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.hr-home-actions .btn{background:transparent;border:1px solid var(--line);font-weight:500}.hr-home-actions #hrPushState:empty{display:none}.hr-test-links{margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}.hr-test-links summary{cursor:pointer;color:var(--text-2);font-size:13px;width:fit-content;padding:6px 0}.hr-test-link-row{display:flex;align-items:center;gap:16px;max-width:560px;padding:10px 0}.hr-test-link-row a,.hr-test-link-row a:visited{color:var(--text);font-weight:600;text-decoration:none;flex:1}.hr-test-link-row a:hover{text-decoration:underline}.hr-test-link-row .muted{font-size:12px}.hr-test-link-row .btn{font-size:12px;padding:6px 10px;font-weight:500}.hr-test-links[open] summary{margin-bottom:4px}@media(max-width:480px){.hr-test-link-row{gap:8px;flex-wrap:wrap}.hr-test-link-row .muted{display:none}.hr-home-actions .btn{padding:7px 10px}}
 .hr-table{table-layout:fixed;white-space:normal}.hr-table th,.hr-table td{min-width:0!important;max-width:none!important;overflow-wrap:anywhere}.hr-table th:nth-child(1){width:4%}.hr-table th:nth-child(2){width:22%}.hr-table th:nth-child(3){width:15%}.hr-table th:nth-child(4){width:23%}.hr-table th:nth-child(5){width:12%}.hr-table th:nth-child(6){width:13%}.hr-table th:nth-child(7){width:11%}.hr-mini{width:100%;max-width:160px}.hr-table .pill{white-space:normal}.hr-table .btn{max-width:100%;white-space:normal}.hr-table-wrap{overflow:visible}.hr-mini-row:after{max-width:220px;white-space:normal!important}
 @media(max-width:720px){.hr-table thead{display:none}.hr-table,.hr-table tbody{display:block;width:100%}.hr-table tr{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr);gap:6px 10px;padding:14px 0;border-bottom:1px solid var(--line)}.hr-table td{display:block;border:0;padding:0!important;width:auto!important}.hr-table td:first-child{grid-column:1;grid-row:1 / span 4}.hr-table td:nth-child(2){grid-column:2 / 4}.hr-table td:nth-child(3){grid-column:2}.hr-table td:nth-child(4){grid-column:3;grid-row:2 / span 3}.hr-table td:nth-child(5){grid-column:2;font-size:12px}.hr-table td:nth-child(6){grid-column:2;color:var(--text-2);font-size:12px}.hr-table td:nth-child(7){grid-column:2 / 4;margin-top:4px}.hr-table td:nth-child(6):before{content:'Получен: '}.hr-table td:nth-child(5):before{content:'Решение: '}.hr-mini-row:after{left:auto!important;right:0}.hr-table .nm{font-size:14px}}
+.hr-status-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 14px}.hr-status-tab{display:flex;align-items:center;gap:10px;padding:11px 15px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text-2);font:inherit;font-weight:600;cursor:pointer}.hr-status-tab span{font-size:12px;min-width:20px;text-align:center;color:var(--text-2)}.hr-status-tab.active{background:var(--navy,#0a1628);border-color:var(--navy,#0a1628);color:#fff}.hr-status-tab.active span{color:#fff}.hr-status-tab:focus-visible,.hr-status-select:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}.hr-outcome-filters{margin:0 0 16px;color:var(--text-2);font-size:13px}.hr-outcome-filters summary{cursor:pointer}.hr-status-select{font:inherit;font-size:13px;padding:9px 24px 9px 10px;max-width:190px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);cursor:pointer}.hr-status-select.good{color:#18784e;background:#edf7f1}.hr-status-select.bad{color:#a53c32;background:#fff3f1}.hr-status-select.warn{color:#8b6740;background:#fcf6eb}@media(max-width:600px){.hr-status-tabs{gap:6px}.hr-status-tab{padding:9px 10px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -188,7 +189,7 @@ function cognitiveCheatFlags(d,admin,ans){
 }
 
 /* =============== ДОМ: ввод + список кандидатов =============== */
-let hrFilter=new URLSearchParams(location.search).get('filter')==='new'?'new':'all',hrStage=new URLSearchParams(location.search).get('stage')||'',hrQuery='',hrRows=[];
+let hrFilter=new URLSearchParams(location.search).get('filter')||'new',hrStage=new URLSearchParams(location.search).get('stage')||'',hrQuery='',hrRows=[];
 const hrSelected=new Set();let hrBulkBusy=false;
 function renderHome(){
   hrSelected.clear();
@@ -203,9 +204,9 @@ function renderHome(){
     <div class="hr-test-link-row"><a href="./?stage=iq&tests=cognitive" target="_blank" rel="noopener">IQ · способности ↗</a><span class="muted">≈ 15 мин</span><button class="btn ghost sm" data-copy-test="iq">Копировать ссылку</button></div>
     <div class="hr-test-link-row"><a href="./practical/" target="_blank" rel="noopener">Разбор встречи ↗</a><span class="muted">40 мин</span><button class="btn ghost sm" data-copy-test="practical">Копировать ссылку</button></div>
   </details>
-  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option><option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option><option value="practical">Разбор встречи</option></select><select id="hrDecision" aria-label="Решение менеджера"><option value="">Все решения</option><option value="pending">Без решения</option><option value="hire">Нанять</option><option value="reserve">Резерв</option><option value="reject">Отказ менеджера</option></select></div>
+  <div class="hr-filters"><input id="hrSearch" aria-label="Поиск кандидата" placeholder="Имя, телефон или почта"><select id="hrStage" aria-label="Тест"><option value="">Все тесты</option><option value="personality">Личностный</option><option value="iq">IQ</option><option value="full">Полная анкета</option><option value="practical">Разбор встречи</option></select></div>
   <p class="muted">Личностный профиль рассматривает менеджер. Порог IQ относится к упражнениям и не является решением о найме.</p>
-  <div id="hrStats" class="hr-stats"></div>
+  <nav id="hrStatusTabs" class="hr-status-tabs" aria-label="Статусы кандидатов"></nav><details class="hr-outcome-filters"><summary>Фильтры по результатам тестов</summary><div id="hrStats" class="hr-stats"></div></details>
   <div id="listWrap"><div class="card"><p class="muted" style="margin:0">Загрузка…</p></div></div>
   <details class="card noprint"><summary style="cursor:pointer;font-weight:600">Добавить вручную по коду</summary>
     <p class="muted" style="margin:10px 0 8px">Запасной способ: если кандидат прислал код результата — вставьте его сюда.</p>
@@ -221,7 +222,6 @@ function renderHome(){
   $('#refreshBtn').onclick=renderList;
   $('#hrSearch').value=hrQuery;$('#hrSearch').oninput=e=>{hrQuery=e.target.value;paintCandidates()};
   $('#hrStage').value=hrStage;$('#hrStage').onchange=e=>{hrStage=e.target.value;paintCandidates()};
-  $('#hrDecision').onchange=paintCandidates;
   app.querySelectorAll('[data-copy-test]').forEach(b=>b.onclick=async()=>{const stage=b.dataset.copyTest;const url=new URL(stage==='practical'?'./practical/':stage==='personality'?'/test/':'./?stage=iq&tests=cognitive',location.href);try{await navigator.clipboard.writeText(url.href);toast('Ссылка скопирована')}catch{prompt('Скопируйте ссылку',url.href)}});
 
   $('#analyzeBtn').onclick=()=>analyze($('#codeInput').value);
@@ -229,7 +229,8 @@ function renderHome(){
   $('#fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>analyze(r.result.trim());r.readAsText(f)};
   renderList();
 }
-function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='reserve'?{label:'Резерв',tone:'warn'}:d==='reject'?{label:'Отказ',tone:'bad'}:{label:'',tone:'neutral'}}
+function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='internship'?{label:'На стажировку',tone:'good'}:d==='reserve'?{label:'Претенденты',tone:'warn'}:d==='reject'?{label:'Не прошёл',tone:'bad'}:{label:'Новые',tone:'neutral'}}
+function candidateStatusOptions(value){return [['','Новые'],['reserve','Претенденты'],['reject','Не прошёл'],['internship','На стажировку'],...(value==='hire'?[['hire','Нанять · ранее']]:[])].map(([id,label])=>`<option value="${id}" ${value===id?'selected':''}>${label}</option>`).join('')}
 function stageInfo(s){if(s==='practical')return {label:'Разбор встречи',tone:'neutral'};return s==='personality'?{label:'Этап 1 · личность',tone:'neutral'}:s==='iq'?{label:'Этап 2 · IQ',tone:'warn'}:{label:'Полная оценка',tone:'neutral'}}
 function registryGraph(r){
  const bar=(value,max,tone='',threshold=false)=>{const v=Math.max(0,Math.min(max,Number(value)||0));return `<span class="hr-mini-track ${tone}" role="meter" aria-label="${threshold?'Результат IQ, порог 60':'Показатель'}" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${v}" title="${v} из ${max}${threshold?' · порог 60':''}"><i style="width:${v/max*100}%"></i>${threshold?'<b class="hr-threshold" title="Порог: 60 из 99"></b>':''}</span>`};
@@ -262,38 +263,42 @@ function paintCandidates(){
   if(!$('#listWrap')||!$('#hrStats'))return;
   const stageRows=hrRows.filter(r=>!hrStage||r.stage===hrStage);
   const isNew=r=>r.status!=='in_progress'&&!r.reviewed_at&&!r.decision;
-  const matches=(r,key)=>key==='all'||(key==='new'?isNew(r):key==='processed'?!!r.reviewed_at:r.status===key);
-  const groups=[['new','Новые на проверку'],['all','Все результаты'],['processed','Обработанные'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['needs_retry','Нужно повторить'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
+  const matches=(r,key)=>key==='all'||(key==='new'?isNew(r):key==='processed'?!!r.reviewed_at:['reserve','reject','internship','hire'].includes(key)?r.decision===key:r.status===key);
+  const statusGroups=[['new','Новые'],['reserve','Претенденты'],['reject','Не прошёл'],['internship','На стажировку'],['all','Все']];
+  $('#hrStatusTabs').innerHTML=statusGroups.map(([key,label])=>`<button class="hr-status-tab ${hrFilter===key?'active':''}" aria-pressed="${hrFilter===key}" data-filter="${key}">${label}<span>${stageRows.filter(r=>matches(r,key)).length}</span></button>`).join('');
+  $('#hrStatusTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{hrFilter=b.dataset.filter;const url=new URL(location.href);url.searchParams.set('filter',hrFilter);history.replaceState(null,'',url);paintCandidates()});
+  const groups=[['processed','Обработанные'],['hire','Нанять · ранее'],['in_progress','Проходят сейчас'],['review','На рассмотрении'],['needs_retry','Нужно повторить'],['passed','Порог IQ пройден'],['failed','Ниже порога IQ']];
   $('#hrStats').innerHTML=groups.map(([key,label])=>`<button class="hr-stat ${hrFilter===key?'active':''}" data-filter="${key}"><b>${stageRows.filter(r=>matches(r,key)).length}</b>${label}</button>`).join('');
   $('#hrStats').querySelectorAll('button').forEach(b=>b.onclick=()=>{hrFilter=b.dataset.filter;paintCandidates()});
-  const decision=$('#hrDecision').value,q=hrQuery.toLowerCase().trim();
-  const rows=stageRows.filter(r=>matches(r,hrFilter)&&(!decision||(decision==='pending'?!r.decision:r.decision===decision))&&(!q||[r.name,r.phone,r.email].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.submitted_at||'').localeCompare(a.submitted_at||''));
-  const selectable=new Set(rows.filter(r=>r.status!=='in_progress'&&!r.reviewed_at).map(r=>r.id));
+  const q=hrQuery.toLowerCase().trim();
+  const rows=stageRows.filter(r=>matches(r,hrFilter)&&(!q||[r.name,r.phone,r.email].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.submitted_at||'').localeCompare(a.submitted_at||''));
+  const selectable=new Set(rows.filter(r=>r.status!=='in_progress').map(r=>r.id));
   for(const id of hrSelected)if(!selectable.has(id))hrSelected.delete(id);
-  $('#listWrap').innerHTML=`<div class="card"><div class="row"><h2>Реестр · ${rows.length}</h2><span class="muted">Обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="row" style="margin:12px 0;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="hrSelectAll" aria-label="Выбрать все необработанные результаты в текущем списке" ${!selectable.size?'disabled':''}> Выбрать всех в списке</label><button class="btn sm" id="hrMarkBulk" disabled>Отметить обработанными</button><span class="muted" id="hrSelectionCount"></span></div><p id="hrBulkMessage" role="status" aria-live="polite"></p>${rows.length?`<div class="hr-table-wrap"><table class="hr-table"><thead><tr><th aria-label="Выбор"></th><th>Кандидат / контакт</th><th>Тест</th><th>Результат</th><th>Решение</th><th>Получен</th><th></th></tr></thead><tbody>${rows.map(r=>{const status=statusInfo(r.status),dec=decInfo(r.decision);const phone=String(r.phone||'').replace(/[^+0-9]/g,'');return `<tr><td>${selectable.has(r.id)?`<input type="checkbox" data-hr-select="${esc(r.id)}" aria-label="Выбрать: ${esc(r.name||r.phone||r.id)}" ${hrSelected.has(r.id)?'checked':''}>`:'—'}</td><td><div class="nm">${esc(r.name||'Без имени')}</div>${Number.isInteger(r.age)?`<small>Возраст: ${r.age}</small>`:''}<a href="tel:${phone}">${esc(r.phone||'')}</a>${r.email?`<small>${esc(r.email)}</small>`:''}</td><td>${stageInfo(r.stage).label}<small>${esc(window.HR_POSITIONS[r.fam]?.short||r.fam)}</small></td><td><span class="pill ${status.tone}">${status.label}</span>${registryGraph(r)}${r.reviewed_at?'<small>Обработано</small>':''}${r.status==='in_progress'?`<small>${r.progress||0}% · ${Date.now()-Date.parse(r.updated_at)>300000?'Пауза более 5 мин':'В процессе'}</small>`:''}</td><td>${dec.label||'Без решения'}</td><td>${r.submitted_at?esc(new Date(r.submitted_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'—'}</td><td>${r.status!=='in_progress'?`<button class="btn ghost sm" data-report="${esc(r.id)}">Открыть →</button>`:'<span class="muted">В процессе</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="hr-empty">По выбранным фильтрам кандидатов нет.</div>'}</div>`;
+  $('#listWrap').innerHTML=`<div class="card"><div class="row"><h2>Реестр · ${rows.length}</h2><span class="muted">Обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="row" style="margin:12px 0;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="hrSelectAll" aria-label="Выбрать всех кандидатов в текущем списке" ${!selectable.size?'disabled':''}> Выбрать всех в списке</label><select id="hrBulkStatus" class="hr-status-select" aria-label="Статус выбранных кандидатов"><option value="" disabled selected>Назначить статус…</option><option value="reserve">Претенденты</option><option value="reject">Не прошёл</option><option value="internship">На стажировку</option><option value="new">Вернуть в новые</option></select><button class="btn sm" id="hrApplyStatus" disabled>Применить</button><button class="btn ghost sm" id="hrMarkBulk" disabled>Обработано</button><span class="muted" id="hrSelectionCount"></span></div><p id="hrBulkMessage" role="status" aria-live="polite"></p>${rows.length?`<div class="hr-table-wrap"><table class="hr-table"><thead><tr><th aria-label="Выбор"></th><th>Кандидат / контакт</th><th>Тест</th><th>Результат</th><th>Статус</th><th>Получен</th><th></th></tr></thead><tbody>${rows.map(r=>{const status=statusInfo(r.status),dec=decInfo(r.decision);const phone=String(r.phone||'').replace(/[^+0-9]/g,'');return `<tr><td>${selectable.has(r.id)?`<input type="checkbox" data-hr-select="${esc(r.id)}" aria-label="Выбрать: ${esc(r.name||r.phone||r.id)}" ${hrSelected.has(r.id)?'checked':''}>`:'—'}</td><td><div class="nm">${esc(r.name||'Без имени')}</div>${Number.isInteger(r.age)?`<small>Возраст: ${r.age}</small>`:''}<a href="tel:${phone}">${esc(r.phone||'')}</a>${r.email?`<small>${esc(r.email)}</small>`:''}</td><td>${stageInfo(r.stage).label}<small>${esc(window.HR_POSITIONS[r.fam]?.short||r.fam)}</small></td><td><span class="pill ${status.tone}">${status.label}</span>${registryGraph(r)}${r.reviewed_at?'<small>Обработано</small>':''}${r.status==='in_progress'?`<small>${r.progress||0}% · ${Date.now()-Date.parse(r.updated_at)>300000?'Пауза более 5 мин':'В процессе'}</small>`:''}</td><td>${r.status==='in_progress'?'<span class="muted">Ожидаем результат</span>':`<select class="hr-status-select ${dec.tone}" data-hr-status="${esc(r.id)}" aria-label="Статус: ${esc(r.name||r.phone||r.id)}">${candidateStatusOptions(r.decision||'')}</select>`}</td><td>${r.submitted_at?esc(new Date(r.submitted_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'—'}</td><td>${r.status!=='in_progress'?`<button class="btn ghost sm" data-report="${esc(r.id)}">Открыть →</button>`:'<span class="muted">В процессе</span>'}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="hr-empty">По выбранным фильтрам кандидатов нет.</div>'}</div>`;
   function syncSelection(){
     const count=hrSelected.size,all=$('#hrSelectAll');all.checked=!!count&&count===selectable.size;all.indeterminate=count>0&&count<selectable.size;
-    $('#hrMarkBulk').disabled=hrBulkBusy||!count;$('#hrSelectionCount').textContent=count?'Выбрано: '+count:'';
+    $('#hrMarkBulk').disabled=hrBulkBusy||!count;$('#hrApplyStatus').disabled=hrBulkBusy||!count||!$('#hrBulkStatus').value;$('#hrSelectionCount').textContent=count?'Выбрано: '+count:'';
   }
   $('#hrSelectAll').onchange=e=>{for(const id of selectable){if(e.target.checked)hrSelected.add(id);else hrSelected.delete(id)}$('#listWrap').querySelectorAll('[data-hr-select]').forEach(b=>b.checked=hrSelected.has(b.dataset.hrSelect));syncSelection()};
   $('#listWrap').querySelectorAll('[data-hr-select]').forEach(b=>b.onchange=()=>{if(b.checked)hrSelected.add(b.dataset.hrSelect);else hrSelected.delete(b.dataset.hrSelect);syncSelection()});
-  $('#hrMarkBulk').onclick=markSelectedReviewed;syncSelection();
+  $('#hrMarkBulk').onclick=()=>markSelectedReviewed();$('#hrBulkStatus').onchange=syncSelection;$('#hrApplyStatus').onclick=()=>markSelectedReviewed($('#hrBulkStatus').value);syncSelection();
+  $('#listWrap').querySelectorAll('[data-hr-status]').forEach(el=>el.onchange=()=>markSelectedReviewed(el.value||'new',[el.dataset.hrStatus]));
   $('#listWrap').querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>loadById(b.dataset.report));
 }
-async function markSelectedReviewed(){
-  if(hrBulkBusy||!hrSelected.size)return;
-  const ids=[...hrSelected],failed=[];let done=0;hrBulkBusy=true;
+async function markSelectedReviewed(status,selection){
+  if(hrBulkBusy||!(selection||[...hrSelected]).length)return;
+  const ids=selection||[...hrSelected],failed=[];let done=0;hrBulkBusy=true;
   const controls=[...app.querySelectorAll('button,input,select')];controls.forEach(el=>el.disabled=true);
   $('#hrBulkMessage').textContent='Сохраняем отметки…';
   try{
     for(let offset=0;offset<ids.length;offset+=4){
       await Promise.all(ids.slice(offset,offset+4).map(async id=>{
-        try{await HRStore.markReviewed(id);const row=hrRows.find(r=>r.id===id);if(row)row.reviewed_at=new Date().toISOString();hrSelected.delete(id);done++}catch{failed.push(id)}
+        try{if(status!==undefined)await HRStore.setCandidateStatus(id,status==='new'?'':status);else await HRStore.markReviewed(id);const row=hrRows.find(r=>r.id===id);if(row){row.reviewed_at=status==='new'?null:new Date().toISOString();if(status!==undefined)row.decision=status==='new'?null:status;}hrSelected.delete(id);done++}catch{failed.push(id);hrSelected.add(id)}
       }));
     }
   }finally{
     hrBulkBusy=false;controls.forEach(el=>el.disabled=false);paintCandidates();
-    const msg=$('#hrBulkMessage');if(msg)msg.textContent=failed.length?`Обработано: ${done}. Не удалось сохранить: ${failed.length}. Они остались выбранными — повторите действие.`:`Отмечено обработанными: ${done}.`;
+    const msg=$('#hrBulkMessage');if(msg)msg.textContent=failed.length?`Обработано: ${done}. Не удалось сохранить: ${failed.length}. Они остались выбранными — повторите действие.`:status!==undefined?`Статус сохранён: ${done}.`:`Отмечено обработанными: ${done}.`;
     if(done)try{localStorage.setItem('hr_reviewed_refresh',String(Date.now()))}catch{}
   }
 }
@@ -352,9 +357,10 @@ function renderReport(){
     <div class="row" style="align-items:flex-start">
       <div class="seg dec" id="decSeg">
         <button class="hire ${REC.decision==='hire'?'on':''}" data-d="hire">Нанять</button>
-        <button class="reserve ${REC.decision==='reserve'?'on':''}" data-d="reserve">Резерв</button>
-        <button class="reject ${REC.decision==='reject'?'on':''}" data-d="reject">Отказ</button>
-        <button class="${!REC.decision?'on':''}" data-d="">—</button>
+        <button class="hire ${REC.decision==='internship'?'on':''}" data-d="internship">На стажировку</button>
+        <button class="reserve ${REC.decision==='reserve'?'on':''}" data-d="reserve">Претенденты</button>
+        <button class="reject ${REC.decision==='reject'?'on':''}" data-d="reject">Не прошёл</button>
+        <button class="${!REC.decision?'on':''}" data-d="">Новые</button>
       </div>
     </div>
     <div class="field" style="margin-top:12px"><label>Имя кандидата</label><input type="text" id="nameInp" value="${esc(REC.name)}"></div>
@@ -425,7 +431,7 @@ function renderReport(){
   app.innerHTML=h;
 
   // события
-  $('#decSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{REC.decision=b.dataset.d||null;applyEdit()});
+  $('#decSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{REC.decision=b.dataset.d||null;REC.reviewed_at=REC.decision?new Date().toISOString():null;applyEdit()});
   $('#nameInp').oninput=e=>{REC.name=e.target.value;saveRecSoon()};
   $('#notesInp').oninput=e=>{REC.notes=e.target.value;saveRecSoon()};
   app.querySelectorAll('.pts[data-bd]').forEach(g=>g.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
@@ -659,8 +665,9 @@ setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось под
     me(){ return Promise.resolve({isAdmin:true}); },
     listCandidates(){ return api('/api/hr/submissions').then(d=>(d.items||[]).map(rowToRec)); },
     getCandidate(id){ return api('/api/hr/submission/'+encodeURIComponent(id)).then(d=>d.item?rowToRec(d.item):null); },
-    saveCandidate(rec){ return api('/api/hr/submission/'+encodeURIComponent(rec.id),{method:'PATCH',body:JSON.stringify({decision:rec.decision,notes:rec.notes,name:rec.name,interview:{scores:rec.interview.scores,biodata:rec.biodata}})}).then(()=>{listeners.forEach(cb=>cb());return rec;}); },
+    saveCandidate(rec){ return api('/api/hr/submission/'+encodeURIComponent(rec.id),{method:'PATCH',body:JSON.stringify({decision:rec.decision,reviewed:!!(rec.decision||rec.reviewed_at),notes:rec.notes,name:rec.name,interview:{scores:rec.interview.scores,biodata:rec.biodata}})}).then(()=>{listeners.forEach(cb=>cb());return rec;}); },
     submitCode(payload){ return api('/api/hr/submit',{method:'POST',body:JSON.stringify(payload)}).then(d=>{listeners.forEach(cb=>cb());return d;}); },
+    setCandidateStatus(id,decision){return api('/api/hr/submission/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({decision:decision||null,reviewed:!!decision})});},
     markReviewed(id){return api('/api/hr/submission/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({reviewed:true})});},
     deleteCandidate(id){ return api('/api/hr/submission/'+encodeURIComponent(id),{method:'DELETE'}).then(()=>listeners.forEach(cb=>cb())); },
     getSettings(){ return api('/api/hr/settings').then(d=>d.settings||{}); },
