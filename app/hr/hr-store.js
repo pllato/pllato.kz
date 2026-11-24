@@ -41,6 +41,7 @@
       all[rec.id] = rec; writeAll(all);
       return Promise.resolve(rec);
     },
+    saveCandidateNote(id,notes) { const all=readAll();if(!all[id])return Promise.reject(new Error('Кандидат не найден'));all[id].notes=notes;writeAll(all);return Promise.resolve(); },
     setCandidateStatus(id,decision) { const all=readAll(); if(!all[id])return Promise.reject(new Error('Кандидат не найден')); all[id].decision=decision||null;all[id].reviewed_at=decision?now():null;writeAll(all);return Promise.resolve(); },
     markReviewed(id) { const all=readAll();if(!all[id])return Promise.reject(new Error('Кандидат не найден'));all[id].reviewed_at=now();writeAll(all);return Promise.resolve(); },
     getCandidate(id) { return Promise.resolve(readAll()[id] || null); },
