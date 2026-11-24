@@ -790,9 +790,7 @@ async function handleRtdbGet(env, request, parts, opts, me) {
         : respondSingle(env, request, "companies", "id", rest[0]);
 
     case "pipelines":
-      return rest.length === 0
-        ? respondCollection(env, request, "pipelines", "id", opts)
-        : respondSingle(env, request, "pipelines", "id", rest[0]);
+      return respondPipelinesForUser(env, request, opts, me, rest[0]);
 
     case "customFieldsSchema":
       return respondCustomFieldsSchema(env, request, rest, opts);
@@ -833,8 +831,20 @@ async function handleRtdbGet(env, request, parts, opts, me) {
   }
 }
 
+// Ограничения воронок действуют и для администраторов отдельных филиалов.
+async function respondPipelinesForUser(env, request, opts, me, id) {
+  const allowed = me?.orgPerms?.pipelineIds;
+  if (id) {
+    if (Array.isArray(allowed) && !allowed.includes(id)) return json({error:'pipeline not found'},404,request);
+    return respondSingle(env, request, 'pipelines', 'id', id);
+  }
+  if (!Array.isArray(allowed)) return respondCollection(env, request, 'pipelines', 'id', opts);
+  if (!allowed.length) return json({},200,request);
+  const {results} = await env.DB.prepare(`SELECT * FROM pipelines WHERE id IN (${allowed.map(()=>'?').join(',')})`).bind(...allowed).all();
+  return json(Object.fromEntries((results||[]).map(row=>[row.id,opts.shallow?true:rowToCamel(row,'pipelines')])),200,request);
+}
+
 function dealAccessSql(me) {
-  if (me?.role === "admin") return { where: "", params: [] };
   const permissions = me?.orgPerms || {};
   const clauses = [];
   const params = [];
@@ -845,7 +855,7 @@ function dealAccessSql(me) {
       params.push(...permissions.pipelineIds);
     }
   }
-  if (permissions.dealScope !== "all") {
+  if (me?.role !== "admin" && permissions.dealScope !== "all") {
     const uid = String(me?.canonicalUid || "");
     const allPipelines=(permissions.viewAllPipelineIds||[]).filter(id=>!Array.isArray(permissions.pipelineIds)||permissions.pipelineIds.includes(id));
     const own=uid?'responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?':'1 = 0';
@@ -2105,7 +2115,8 @@ async function handleList(request, env, entity) {
 
   // ──── Phase 2 + A: применение прав из ORG STRUCTURE ────
   // me.orgPerms = {isDirector, pipelineIds, dealScope, teamUids}
-  // Если юзер админ или Директор — никаких доп. ограничений (видит всё).
+  // Явный whitelist воронок ограничивает и администраторов филиалов.
+  // У Директора pipelineIds=null, поэтому он продолжает видеть все воронки.
   // Иначе применяем как HARD LIMIT поверх scope-фильтра фронта:
   //   * pipelineIds — список разрешённых воронок (если null = все, только deals)
   //   * dealScope (юзер изменил решение — теперь применяется И к контактам):
@@ -2115,7 +2126,7 @@ async function handleList(request, env, entity) {
   // Применяется к: deals, contacts. Не применяется к: pipelines, users (мета).
   // tasks — исключены: у задач своя строгая видимость «только свои» (см. блок выше),
   // org-perms не должен ANDить её и терять соисполнителей/наблюдателей.
-  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
+  if (me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
     const op = me.orgPerms;
     // Pipeline whitelist — hard limit даже для общего календаря. Так отдельный
     // календарь пробных уроков не раскрывает сделки пользователям без доступа
@@ -2131,7 +2142,7 @@ async function handleList(request, env, entity) {
     }
     // allEvents снимает персональный own/team scope внутри разрешённой воронки,
     // но никогда не снимает сам whitelist воронок.
-    if (!calendarAllEvents && op.dealScope !== 'all') {
+    if (!calendarAllEvents && me.role !== 'admin' && op.dealScope !== 'all') {
       const fields=cfg.mineFields||[],jsonFields=cfg.mineJsonFields||[];
       const uids=op.dealScope==='team'?Array.from(op.teamUids||[]):[me.canonicalUid].filter(Boolean);
       const orC=[];
@@ -6459,9 +6470,9 @@ async function handleWaListChannelsPublic(request, env) {
   }
 
   // Permission filter — если у юзера whitelist pipelineIds (orgPerms), скрываем
-  // каналы которые routing на чужие воронки. Admin/director — видит всё.
+  // каналы с маршрутизацией на чужие воронки, независимо от роли.
   let allowed = results;
-  if (me.role !== 'admin' && me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
+  if (me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
     const whitelist = new Set(me.orgPerms.pipelineIds);
     allowed = results.filter(r => !r.default_pipeline_id || whitelist.has(r.default_pipeline_id));
   }
@@ -12008,7 +12019,7 @@ async function handleAnalyticsFunnels(request, env) {
   const me = await resolveCanonicalUser(env, auth.claims);
 
   let allowed = null;
-  if (me.role !== 'admin' && me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
+  if (me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
     allowed = new Set(me.orgPerms.pipelineIds);
   }
 
