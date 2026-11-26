@@ -7,6 +7,7 @@ import {ensureActiveChatMemberships} from './chat-membership-lifecycle.js';
 import { normalPhone, findRecordingCall, recordingToken, lookupRecordingLinks } from './call-recordings.js';
 import {resolvePllatoDemoStages} from './demo-chart.js';
 import { greenApiHost } from './green-api-host.js';
+import { channelCreatesLeads } from './wa-channel-policy.js';
 import { managerStageError, managerPatchError } from './manager-stage-gate.js';
 import { assignLeadManagers, handleLeadDistribution } from './lead-distribution.js';
 import { DurableObject } from 'cloudflare:workers';
@@ -5083,7 +5084,7 @@ async function getFirstStageId(env, pipelineId) {
 // существующую). Учитываем все стадии (включая closed=1) чтобы revive потом
 // мог их вернуть из «Провал» в «Новые».
 async function ensureDealForWaContact(env, channel, contactId, contactName, phone, options = {}) {
-  if (!channel.default_pipeline_id) return null;
+  if (!channelCreatesLeads(channel)) return null;
   // 1) Точный поиск по contactId (быстрый путь — если 1 контакт = 1 сделка)
   let existing = await env.DB.prepare(`
     SELECT id FROM deals
@@ -5266,6 +5267,7 @@ async function syncWaChatShells(env) {
   let failed = 0;
 
   for (const channel of channels) {
+    if (!channelCreatesLeads(channel)) continue;
     const now = Date.now();
     try {
       const providerChats = await fetchWaProviderChats(channel);
@@ -5518,7 +5520,7 @@ async function handleWaWebhook(request, env) {
   let contactId = null;
   if (!isGroup && evt.phone) contactId = await findOrCreateContactByPhone(env, evt.phone, evt.senderName);
   let dealId = null;
-  if (evt.direction === 'in' && contactId && channel.default_pipeline_id) {
+  if (evt.direction === 'in' && contactId && channelCreatesLeads(channel)) {
     dealId = await ensureDealForWaContact(env, channel, contactId, evt.senderName, evt.phone);
     // Auto-routing: ВСЕ сделки в воронке с этим телефоном (не только dealId)
     // — если в Fail-стадии, переводим в первую активную. Несколько сделок
@@ -6491,6 +6493,7 @@ async function handleWaListChannelsPublic(request, env) {
   const items = allowed.map(r => ({
     id: r.id,
     idInstance: r.id_instance,
+    createsLeads: channelCreatesLeads(r),
     displayName: r.display_name || ('Канал ' + r.id_instance),
     pipelineId: r.default_pipeline_id,
     pipelineName: r.default_pipeline_id ? (pipelineNames[r.default_pipeline_id] || '—') : null,
@@ -6656,6 +6659,7 @@ async function handleWaChannelBackfillDeals(request, env, channelId) {
   if (!channel.default_pipeline_id) {
     return json({ error: "у канала не задана воронка — сначала привяжите её" }, 400, request);
   }
+  if (!channelCreatesLeads(channel)) return json({error:'Технический номер: создание лидов отключено'}, 409, request);
   let chats = [];
   try {
     const { results } = await env.DB.prepare(
