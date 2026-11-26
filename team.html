@@ -32,7 +32,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-11-26.astana-calendar-v3';
+  const TEAM_APP_BUILD = '2026-11-26.astana-access-v4';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -3300,6 +3300,11 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
 .wa-msg .wa-ts,.dc-wa-body .wa-msg .wa-ts { display:block;float:none;clear:both;margin:5px 0 0;text-align:right;font-size:11px;line-height:1.4;font-variant-numeric:tabular-nums;color:#59665d;opacity:1; }
 html[data-theme="dark"] .wa-msg .wa-ts,html:not([data-theme="light"]) .wa-msg .wa-ts { color:#bcc9c3; }
 
+
+.tb .astana-pipeline-access{order:3;display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;flex:0 0 auto;min-height:34px;margin:0 0 0 auto;padding:7px 11px;cursor:pointer;color:var(--ac2);font:600 12px/1.2 var(--fb);white-space:nowrap;}
+.tb .astana-pipeline-access:hover{background:var(--acbg);border-color:var(--ac2);}
+.tb .astana-pipeline-access:disabled{opacity:.6;cursor:wait;}
+@media(max-width:600px){.tb .astana-pipeline-access{margin-left:0;}}
 </style>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -10070,6 +10075,15 @@ function saveCacheDealsThrottled() { /* no-op */ }
 // ── Paginated list view (для view='list') ──────────────────────────────
 // Серверная пагинация через /api/list/deals. По умолчанию — этот путь.
 // Фильтры (q/stage/responsible) dispatchaются на сервер, страница ≈ 50 сделок.
+function astanaPipelineAccessButton(){
+  if(dealsState.activePipelineId!==ASTANA||!window.currentUser||!isPipelineAllowed(ASTANA))return '';
+  return '<button type="button" class="tb-select astana-pipeline-access" data-astana-access title="Источники, уровни и общий доступ к ELC Astana и календарю"><span aria-hidden="true">⚙</span> Списки и доступ</button>';
+}
+async function openAstanaPipelineSettings(button){
+  if(button)button.disabled=true;
+  try{await astanaAdmissions.settings();}catch(error){showToast(error.message||'Не удалось загрузить настройки Astana');}
+  finally{if(button?.isConnected)button.disabled=false;}
+}
 function renderPipelineTabs() {
   const pipelines = getSortedPipelines();
   if (!pipelines.length) {
@@ -10258,13 +10272,14 @@ async function archivePipelineFromTab(pipelineId, pipelineName) {
 }
 
 function attachPipelineTabHandlers(el) {
+  el.querySelectorAll('[data-astana-access]').forEach(button=>{button.onclick=()=>openAstanaPipelineSettings(button);});
   el.querySelectorAll('.pipe-tab[data-pipeline-id]').forEach(b => {
     b.addEventListener('click', (e) => {
       // Если клик по шестерёнке настройки полей — открываем модал, не переключаем
       const cfg = e.target.closest('[data-cfg-pipeline]');
       if (cfg) {
         e.stopPropagation();
-        openPipelineCardFieldsModal(cfg.dataset.cfgPipeline);
+        if(cfg.dataset.cfgPipeline===ASTANA)openAstanaPipelineSettings();else openPipelineCardFieldsModal(cfg.dataset.cfgPipeline);
         return;
       }
       // Если клик по архивной иконке — не переключаем, обрабатываем отдельно
@@ -10346,6 +10361,7 @@ function renderDealsLayoutPaged(el) {
     ${renderPipelineTabs()}
 
     <div class="tb">
+      ${astanaPipelineAccessButton()}
       <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию (Enter)" value="${escapeHtml(dealsState.search)}">
       <select class="tb-select" id="stage-filter">
         <option value="">Все стадии</option>
@@ -10702,6 +10718,7 @@ function renderDealsLayout(el) {
     ${renderPipelineTabs()}
 
     <div class="tb">
+      ${astanaPipelineAccessButton()}
       <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию..." value="${escapeHtml(dealsState.search)}">
       <select class="tb-select" id="stage-filter">
         <option value="">Все стадии</option>
