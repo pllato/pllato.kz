@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>СтальКоил · склад рулонов · демо</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231d2226'/><circle cx='50' cy='50' r='30' fill='none' stroke='%23f2b705' stroke-width='10'/><circle cx='50' cy='50' r='10' fill='%23f2b705'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --ink:#1d2226;--ink2:#272e33;--ink3:#3a434a;--steel:#8a979f;--steel2:#c3ccd1;--zinc:#e6ebee;
+ --paper:#f3f4f2;--card:#fff;--line:#dde1e3;--line2:#c4cacd;
+ --y:#f2b705;--yl:#fff4cc;--yd:#8a6800;
+ --text:#1b2125;--muted:#5f6a71;--muted2:#98a2a8;
+ --ok:#2b7a46;--okl:#dcf0e3;--bad:#b3261e;--badl:#f9e0de;--blue:#25608f;--bluel:#e1edf7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Golos Text',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--paper);line-height:1.45}
+.mono,.num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+button{font:inherit;cursor:pointer}
+/* гейт: торец рулона + этикетка */
+.gate{min-height:100vh;display:grid;grid-template-columns:1fr 430px;background:var(--ink)}
+.gl{color:#eef1f2;padding:56px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.coil{position:absolute;right:-120px;top:50%;transform:translateY(-50%);width:420px;height:420px;border-radius:50%;background:repeating-radial-gradient(circle,#3a434a 0 3px,#2b3237 3px 7px);opacity:.55}
+.coil:after{content:"";position:absolute;inset:150px;border-radius:50%;background:var(--ink);border:6px solid var(--y)}
+.gbrand{display:flex;gap:12px;align-items:center;margin-bottom:30px;position:relative}
+.gbrand b{display:block;font-size:20px;letter-spacing:.12em}.gbrand small{color:var(--y);font-size:12px}
+.gl h1{font-size:38px;line-height:1.12;max-width:600px;font-weight:800;margin-bottom:16px;position:relative}
+.gl h1 em{font-style:normal;color:var(--y)}
+.gl p{max-width:540px;color:#c3ccd1;font-size:15px;position:relative}
+.glabel{position:relative;margin-top:30px;background:#fff;color:var(--text);max-width:420px;font-family:'JetBrains Mono',monospace;font-size:12px;border-left:8px solid var(--y)}
+.glabel div{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid var(--line)}
+.glabel div:last-child{border-bottom:0}.glabel span{color:var(--muted)}
+.gr{background:var(--paper);display:flex;align-items:center;justify-content:center;padding:40px 28px}
+.lf{width:100%;max-width:360px}.lf h2{font-size:22px;margin-bottom:4px}.lf>p{color:var(--muted);font-size:13px;margin-bottom:16px}
+.role{display:flex;gap:12px;align-items:center;padding:12px;background:var(--card);border:1px solid var(--line);margin-bottom:8px;cursor:pointer}
+.role:hover{border-color:var(--ink)}
+.rav{width:38px;height:38px;flex:none;display:grid;place-items:center;background:var(--ink);color:var(--y);font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace}
+.role b{display:block}.role span{font-size:12px;color:var(--muted)}
+.lnote{margin-top:14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}.lnote b{display:block;color:var(--text)}
+/* приложение: левая колонка разделов + подпункты-чипы */
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.side{background:var(--ink);color:#d9dfe2;padding:16px 0;position:sticky;top:0;height:100vh;overflow:auto}
+.sb{display:flex;gap:10px;align-items:center;padding:0 16px 16px;border-bottom:1px solid var(--ink3);margin-bottom:10px}
+.sb b{font-size:14px;letter-spacing:.1em;display:block;color:#fff}.sb small{font-size:11px;color:var(--y)}
+#rail .ri{padding:9px 16px;cursor:pointer;font-size:13px;display:flex;gap:10px;align-items:center;border-left:3px solid transparent}
+#rail .ri span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--steel)}
+#rail .ri.on{background:var(--ink2);color:#fff;border-left-color:var(--y)}
+.sfoot{padding:14px 16px;border-top:1px solid var(--ink3);margin-top:12px;font-size:12px}
+.sfoot select{width:100%;background:var(--ink2);color:#fff;border:1px solid var(--ink3);padding:6px;font:inherit;font-size:12px;margin:6px 0}
+.sfoot button{width:100%;background:var(--y);color:var(--ink);border:0;padding:7px;font-weight:700;font-size:12px}
+.sync1c{display:flex;align-items:center;gap:6px;color:#b9c3c8;font-size:11px;margin-top:10px}
+.wrap{min-width:0}
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 24px 0}
+.top a{font-size:13px;padding:6px 12px;border:1px solid var(--line2);background:var(--card);cursor:pointer;color:var(--muted)}
+.top a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.me{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.me b{width:30px;height:30px;display:grid;place-items:center;background:var(--y);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px}
+.main{padding:12px 24px 70px;max-width:1360px}
+.vh{font-size:25px;font-weight:800;margin:8px 0 14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.g21{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+.g2>*,.g3>*,.g21>*{min-width:0}
+.box{background:var(--card);border:1px solid var(--line);padding:16px;margin-bottom:16px}
+.box h3{font-size:15px;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.box h3 small{font-weight:400;color:var(--muted);font-size:12px}
+.kpi{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line);background:var(--card);margin-bottom:16px}
+.kpi div{padding:12px 14px;border-right:1px solid var(--line)}.kpi div:last-child{border-right:0}
+.kpi small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.kpi b{font-family:'JetBrains Mono',monospace;font-size:20px}.kpi i{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:7px 8px;border-bottom:2px solid var(--line2);white-space:nowrap}
+.t td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.t .r,.t th.r{text-align:right}
+.t tr.hl td{background:var(--yl)}
+.t tr.click{cursor:pointer}.t tr.click:hover td{background:var(--zinc)}
+.tag{font-size:11px;padding:1px 6px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag.ok{border-color:var(--ok);color:var(--ok)}.tag.bad{border-color:var(--bad);color:var(--bad)}.tag.y{border-color:var(--yd);color:var(--yd);background:var(--yl)}.tag.b{border-color:var(--blue);color:var(--blue)}
+.sw{display:inline-block;width:12px;height:12px;border:1px solid rgba(0,0,0,.25);vertical-align:-2px;margin-right:5px}
+.bt{background:var(--ink);color:#fff;border:0;padding:8px 14px;font-size:13px}
+.bt.y{background:var(--y);color:var(--ink);font-weight:700}
+.bt.o{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.bt.s{padding:4px 9px;font-size:12px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.bar{height:7px;background:var(--zinc)}.bar i{display:block;height:100%;background:var(--steel)}.bar.y i{background:var(--y)}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.said{border-left:4px solid var(--y);background:var(--card);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 14px;margin-bottom:16px;font-size:13px}
+.said b{font-size:11px;letter-spacing:.06em;color:var(--yd);display:block}.said i{display:block}.said .sa{color:var(--muted);margin-top:3px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}.kv:last-child{border-bottom:0}
+.inp{border:1px solid var(--line2);padding:7px 8px;font:inherit;font-size:13px;background:#fff;width:100%}
+.inp.sm{width:90px}
+.fld{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
+.fld.hit .inp{background:var(--yl);border-color:var(--y)}
+.steps{display:flex;margin-bottom:14px;flex-wrap:wrap}
+.steps div{flex:1;min-width:120px;padding:8px 10px;font-size:12px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.steps div.on{background:var(--ink);color:#fff;border-color:var(--ink)}.steps div.dn{background:var(--okl);color:var(--ok)}
+/* этикетки заводов */
+.lbl{background:#fff;color:var(--text);border:1px solid var(--line2);font-family:'JetBrains Mono',monospace;font-size:11px;position:relative}
+.lbl .lh{background:var(--ink);color:#fff;padding:6px 8px;font-size:11px;display:flex;justify-content:space-between}
+.lbl table{width:100%;border-collapse:collapse}.lbl td{border:1px solid var(--line);padding:3px 6px}.lbl td:first-child{color:var(--muted);width:42%}
+.lbl .bc{height:34px;margin:6px 8px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 4px,#fff 4px 7px,#111 7px 8px,#fff 8px 10px)}
+.lbl .qrm{width:64px;height:64px;margin:6px;background:conic-gradient(#111 25%,#fff 0 50%,#111 0 75%,#fff 0) 0 0/16px 16px;border:4px solid #111;float:right}
+.lbl .hit{background:var(--yl);outline:2px solid var(--y)}
+.cam{background:#111;color:#fff;padding:12px;position:relative;min-height:220px}
+.cam .frame{position:absolute;inset:26px;border:2px dashed var(--y)}
+.cam .lbl{max-width:320px;margin:24px auto 0;transform:rotate(-2deg)}
+.cam small{position:absolute;left:12px;bottom:8px;color:var(--y);font-family:'JetBrains Mono',monospace;font-size:11px}
+/* схема склада */
+.zones{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.zone{background:var(--card);border:1px solid var(--line);padding:10px}
+.zone h4{font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between}
+.row{display:grid;grid-template-columns:28px repeat(10,1fr);gap:3px;margin-bottom:3px;align-items:center}
+.row>span{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+.cell{aspect-ratio:1;border:1px solid var(--line2);background:var(--zinc);cursor:pointer;display:grid;place-items:center;font-size:9px;font-family:'JetBrains Mono',monospace}
+.cell.f{border-color:rgba(0,0,0,.35)}
+.cell.hl{outline:3px solid var(--y);outline-offset:1px}
+.cell.dim{opacity:.18}
+.leg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:10px}
+/* телефон кладовщика */
+.phone{width:350px;max-width:100%;border:11px solid var(--ink);border-radius:32px;background:var(--paper);padding:12px;margin:0 auto}
+.ph{font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+.big{display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;background:var(--card);border:1px solid var(--line);font-size:15px;font-weight:700}
+.big small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.big.y{background:var(--y);border-color:var(--y)}
+.task{background:var(--ink);color:#fff;padding:12px;margin-bottom:8px;font-size:13px}.task b{color:var(--y);display:block;font-size:15px}
+.mbg{position:fixed;inset:0;background:rgba(20,24,27,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}
+.mbg.show{display:flex}
+.modal{background:var(--card);max-width:640px;width:100%;max-height:88vh;overflow:auto;padding:20px;border-top:5px solid var(--y)}
+.modal h3{font-size:18px}.ms{color:var(--muted);font-size:13px;margin:4px 0 12px}
+.btns.l{justify-content:flex-end}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 16px;font-size:13px;max-width:560px;width:calc(100% - 28px);opacity:0;pointer-events:none;transition:.25s;z-index:60;border-left:5px solid var(--y)}
+.toast.show{opacity:1}
+@media (max-width:900px){
+ .gate{grid-template-columns:1fr}.gl{padding:34px 20px}.gl h1{font-size:27px}.coil{display:none}
+ .app{grid-template-columns:1fr}
+ .side{position:static;height:auto;padding:10px 0}.sb{padding:0 12px 10px;margin-bottom:6px}
+ #rail{display:flex;overflow-x:auto;scrollbar-width:none}#rail .ri{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;padding:8px 12px}#rail .ri.on{border-bottom-color:var(--y)}
+ .sfoot{display:none}
+ .top,.main{padding-left:12px;padding-right:12px}
+ .g2,.g3,.g21,.zones{grid-template-columns:1fr}
+ .kpi{grid-template-columns:1fr 1fr}.kpi div{border-bottom:1px solid var(--line)}
+ .fld{grid-template-columns:1fr}
+ .me span{display:none}
+ .toast{left:12px;right:12px;width:auto;transform:none}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+ <div class="gl"><div class="coil"></div>
+  <div class="gbrand"><svg width="44" height="44" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#272e33"/><circle cx="50" cy="50" r="30" fill="none" stroke="#f2b705" stroke-width="10"/><circle cx="50" cy="50" r="10" fill="#f2b705"/></svg><div><b>СТАЛЬКОИЛ</b><small>склад рулонов · 4 цеха</small></div></div>
+  <h1>Каждый рулон — <em>с адресом, историей и сразу в 1С.</em></h1>
+  <p>Приход без бумаги: камера телефона читает этикетку завода, система печатает свой QR и подсказывает место. По заявке из 1С кладовщик видит, какой именно рулон взять и в какой цех везти. Воронку и продажи не трогаем — они уже работают в вашей 1С.</p>
+  <div class="glabel"><div><span>Coil No.</span><b>HX-2611-0418</b></div><div><span>Grade</span><b>DX51D+Z · RAL 3005</b></div><div><span>Size</span><b>0.45 × 1250 mm</b></div><div><span>Net weight</span><b>6 140 kg</b></div><div><span>Место</span><b>B-2-07</b></div></div>
+ </div>
+ <div class="gr"><div class="lf"><h2>Вход</h2><p>Выберите роль — у каждой свои экраны.</p><div id="roles"></div>
+  <div class="lnote"><b>Демо на вымышленных данных</b>Компания, заводы, рулоны и цены придуманы. Ваши этикетки, номенклатуру 1С и схему склада подставим после встречи.</div></div></div>
+</section>
+<div class="app hidden" id="app">
+ <aside class="side">
+  <div class="sb"><svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#272e33"/><circle cx="50" cy="50" r="30" fill="none" stroke="#f2b705" stroke-width="12"/></svg><div><b>СТАЛЬКОИЛ</b><small>склад рулонов</small></div></div>
+  <nav id="rail"></nav>
+  <div class="sfoot">Роль<select id="rsel" aria-label="Роль" onchange="switchRole(this.value)"></select><button onclick="tour()">▶ Сценарий показа</button><div class="sync1c"><span class="sw" style="background:#2b7a46;border:0;width:8px;height:8px"></span><span id="syncst">обмен с 1С: онлайн</span></div></div>
+ </aside>
+ <div class="wrap">
+  <div class="top" id="tabs"></div>
+  <main class="main"><h1 class="vh" id="ttl">СтальКоил</h1><div id="content"></div></main>
+ </div>
+</div>
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()"><div class="modal"><h3 id="mt"></h3><div class="ms" id="ms"></div><div id="mbody"></div><div class="btns l"><button class="bt o" onclick="closeM()">Закрыть</button></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/app/rulony-evgeny.js"></script>
+</body></html>
