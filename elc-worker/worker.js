@@ -449,6 +449,7 @@ async function canEditRecord(env, me, tableName, recordId) {
     `SELECT ${cols} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
   ).bind(recordId).first();
   if (!row) return false; // не существует — пусть write пройдёт как INSERT? Нет, INSERT через PUT — отдельный кейс.
+  if(tableName==='deals'&&Array.isArray(me.orgPerms?.pipelineIds)&&!me.orgPerms.pipelineIds.includes(row.pipeline_id))return false;
   if(tableName==='deals'&&row.pipeline_id===ASTANA_PIPELINE)return Boolean(astanaAllowed(me));
   if(me.role==='admin')return true;
 
@@ -1624,6 +1625,10 @@ async function handleRtdbWrite(env, request, parts, me) {
       const existsRow = await env.DB.prepare(
         `SELECT ${keyCol}${tableName==='deals' ? ', pipeline_id' : ''} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
       ).bind(id).first();
+      if(tableName==='deals'&&Array.isArray(me.orgPerms?.pipelineIds)){
+        const targetPipeline=body.pipelineId??body.pipeline_id??existsRow?.pipeline_id;
+        if(!me.orgPerms.pipelineIds.includes(targetPipeline))return json({error:'Нет доступа к этой воронке'},403,request);
+      }
       // Сделки и события нельзя «успешно» править по уже отсутствующему ID:
       // 404 оставляет данные в форме и показывает пользователю реальную ошибку.
       if (!existsRow && request.method === "PATCH" && (tableName === "deals" || tableName === "tasks")) {
@@ -3971,6 +3976,7 @@ async function handleDealStageChange(request, env, dealId) {
     return json({ error: "invalid rejectReason (allowed: " + [...REJECT_REASONS].join(", ") + ")" }, 400, request);
   }
   if (!pipelineId || !stageId) return json({ error: "pipelineId and stageId required" }, 400, request);
+  if(Array.isArray(me.orgPerms?.pipelineIds)&&!me.orgPerms.pipelineIds.includes(pipelineId))return json({error:'Нет доступа к этой воронке'},403,request);
 
   // Сначала сохраняем прежнюю owner-проверку. Если сделка ещё никому не
   // назначена (типичный новый Facebook lead), разрешаем смену этапа тому,

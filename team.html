@@ -32,7 +32,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-11-26.astana-edit-v5';
+  const TEAM_APP_BUILD = '2026-11-26.pipeline-edit-scope-v6';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -20431,6 +20431,7 @@ function canManageTaskFront(t) {
 // Можно ли сменить ответственного в сделке (показать affordance).
 // Сервер всё равно проверяет canEditRecord (admin / владелец / менеджер отдела).
 function canEditDealFront(deal) {
+  if(!isPipelineAllowed(deal.pipelineId))return false;
   const cu = window.currentUser || {};
   if(deal.pipelineId===ASTANA)return !!window.currentUser&&isPipelineAllowed(ASTANA);
   if (cu.role === 'admin' || cu.role === 'manager') return true;

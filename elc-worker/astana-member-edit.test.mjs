@@ -3,7 +3,7 @@ import {ASTANA_PIPELINE,astanaAllowed,astanaEditTargetAllowed} from './astana-ad
 const source=fs.readFileSync(new URL('./worker.js',import.meta.url),'utf8');
 function setup(){const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE deals(id,pipeline_id,responsible_uid,created_by_uid,modify_by_uid);CREATE TABLE contacts(id,responsible_uid,created_by_uid,modify_by_uid);INSERT INTO deals VALUES('a','${ASTANA_PIPELINE}','other','other','other'),('b','other-pipeline','other','other','other'),('mine','other-pipeline','staff','other','other');INSERT INTO contacts VALUES('c','other','other','other');`);const context=vm.createContext({ASTANA_PIPELINE,astanaAllowed,Set,JSON});const start=source.indexOf('async function canEditRecord('),end=source.indexOf('\n}',start)+2;vm.runInContext(source.slice(start,end),context);let reads=0;const env={DB:{prepare(sql){return {bind(...args){reads++;return {first:async()=>db.prepare(sql).get(...args)||null};}}}}};return {db,context,env,reads:()=>reads};}
 const staff={canonicalUid:'staff',role:'agent',email:'staff@x.kz',orgPerms:{pipelineIds:[ASTANA_PIPELINE],viewAllPipelineIds:[ASTANA_PIPELINE],dealScope:'own'}};
-test('every admitted staff member can edit a card belonging to another person only inside Astana',async()=>{const f=setup();assert.equal(await f.context.canEditRecord(f.env,staff,'deals','a'),true);assert.equal(f.reads(),1);assert.equal(await f.context.canEditRecord(f.env,staff,'deals','b'),false);assert.equal(await f.context.canEditRecord(f.env,staff,'contacts','c'),false);assert.equal(await f.context.canEditRecord(f.env,staff,'deals','mine'),true);});
+test('every admitted staff member can edit a card belonging to another person only inside Astana',async()=>{const f=setup();assert.equal(await f.context.canEditRecord(f.env,staff,'deals','a'),true);assert.equal(f.reads(),1);assert.equal(await f.context.canEditRecord(f.env,staff,'deals','b'),false);assert.equal(await f.context.canEditRecord(f.env,staff,'contacts','c'),false);assert.equal(await f.context.canEditRecord(f.env,staff,'deals','mine'),false);});
 test('revocation closes editing even for an old owner and a branch administrator',async()=>{const f=setup();f.db.prepare('UPDATE deals SET responsible_uid=? WHERE id=?').run('staff','a');for(const role of ['agent','admin'])assert.equal(await f.context.canEditRecord(f.env,{...staff,role,orgPerms:{pipelineIds:['other-pipeline']}},'deals','a'),false);});
 test('Astana membership never grants moving a card into another pipeline',()=>{assert.equal(astanaEditTargetAllowed(staff,ASTANA_PIPELINE,ASTANA_PIPELINE),true);assert.equal(astanaEditTargetAllowed(staff,ASTANA_PIPELINE,'other-pipeline'),false);assert.equal(astanaEditTargetAllowed({...staff,role:'admin'},ASTANA_PIPELINE,'other-pipeline'),false);assert.equal(astanaEditTargetAllowed({...staff,email:'uurraa@gmail.com'},ASTANA_PIPELINE,'other-pipeline'),true);});
 test('front-end edit controls follow Astana access independently of who owns the card',()=>{const html=fs.readFileSync(new URL('../team.html',import.meta.url),'utf8'),start=html.indexOf('function canEditDealFront('),end=html.indexOf('\n}',start)+2;let allowed=true;const ctx=vm.createContext({ASTANA:ASTANA_PIPELINE,window:{currentUser:{role:'agent'}},isPipelineAllowed:()=>allowed,_myTaskUids:()=>new Set(['staff'])});vm.runInContext(html.slice(start,end),ctx);assert.equal(ctx.canEditDealFront({pipelineId:ASTANA_PIPELINE,responsibleUid:'other'}),true);assert.equal(Boolean(ctx.canEditDealFront({pipelineId:'other',responsibleUid:'other'})),false);allowed=false;assert.equal(ctx.canEditDealFront({pipelineId:ASTANA_PIPELINE,responsibleUid:'staff'}),false);});
@@ -16,3 +16,24 @@ test('stage endpoint accepts an Astana member for a non-owned card and denies an
 });
 
 test('explicit all-pipeline access also permits Astana editing for non-admin staff',async()=>{const f=setup();assert.equal(await f.context.canEditRecord(f.env,{...staff,orgPerms:{pipelineIds:null,dealScope:'all'}},'deals','a'),true);assert.equal(Boolean(astanaAllowed({role:'agent'})),false);});
+
+test('pipeline whitelist blocks old owners and restricted admins outside Astana',async()=>{const f=setup();for(const role of ['agent','manager','admin']){const me={...staff,role};assert.equal(await f.context.canEditRecord(f.env,me,'deals','mine'),false);assert.equal(await f.context.canEditRecord(f.env,me,'deals','b'),false);assert.equal(await f.context.canEditRecord(f.env,me,'deals','a'),true);}assert.equal(await f.context.canEditRecord(f.env,{...staff,role:'admin',orgPerms:{pipelineIds:null}},'deals','b'),true);});
+
+test('direct writes cannot create or move a deal into a forbidden pipeline',async()=>{
+ const f=setup(),ctx=f.context;
+ Object.assign(ctx,{JSON_COLS:{},LEGACY_INVALID_DEAL_IDS:new Set(),json:(data,status)=>({data,status})});
+ const start=source.indexOf('async function handleRtdbWrite('),end=source.indexOf('      // Сделки и события нельзя',start);
+ vm.runInContext(source.slice(start,end)+'return json({ok:true},200,request);}}}',ctx);
+ for(const [id,method,body] of [['new','PUT',{pipelineId:'other-pipeline'}],['a','PATCH',{pipelineId:'other-pipeline'}],['mine','PATCH',{title:'Изменить'}]]){
+  const r=await ctx.handleRtdbWrite(f.env,new Request('https://test',{method,body:JSON.stringify(body)}),['deals',id],staff);
+  assert.equal(r.status,403);
+ }
+ const r=await ctx.handleRtdbWrite(f.env,new Request('https://test',{method:'PATCH',body:JSON.stringify({title:'Astana'})}),['deals','a'],staff);assert.equal(r.status,200);
+});
+test('cached foreign cards never show edit controls even for an old owner or restricted admin',()=>{
+ const html=fs.readFileSync(new URL('../team.html',import.meta.url),'utf8');
+ const start=html.indexOf('function canEditDealFront('),end=html.indexOf('\n}',start)+2;
+ const ctx=vm.createContext({ASTANA:ASTANA_PIPELINE,window:{currentUser:{role:'admin'}},isPipelineAllowed:pid=>pid===ASTANA_PIPELINE,_myTaskUids:()=>new Set(['staff'])});vm.runInContext(html.slice(start,end),ctx);
+ assert.equal(ctx.canEditDealFront({pipelineId:'other-pipeline',responsibleUid:'staff'}),false);
+ assert.equal(ctx.canEditDealFront({pipelineId:ASTANA_PIPELINE,responsibleUid:'other'}),true);
+});
