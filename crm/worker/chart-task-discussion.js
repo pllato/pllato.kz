@@ -18,10 +18,13 @@ export async function handleTaskDiscussion(request,env,actor,taskId,deps){
  let body;try{body=await request.json();}catch{throw new HttpError(400,'Некорректный запрос');}
  const text=String(body?.text||'').trim();
  if(!text||text.length>4000)throw new HttpError(400,'Напишите комментарий до 4000 символов');
+ const mentions=Array.isArray(body.mentions)?[...new Set(body.mentions.filter(x=>typeof x==='string').map(x=>x.trim().toLowerCase()))]:[];
+ if(mentions.length>10)throw new HttpError(400,'Можно упомянуть до 10 сотрудников');
  const now=Date.now();
- const item={id:prefix+String(now).padStart(13,'0')+':'+crypto.randomUUID(),taskId,text,author:String(actor.email||''),authorName:String(actor.user?.name||actor.email||''),createdAt:now};
+ const item={id:prefix+String(now).padStart(13,'0')+':'+crypto.randomUUID(),taskId,text,mentions,author:String(actor.email||''),authorName:String(actor.user?.name||actor.email||''),createdAt:now};
  await db.prepare('INSERT INTO store(team_id,collection,id,data,created_at,updated_at) VALUES(?,?,?,?,?,?)')
   .bind(teamId,TASK_COMMENTS_COLLECTION,item.id,JSON.stringify(item),now,now).run();
+ if(deps.notify)await deps.notify(task,item);
  return {ok:true,item};
 }
 
