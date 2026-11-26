@@ -1,7 +1,7 @@
 export const ASTANA_PIPELINE='pipeline_2zttlx';
 const CONFIG_KEY='pipeline:astana:admissions';
 const defaults={sources:['WhatsApp','Instagram','Facebook','Рекомендация','Другое'],levels:['Не определён','Beginner','Elementary','Pre-Intermediate','Intermediate','Upper-Intermediate','Advanced']};
-export function astanaAllowed(me){if(me?.userRecord?.active===0||me?.userRecord?.active===false)return false;return me?.email==='uurraa@gmail.com'||(me?.orgPerms?.pipelineIds==null&&me?.role==='admin')||me?.orgPerms?.pipelineIds?.includes(ASTANA_PIPELINE);}
+export function astanaAllowed(me){if(me?.userRecord?.active===0||me?.userRecord?.active===false)return false;return me?.email==='uurraa@gmail.com'||(me?.orgPerms?.pipelineIds==null&&(me?.role==='admin'||me?.orgPerms?.pipelineIds===null))||me?.orgPerms?.pipelineIds?.includes(ASTANA_PIPELINE);}
 // Участие в Astana даёт работу со всеми её заявками; перенос в другую
 // воронку не является частью этого разрешения.
 export function astanaEditTargetAllowed(me,source,target){

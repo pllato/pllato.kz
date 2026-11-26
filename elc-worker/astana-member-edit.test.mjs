@@ -14,3 +14,5 @@ test('stage endpoint accepts an Astana member for a non-owned card and denies an
  const start=source.indexOf('async function handleDealStageChange('),end=source.indexOf('  const managerError=',start);vm.runInContext(source.slice(start,end)+'return json({ok:true},200,request);}',ctx);
  for(const [pipelineId,status] of [[ASTANA_PIPELINE,200],['other-pipeline',403]]){const r=await ctx.handleDealStageChange(new Request('https://test',{method:'PATCH',body:JSON.stringify({pipelineId,stageId:'IN_PROGRESS'})}),f.env,'a');assert.equal(r.status,status);}
 });
+
+test('explicit all-pipeline access also permits Astana editing for non-admin staff',async()=>{const f=setup();assert.equal(await f.context.canEditRecord(f.env,{...staff,orgPerms:{pipelineIds:null,dealScope:'all'}},'deals','a'),true);assert.equal(Boolean(astanaAllowed({role:'agent'})),false);});
