@@ -1,3 +1,4 @@
+import {notifyTask,taskRecipients,validateTaskSchedule,handleTaskReminders} from './chart-task-reminders.js';
 import {TASK_COMMENTS_COLLECTION,handleTaskDiscussion,handleTaskDiscussionSummaries,sharedTaskEditable} from './chart-task-discussion.js';
 import {insertChartTaskIfAbsent} from './chart-task-create.js';
 import {handleContractOtp} from './contract-otp.js';
@@ -899,7 +900,7 @@ async function handleStorePull(request, env, actor) {
   };
 }
 
-async function handleStorePush(request, env, actor) {
+async function handleStorePush(request, env, actor, ctx) {
   const body = await readRequestBodyAsJson(request);
   const ops = Array.isArray(body.ops) ? body.ops : [];
   if (ops.length === 0) return { ok: true, applied: 0 };
@@ -921,15 +922,18 @@ async function handleStorePush(request, env, actor) {
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
     }
+    let previousTask=null;
     if (collection === "chart_week_tasks") {
       const finance = canAccessProjectFinance(actor)?null:(taskFinance??=await financeForAccess(env));
       const old = await d1GetDoc(env, collection, op.item?.id || op.id);
+      previousTask=old;
       const target=old||op.item;
       const allowed=task=>canAccessProjectFinance(actor)||(Boolean(task)&&financeTaskVisible(task,finance,actor));
       if ((!canAccessProjectFinance(actor) && !sharedTaskEditable(target,allowed(target))) || (old && op.item && old.kind!==op.item.kind)) {
         throw new HttpError(403, "Нет доступа к изменению этого дела");
       }
       if(op.item){
+        validateTaskSchedule(op.item,HttpError);
         // Thread identity is server-owned. Moving a task carries its discussion,
         // but arbitrary client IDs cannot attach an unrelated private thread.
         op.item.discussionId=old?.discussionId||old?.id||op.item.id;
@@ -968,6 +972,10 @@ async function handleStorePush(request, env, actor) {
         }
       }
       await d1UpsertDoc(env, collection, op.item, actor.email);
+      if(collection==='chart_week_tasks'&&!op.item.deleted&&!op.item.movedToTaskId&&op.item.assigneeEmail&&String(previousTask?.assigneeEmail||'').toLowerCase()!==String(op.item.assigneeEmail).toLowerCase()){
+        const stamp=String(op.item.assigneeUpdatedAt||op.item.updatedAt||Date.now()).padStart(13,'0');
+        await notifyTask(env,actor,op.item,{kind:'assigned',eventId:stamp+':assigned:'+encodeURIComponent(op.item.id)+':'+encodeURIComponent(op.item.assigneeEmail),text:'Назначено дело',recipients:[op.item.assigneeEmail]},await taskReminderDeps(env,actor,ctx));
+      }
       applied += 1;
       // Хук: новая полевая сделка — собираем для Telegram-уведомления.
       // Принимаем источники Field / field (case-insensitive). Раньше требовали
@@ -2602,11 +2610,22 @@ function financeTaskOwner(task, finance) {
   return String(task?.sourceProjectId ? finance.money?.[task.sourceProjectId]?.managerEmail || "" : task?.managerEmail ?? task?.author ?? "").toLowerCase();
 }
 function financeTaskVisible(task, finance, actor) {
+  if(String(task.assigneeEmail||'').toLowerCase()===String(actor.email||'').toLowerCase())return true;
   const access = financeAccess(finance, actor, task.kind);
   const owner = financeTaskOwner(task, finance);
   return access.tasks === "all" || (access.tasks === "own" && owner === String(actor.email || "").toLowerCase())
     || (access.tasks === "selected" && access.taskManagers.includes(owner));
 }
+async function taskReminderDeps(env,actor,ctx){
+ const db=requireStoreDb(env),finance=await financeForAccess(env);
+ const allowed=(task,who)=>canAccessProjectFinance(who)||financeTaskVisible(task,finance,who);
+ return {db,teamId:TEAM_ID,HttpError,ctx,
+  canAccess:task=>allowed(task,actor),
+  getTasks:async ids=>{if(!ids.length)return [];const {results}=await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection='chart_week_tasks' AND id IN (${ids.map(()=>'?').join(',')})`).bind(TEAM_ID,...ids).all();return (results||[]).map(r=>JSON.parse(r.data));},
+  canReceive:async(email,task)=>{const user=await d1GetUserByEmail(env,email);if(!user||user.apps?.app===false)return false;return allowed(task,{email,user,isAdmin:!!(user.isAdmin||user.isSuperAdmin),isRoot:!!(user.isSuperAdmin||email===ROOT_SUPER_ADMIN)});}
+ };
+}
+
 async function financeForAccess(env) {
   return normalizeProjectFinance(await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID) || {});
 }
@@ -8781,7 +8800,7 @@ async function handle1cPullPayments(request, env, actor) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders(request, env) });
     }
@@ -8952,6 +8971,12 @@ export default {
         return json(request, env, await handleProjectFinanceChartDetails(env, actor, url));
       }
 
+      if(path.startsWith('/project-finance/task-reminders')){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        const deps=await taskReminderDeps(env,actor,ctx);
+        return json(request,env,await handleTaskReminders(request,env,actor,deps));
+      }
+
       if(path==='/project-finance/task-discussion-summaries'){
         const actor=await loadActorContext(request,env,{strictTeamCheck:true});
         const finance=canAccessProjectFinance(actor)?null:await financeForAccess(env),db=requireStoreDb(env);
@@ -8962,6 +8987,15 @@ export default {
         }));
       }
 
+      const taskById=path.match(/^\/project-finance\/tasks\/([^/]+)$/);
+      if(taskById&&request.method==='GET'){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        const task=await d1GetDoc(env,'chart_week_tasks',decodeURIComponent(taskById[1]));
+        const deps=await taskReminderDeps(env,actor,ctx);
+        if(!task||task.deleted||!await deps.canAccess(task))throw new HttpError(404,'Дело не найдено или нет доступа');
+        return json(request,env,{ok:true,task});
+      }
+
       const taskDiscussion=path.match(/^\/project-finance\/tasks\/([^/]+)\/comments$/);
       if(taskDiscussion){
         const actor=await loadActorContext(request,env,{strictTeamCheck:true});
@@ -8970,6 +9004,7 @@ export default {
         return json(request,env,await handleTaskDiscussion(request,env,actor,taskId,{
           HttpError,teamId:TEAM_ID,db:requireStoreDb(env),
           getTask:id=>d1GetDoc(env,'chart_week_tasks',id),
+          notify:async(task,item)=>{const mentions=item.mentions||[];await notifyTask(env,actor,task,{kind:mentions.length?'mention':'comment',eventId:String(item.createdAt).padStart(13,'0')+':'+item.id,text:item.text,recipients:taskRecipients(task,actor,mentions)},await taskReminderDeps(env,actor,ctx));},
           canAccess:task=>canAccessProjectFinance(actor)||financeTaskVisible(task,finance,actor)
         }));
       }
@@ -9014,7 +9049,7 @@ export default {
 
       if (request.method === "POST" && path === "/store/push") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handleStorePush(request, env, actor));
+        return json(request, env, await handleStorePush(request, env, actor, ctx));
       }
 
       // 1С:Фреш интеграция (OData) — только для админов тенанта
