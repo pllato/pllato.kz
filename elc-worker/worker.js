@@ -1,4 +1,4 @@
-import {handleAstanaAdmissions,ASTANA_PIPELINE} from './astana-admissions.js';
+import {handleAstanaAdmissions,ASTANA_PIPELINE,astanaAllowed,astanaEditTargetAllowed} from './astana-admissions.js';
 import {handleCalendarUpcoming} from './calendar-upcoming.js';
 import { META_TEST, isMetaTestChat, handleMetaTest, sendMetaTest, ensureMetaTestSchema } from './wa-meta-test.js';
 import {waDeliveryStatus} from './wa-delivery-status.js';
@@ -425,7 +425,7 @@ async function auditLog(env, me, action, targetType, targetId, meta) {
 // manager → если запись принадлежит кому-то из его отдела (включая его самого)
 // agent   → только если запись принадлежит ему (responsible/created_by/changed_by/accomplices/auditors)
 async function canEditRecord(env, me, tableName, recordId) {
-  if (me.role === 'admin') return true;
+  if (me.role === 'admin'&&tableName!=='deals') return true;
   if (!me.canonicalUid) return false;
 
   // Какие поля считаем "принадлежностью" в каждой таблице
@@ -443,11 +443,13 @@ async function canEditRecord(env, me, tableName, recordId) {
   if (!lookup) return me.role === 'admin';
 
   const keyCol = 'id'; // все эти таблицы используют id (users — uid, но он не сюда)
-  const cols = [...lookup, ...(jsonOwnerFields[tableName] || [])].join(', ');
+  const cols = [...lookup, ...(jsonOwnerFields[tableName] || []),...(tableName==='deals'?['pipeline_id']:[])].join(', ');
   const row = await env.DB.prepare(
     `SELECT ${cols} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
   ).bind(recordId).first();
   if (!row) return false; // не существует — пусть write пройдёт как INSERT? Нет, INSERT через PUT — отдельный кейс.
+  if(tableName==='deals'&&row.pipeline_id===ASTANA_PIPELINE)return Boolean(astanaAllowed(me));
+  if(me.role==='admin')return true;
 
   // Собираем uid'ы которые "владеют" этой записью
   const ownerUids = new Set();
@@ -1619,7 +1621,7 @@ async function handleRtdbWrite(env, request, parts, me) {
     } else {
       // Если запись существует — проверяем canEditRecord. Если нет (PUT-INSERT) — пропускаем.
       const existsRow = await env.DB.prepare(
-        `SELECT ${keyCol} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
+        `SELECT ${keyCol}${tableName==='deals' ? ', pipeline_id' : ''} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
       ).bind(id).first();
       // Сделки и события нельзя «успешно» править по уже отсутствующему ID:
       // 404 оставляет данные в форме и показывает пользователю реальную ошибку.
@@ -1630,6 +1632,7 @@ async function handleRtdbWrite(env, request, parts, me) {
         }, 404, request);
       }
       if (existsRow) {
+        if(tableName==='deals'&&!astanaEditTargetAllowed(me,existsRow.pipeline_id,body.pipelineId??body.pipeline_id))return json({error:'Нет права переноса этой карточки в другую воронку'},403,request);
         const allowed = await canEditRecord(env, me, tableName, id);
         if (!allowed) {
           return json({
@@ -3979,6 +3982,7 @@ async function handleDealStageChange(request, env, dealId) {
     "SELECT id, pipeline_id, stage_id, mirrored_in, responsible_uid, custom_fields FROM deals WHERE id = ? LIMIT 1"
   ).bind(dealId).first();
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
+  if(!astanaEditTargetAllowed(me,deal.pipeline_id,pipelineId))return json({error:'Нет права переноса этой карточки в другую воронку'},403,request);
 
   const managerError=await managerStageError(env,deal,pipelineId,stageId);
   if(managerError) return json(managerError,422,request);
