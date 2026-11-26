@@ -32,7 +32,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-11-26.pipeline-edit-scope-v6';
+  const TEAM_APP_BUILD = '2026-11-26.astana-operators-v7';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -3463,9 +3463,12 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 </div>
 
 <!-- Firebase SDK -->
-<link rel="stylesheet" href="/app/elc/astana.css?v=2">
+<link rel="stylesheet" href="/app/elc/astana.css?v=4">
 <script type="module">
-import {createAstana,ASTANA} from '/app/elc/astana.js?v=3';
+import {createAstana,ASTANA} from '/app/elc/astana.js?v=4';
+import {stagePalette} from '/app/elc/stage-colors.js';
+function dealStageColor(stage,pipelineId=dealsState.activePipelineId){return pipelineId===ASTANA?stagePalette(stage).color:stage?.semantics==='S'?'#3fd88e':stage?.semantics==='F'?'#f05975':'#a87fff';}
+function stageBadgeStyle(stage){const p=stagePalette(stage);return `background:${p.color};color:${p.text};border:1px solid ${p.border};`;}
 import { openLeadDistribution } from './app/lead-distribution.js?v=20261010-pairs';
 import { mountDealCardNavigation } from './app/deal-card-navigation.js?v=20261008';
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20261008-admins-default';
@@ -10438,7 +10441,7 @@ function dealListCell(d,key){
     const field=key.slice(3),meta=dealsState.customSchema?.[field]||{},raw=d.customFields?.[field];
     if(!Array.isArray(raw)&&(!raw||typeof raw!=='object')&&['string','text','integer','double','number','money','boolean','enumeration','date','datetime','user','checklist'].includes(meta.type||meta.dataType||'string'))return '<td style="min-width:160px;max-width:320px">'+renderCfEditableCell(field,raw,meta,getDealRecordId(d))+'</td>';
   }
-  if(key==='stageId')value=dealsState.pipeline?.stages?.[d.stageId]?.name||d.stageId;
+  if(key==='stageId'){const stage=dealsState.pipeline?.stages?.[d.stageId];if(dealsState.activePipelineId===ASTANA)return `<td><span class="badge" style="${stageBadgeStyle(stage)}">${escapeHtml(stage?.name||d.stageId)}</span></td>`;value=stage?.name||d.stageId;}
   if(key==='kepManagerUid') value=(d.customFields?.kepManagerUid?getUserDisplayName(d.customFields.kepManagerUid):'Не назначен');
   if(key==='responsibleUid'){const u=dealsState.users[d.responsibleUid];value=u?`${u.lastName||''} ${u.name||u.email||''}`.trim():'Не назначен';}
   if(key==='opportunity')value=d.opportunity!=null?Number(d.opportunity).toLocaleString('ru')+' '+(d.currency||'₸'):'';
@@ -10483,7 +10486,7 @@ function renderDealsPagedTable() {
     const isSelected = dealsPagedState.selectedIds.has(recordId);
     const stage = dealsState.pipeline?.stages?.[d.stageId];
     const stageName = stage?.name || d.stageId || '—';
-    const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
+    const stageColor = dealStageColor(stage);
     const respUser = dealsState.users[d.responsibleUid];
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() || respUser.email || '—' : '—';
     const opp = d.opportunity || 0;
@@ -10956,7 +10959,7 @@ function renderDealsList(c, arr) {
   for (const d of slice) {
     const stage = dealsState.pipeline?.stages?.[d.stageId];
     const stageName = stage?.name || d.stageId || '—';
-    const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
+    const stageColor = dealStageColor(stage);
     const respUser = dealsState.users[d.responsibleUid];
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
     const opp = d.opportunity || 0;
@@ -10964,7 +10967,7 @@ function renderDealsList(c, arr) {
 
     html += `<tr class="row" data-deal-id="${escapeHtml(getDealPublicId(d))}">
       <td class="name-cell" style="width:42%">${escapeHtml(d.title || '(без названия)')}</td>
-      <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
+      <td style="width:18%"><span class="badge" style="${dealsState.activePipelineId===ASTANA?stageBadgeStyle(stage):'color:'+stageColor+';border-color:'+stageColor+'55;background:'+stageColor+'22'}">${escapeHtml(stageName)}</span></td>
       <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
       <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
       <td style="width:8%;color:var(--t3);font-size:11px">${date}</td>
@@ -11088,7 +11091,7 @@ function renderDealsKanban(c, arr) {
   for (const s of stages) {
     const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
-    const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const stageColor = dealStageColor(s);
     // «Крышка» рендера стадии: по умолчанию MAX_PER_COL, растёт шагами при кликах
     // «… ещё» (НЕ показываем все сразу — иначе тысячи карточек подвешивают DOM).
     const _stKey = dealsState.activePipelineId + ':' + s.statusId;
@@ -11101,10 +11104,10 @@ function renderDealsKanban(c, arr) {
     html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}" style="--stage-color: ${stageColor}">
       <div class="kanban-col-header">
         <input type="checkbox" class="deal-stage-select" data-select-stage="${escapeHtml(s.statusId)}" aria-label="Выбрать все сделки стадии ${escapeHtml(s.name)}" title="Выбрать все сделки стадии с текущими фильтрами">
-        <span class="stage-dot"></span>
-        <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
+        <span class="stage-dot" style="${dealsState.activePipelineId===ASTANA?'border:1px solid '+stagePalette(s).border:''}"></span>
+        <span class="stage-title" style="${dealsState.activePipelineId===ASTANA?stageBadgeStyle(s)+'padding:3px 6px;border-radius:4px;':'color:'+stageColor}">${escapeHtml(s.name)}</span>
         ${window.currentUser?.role==='admin' && s.statusId===(stages.find(st=>/^нов(ая|ые|ый)$/i.test(st.name?.trim()))||stages[0]).statusId ? `<button type="button" class="tbtn tbtn-sm" data-lead-distribution="${escapeHtml(s.statusId)}" title="Распределение лидов" aria-label="Настройки распределения лидов" style="padding:4px 7px;min-height:32px">⚙</button>`:''}
-        <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${colTotal.toLocaleString('ru')}</span>
+        <span class="col-count" style="${dealsState.activePipelineId===ASTANA?stageBadgeStyle(s):'color:'+stageColor+';background:'+stageColor+'22;border:1px solid '+stageColor+'55'}">${colTotal.toLocaleString('ru')}</span>
       </div>
       <button class="kanban-add-deal" data-stage="${escapeHtml(s.statusId)}" title="Создать сделку в этой стадии">+ Сделка</button>
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
@@ -13098,7 +13101,7 @@ function openQuickAddDealModal(stageId) {
   document.getElementById('_qad-modal')?.remove();
   const stages = getStagesSorted();
   const stage = stages.find(s => s.statusId === stageId);
-  const stageColor = stage?.semantics === 'S' ? '#3fd88e' : stage?.semantics === 'F' ? '#f05975' : '#a87fff';
+  const stageColor = dealStageColor(stage);
   const pipelineId = dealsState.activePipelineId;
   if (!pipelineId) {
     alert('Сначала выберите воронку');
@@ -13896,9 +13899,9 @@ function showStageQuickPick(dealId, anchorBtn) {
   }
   let html = `<div class="sqp-header">Перенести в стадию</div>`;
   for (const s of stages) {
-    const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const stageColor = dealStageColor(s);
     html += `<div class="sqp-item" data-stage-id="${escapeHtml(s.statusId)}">
-      <span class="sqp-dot" style="background:${stageColor}"></span>
+      <span class="sqp-dot" style="background:${stageColor};border:1px solid ${dealsState.activePipelineId===ASTANA?stagePalette(s).border:stageColor}"></span>
       <span>${escapeHtml(s.name)}</span>
     </div>`;
   }
@@ -14678,7 +14681,7 @@ async function openDealCard(dealKey) {
   const stageBarHtml = stages.map((s, idx) => {
     const isPast = currentStageIdx >= 0 && idx < currentStageIdx;
     const isCurrent = s.statusId === deal.stageId;
-    const sColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const sColor = dealStageColor(s);
     const bg = isCurrent ? sColor : (isPast ? `${sColor}33` : 'var(--bg3)');
     const color = isCurrent ? '#fff' : (isPast ? sColor : 'var(--t3)');
     return `<button class="dc-stage-btn ${isCurrent ? 'active' : ''}" data-stage-id="${escapeHtml(s.statusId)}" style="background:${bg};color:${color};border-color:${isCurrent || isPast ? sColor + '55' : 'var(--b1)'}">
@@ -16971,13 +16974,13 @@ window.openContactCard = async function(key) {
       for (const d of relatedDeals.slice(0, 20)) {
         const stage = dealsState.pipeline?.stages?.[d.stageId];
         const stageName = stage?.name || d.stageId || '—';
-        const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
+        const stageColor = dealStageColor(stage);
         html += `<div onclick="closeDealCard();setTimeout(()=>openDealCard('${escapeHtml(d.bitrixId)}'),100)" style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.title || '(без названия)')}</div>
             <div style="font-size:11px;color:var(--t3);margin-top:2px">${d.opportunity ? d.opportunity.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</div>
           </div>
-          <span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span>
+          <span class="badge" style="${dealsState.activePipelineId===ASTANA?stageBadgeStyle(stage):'color:'+stageColor+';border-color:'+stageColor+'55;background:'+stageColor+'22'}">${escapeHtml(stageName)}</span>
         </div>`;
       }
       if (relatedDeals.length > 20) {

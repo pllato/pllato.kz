@@ -1,3 +1,4 @@
+import {assignLeadManagers} from './lead-distribution.js';
 export const ASTANA_PIPELINE='pipeline_2zttlx';
 const CONFIG_KEY='pipeline:astana:admissions';
 const defaults={sources:['WhatsApp','Instagram','Facebook','Рекомендация','Другое'],levels:['Не определён','Beginner','Elementary','Pre-Intermediate','Intermediate','Upper-Intermediate','Advanced']};
@@ -22,6 +23,12 @@ export function validateAdmissions(body,config){
 function lists(input){const result={};for(const key of ['sources','levels']){if(!Array.isArray(input[key])||input[key].length>100)throw Error('Список должен содержать до 100 значений');result[key]=[...new Set(input[key].map(s=>String(s).trim()).filter(Boolean))];if(!result[key].length||result[key].some(s=>s.length>100))throw Error('Укажите непустой список, до 100 символов в значении');}return result;}
 async function configFor(env){const row=await env.DB.prepare('SELECT v FROM kv WHERE k=?').bind(CONFIG_KEY).first();return {...defaults,...parse(row?.v)};}
 function admission(row){const cf=parse(row.custom_fields),contactPhones=parse(row.contact_phones,[]);return {id:row.id,bitrixId:row.bitrix_id,pipelineId:row.pipeline_id,stageId:row.stage_id,responsibleUid:row.responsible_uid,contactId:row.contact_id,customFields:cf,name:cf.astanaName||[row.contact_last_name,row.contact_name].filter(Boolean).join(' ')||row.title,phone:cf.astanaPhone||contactPhones[0]?.value||'',trialLessonAt:cf.trialLessonAt||'',source:(!cf.astanaSourceManual&&row.source_id==='META_AD')?'Instagram':cf.astanaSource||(/^WhatsApp/.test(row.source_description||'')?'WhatsApp':/^Instagram/.test(row.source_description||'')?'Instagram':row.source_description||''),level:cf.astanaLevel||'',note:cf.astanaNote??row.comments??'',channelId:cf.astanaChannelId||null};}
+async function assigneesFor(env,me,currentUid){
+ const row=await env.DB.prepare("SELECT v FROM kv WHERE k='org:fieldConfig'").first(),cfg=parse(row?.v)[ASTANA_PIPELINE]||{};
+ const ids=[...new Set([...(cfg.accessMemberUids||[]),me.canonicalUid].filter(Boolean))];
+ const {results}=await env.DB.prepare(`SELECT uid,name,last_name,email,active FROM users WHERE (active=1 AND (uid IN (${ids.map(()=>'?').join(',')||"''"}) OR lower(email)='uurraa@gmail.com')) OR uid=? ORDER BY name LIMIT 500`).bind(...ids,currentUid||'').all();
+ return results.map(u=>({uid:u.uid,name:[u.name,u.last_name].filter(Boolean).join(' ')||u.email,assignable:u.active===1&&(ids.includes(u.uid)||u.email==='uurraa@gmail.com')}));
+}
 const SELECT=`SELECT d.*,c.name AS contact_name,c.last_name AS contact_last_name,c.phones AS contact_phones FROM deals d LEFT JOIN contacts c ON c.id=d.contact_id`;
 export async function handleAstanaAdmissions(request,env,deps){
  const {json,requireAuthFlexible,resolveCanonicalUser,rowToCamel,auditLog,logStageEvent}=deps;
@@ -31,7 +38,7 @@ export async function handleAstanaAdmissions(request,env,deps){
  const config=await configFor(env);
  try{
   if(tail==='settings'){
-   if(method==='GET'){const p=await env.DB.prepare('SELECT stages FROM pipelines WHERE id=?').bind(ASTANA_PIPELINE).first();return json({ok:true,config,stages:parse(p?.stages)},200,request);}
+   if(method==='GET'){const p=await env.DB.prepare('SELECT stages FROM pipelines WHERE id=?').bind(ASTANA_PIPELINE).first();return json({ok:true,config,stages:parse(p?.stages),assignees:await assigneesFor(env,me)},200,request);}
    if(method!=='PUT')return json({error:'Метод не поддерживается'},405,request);
    const incoming=lists(await request.json());await env.DB.prepare('INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind(CONFIG_KEY,JSON.stringify(incoming)).run();await auditLog(env,me,'astana_lists_update','pipelines',ASTANA_PIPELINE,{});return json({ok:true,config:incoming},200,request);
   }
@@ -52,13 +59,13 @@ export async function handleAstanaAdmissions(request,env,deps){
   }
   if(tail==='calendar'&&method==='GET'){
    const from=url.searchParams.get('from'),to=url.searchParams.get('to');if(!/^\d{4}-\d{2}-\d{2}$/.test(from||'')||!/^\d{4}-\d{2}-\d{2}$/.test(to||'')||!(Date.parse(to)>Date.parse(from))||Date.parse(to)-Date.parse(from)>62*864e5)throw Error('Укажите диапазон до 62 дней');
-   const {results}=await env.DB.prepare(SELECT+` WHERE d.pipeline_id=? AND json_valid(d.custom_fields) AND json_extract(d.custom_fields,'$.trialLessonAt')>=? AND json_extract(d.custom_fields,'$.trialLessonAt')<? ORDER BY json_extract(d.custom_fields,'$.trialLessonAt') LIMIT 501`).bind(ASTANA_PIPELINE,from,to).all();return json({ok:true,items:results.slice(0,500).map(admission),truncated:results.length>500},200,request);
+   const {results}=await env.DB.prepare(SELECT+` WHERE d.pipeline_id=? AND json_valid(d.custom_fields) AND json_extract(d.custom_fields,'$.trialLessonAt')>=? AND json_extract(d.custom_fields,'$.trialLessonAt')<? ORDER BY json_extract(d.custom_fields,'$.trialLessonAt') LIMIT 501`).bind(ASTANA_PIPELINE,from,to).all();return json({ok:true,items:results.slice(0,500).map(admission),truncated:results.length>500,stages:parse((await env.DB.prepare('SELECT stages FROM pipelines WHERE id=?').bind(ASTANA_PIPELINE).first())?.stages)},200,request);
   }
   const match=tail.match(/^deal(?:\/([^/]+))?$/);if(!match)return json({error:'Не найдено'},404,request);
   const id=match[1]?decodeURIComponent(match[1]):null;
   let old=id?await env.DB.prepare(SELECT+' WHERE d.id=? AND d.pipeline_id=?').bind(id,ASTANA_PIPELINE).first():null;
   if(id&&!old)return json({error:'Сделка не найдена'},404,request);
-  if(method==='GET'&&old){const p=await env.DB.prepare('SELECT stages FROM pipelines WHERE id=?').bind(ASTANA_PIPELINE).first();return json({ok:true,item:admission(old),deal:rowToCamel(old,'deals'),config,stages:parse(p?.stages)},200,request);}
+  if(method==='GET'&&old){const p=await env.DB.prepare('SELECT stages FROM pipelines WHERE id=?').bind(ASTANA_PIPELINE).first();return json({ok:true,item:admission(old),deal:rowToCamel(old,'deals'),config,stages:parse(p?.stages),assignees:await assigneesFor(env,me,old.responsible_uid)},200,request);}
   if(!['POST','PUT'].includes(method))return json({error:'Метод не поддерживается'},405,request);
   if((method==='POST'&&id)||(method==='PUT'&&!id))throw Error('Некорректный запрос');
   const body=await request.json(),legacy=old?admission(old):{},value=validateAdmissions(body,{sources:[...config.sources,legacy.source],levels:[...config.levels,legacy.level]}),now=new Date().toISOString();
@@ -66,10 +73,19 @@ export async function handleAstanaAdmissions(request,env,deps){
   const stage=String(body.stageId||old?.stage_id||'NEW');if(!stages[stage])throw Error('Неизвестная стадия ELC Astana');
   const cf={...parse(old?.custom_fields),astanaName:value.name,astanaPhone:value.phone,astanaSource:value.source,astanaSourceManual:true,astanaLevel:value.level,astanaNote:value.note,trialLessonAt:value.trialLessonAt,trialLessonSetByUid:me.canonicalUid||me.firebaseUid};
   const dealId=old?.id||'deal_astana_'+crypto.randomUUID(),bitrix=old?.bitrix_id||dealId.slice(5);
-  if(old)await env.DB.prepare('UPDATE deals SET title=?,source_description=?,custom_fields=?,stage_id=?,closed=?,bitrix_date_modify=?,modify_by_uid=? WHERE id=? AND pipeline_id=?').bind(value.name,value.source,JSON.stringify(cf),stage,['S','F'].includes(stages[stage].semantics)?1:0,now,me.canonicalUid,dealId,ASTANA_PIPELINE).run();
-  else await env.DB.prepare('INSERT INTO deals(id,bitrix_id,title,pipeline_id,stage_id,responsible_uid,created_by_uid,source_description,custom_fields,bitrix_date_create,bitrix_date_modify) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(dealId,bitrix,value.name,ASTANA_PIPELINE,stage,me.canonicalUid,me.canonicalUid,value.source,JSON.stringify(cf),now,now).run();
+  let responsible=old?.responsible_uid||null;
+  const selected=body.responsibleUid;
+  if(selected!==undefined&&selected!==null&&typeof selected!=='string')throw Error('Выберите ответственного');
+  if(selected&&selected!==responsible){
+   const users=await assigneesFor(env,me,responsible);
+   if(!users.some(u=>u.uid===selected&&u.assignable))throw Error('У ответственного должен быть действующий доступ к ELC Astana');
+   responsible=selected;
+  }else if(old&&selected==='')responsible=null;
+  if(!old&&!responsible){const assigned=await assignLeadManagers(env,ASTANA_PIPELINE,'NEW',dealId);responsible=assigned?.leadUid||me.canonicalUid;}
+  if(old)await env.DB.prepare('UPDATE deals SET title=?,source_description=?,custom_fields=?,stage_id=?,responsible_uid=?,closed=?,bitrix_date_modify=?,modify_by_uid=? WHERE id=? AND pipeline_id=?').bind(value.name,value.source,JSON.stringify(cf),stage,responsible,['S','F'].includes(stages[stage].semantics)?1:0,now,me.canonicalUid,dealId,ASTANA_PIPELINE).run();
+  else await env.DB.prepare('INSERT INTO deals(id,bitrix_id,title,pipeline_id,stage_id,responsible_uid,created_by_uid,source_description,custom_fields,bitrix_date_create,bitrix_date_modify) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(dealId,bitrix,value.name,ASTANA_PIPELINE,stage,responsible,me.canonicalUid,value.source,JSON.stringify(cf),now,now).run();
   if(!old||old.stage_id!==stage)await logStageEvent(env,dealId,ASTANA_PIPELINE,stage,now);
-  await auditLog(env,me,'astana_admission_save','deals',dealId,{trialLessonAt:value.trialLessonAt});
+  await auditLog(env,me,'astana_admission_save','deals',dealId,{trialLessonAt:value.trialLessonAt,responsibleUid:responsible});
   const row=await env.DB.prepare(SELECT+' WHERE d.id=? AND d.pipeline_id=?').bind(dealId,ASTANA_PIPELINE).first();return json({ok:true,item:admission(row),deal:rowToCamel(row,'deals'),config},200,request);
  }catch(error){return json({error:error.message||'Не удалось сохранить'},400,request);}
 }
