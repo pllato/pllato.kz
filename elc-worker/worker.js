@@ -1,3 +1,4 @@
+import {handleAstanaAdmissions,ASTANA_PIPELINE} from './astana-admissions.js';
 import {handleCalendarUpcoming} from './calendar-upcoming.js';
 import { META_TEST, isMetaTestChat, handleMetaTest, sendMetaTest, ensureMetaTestSchema } from './wa-meta-test.js';
 import {waDeliveryStatus} from './wa-delivery-status.js';
@@ -5085,6 +5086,12 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     WHERE pipeline_id = ? AND contact_id = ?
     ORDER BY (closed = 0) DESC, bitrix_date_modify DESC LIMIT 1
   `).bind(channel.default_pipeline_id, contactId).first();
+  // Ручная запись на пробный может ещё не иметь связанного WhatsApp-контакта.
+  if(!existing&&channel.default_pipeline_id===ASTANA_PIPELINE&&phone){
+    const digits=String(phone).replace(/\D/g,'');
+    existing=await env.DB.prepare("SELECT id FROM deals WHERE pipeline_id=? AND json_valid(custom_fields) AND json_extract(custom_fields,'$.astanaPhone') IN (?,?) ORDER BY bitrix_date_modify DESC LIMIT 1").bind(ASTANA_PIPELINE,digits,'+'+digits).first();
+    if(existing)await env.DB.prepare('UPDATE deals SET contact_id=COALESCE(contact_id,?) WHERE id=? AND pipeline_id=?').bind(contactId,existing.id,ASTANA_PIPELINE).run();
+  }
   // 2) Если не нашли — ищем по всем контактам с этим телефоном
   //    (защита от дублей контактов с одним номером)
   if (!existing && phone) {
@@ -5140,7 +5147,7 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     newId, title,
     channel.default_pipeline_id, stageId,
     responsibleUid,
-    contactId, sourceDescription, bitrixKey, nowIso, nowIso, nowIso, JSON.stringify(managers?{kepManagerUid:managers.kepUid}:{}),
+    contactId, sourceDescription, bitrixKey, nowIso, nowIso, nowIso, JSON.stringify({...((channel.default_pipeline_id===ASTANA_PIPELINE)?{astanaSource:'WhatsApp',astanaChannelId:channel.id}:{}),...(managers?{kepManagerUid:managers.kepUid}:{})}),
   ).run();
   await logStageEvent(env, newId, channel.default_pipeline_id, stageId, nowIso);
   await notifyPllatoStartNewLead(env, {
@@ -12497,6 +12504,7 @@ export default {
     if(leadDistributionMatch) return handleLeadDistribution(request,env,{json,requireAdmin},decodeURIComponent(leadDistributionMatch[1]));
     if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
 
+    if(path.startsWith('/api/astana/'))return handleAstanaAdmissions(request,env,{json,requireAuthFlexible,resolveCanonicalUser,rowToCamel,auditLog,logStageEvent});
     if(path==='/api/calendar/upcoming' && request.method==='GET'){
       return handleCalendarUpcoming(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,widgetDayBounds,widgetParseWhen,widgetLinkedDealId});
     }

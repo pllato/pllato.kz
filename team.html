@@ -3404,6 +3404,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <div class="nav-item" data-page="calendar" style="padding-left:32px">
       <span class="nav-icon">📅</span><span>Календарь</span>
     </div>
+    <div class="nav-item" data-page="astana-calendar" style="padding-left:32px;display:none"><span class="nav-icon">📅</span><span>Пробные · Astana</span></div>
     <div class="nav-item" data-page="telephony" style="padding-left:32px">
       <span class="nav-icon">☎️</span><span>Телефония</span>
       <span class="nav-badge" id="call-missed-badge" style="display:none"></span>
@@ -3457,7 +3458,9 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 </div>
 
 <!-- Firebase SDK -->
+<link rel="stylesheet" href="/app/elc/astana.css?v=1">
 <script type="module">
+import {createAstana,ASTANA} from '/app/elc/astana.js?v=1';
 import { openLeadDistribution } from './app/lead-distribution.js?v=20261010-pairs';
 import { mountDealCardNavigation } from './app/deal-card-navigation.js?v=20261008';
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20261008-admins-default';
@@ -4174,6 +4177,7 @@ async function initApp(user) {
     return;
   }
 
+  document.querySelector('[data-page=astana-calendar]').style.display=isPipelineAllowed(ASTANA)?'':'none';
   // UI sidebar
   try {
     const av = document.getElementById('ux-avatar');
@@ -4206,7 +4210,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'telephony', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'astana-calendar', 'telephony', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
@@ -4357,6 +4361,7 @@ function navigate(page) {
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'deeds') renderDeeds(main);
   else if (page === 'calendar') renderCalendar(main);
+  else if(page==='astana-calendar')astanaAdmissions.renderCalendar(main);
   else if (page === 'telephony') renderTelephony(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
@@ -10095,8 +10100,8 @@ function renderPipelineTabs() {
 function pipelineCardFieldFlags(pipelineId) {
   const cfg = (window.__fieldConfig && pipelineId) ? (window.__fieldConfig[pipelineId] || {}) : {};
   return {
-    showFirstZoom: cfg.showFirstZoom !== false,
-    showTrialLesson: cfg.showTrialLesson === true,
+    showFirstZoom: pipelineId===ASTANA?false:cfg.showFirstZoom !== false,
+    showTrialLesson: pipelineId===ASTANA||cfg.showTrialLesson === true,
   };
 }
 
@@ -12266,6 +12271,7 @@ function renderWaMessageHtml(m, isGroup) {
 // отрисовывает сообщения, навешивает send/attach, запускает polling каждые
 // Личный и групповой чаты сделки используют отдельные получатели и черновики.
 async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName) {
+  const admissions=deal.pipelineId===ASTANA;
   const pane = modal.querySelector('#dc-wa-pane');
   const body = modal.querySelector('#dc-wa-body');
   const input = modal.querySelector('#dc-wa-input');
@@ -12280,8 +12286,9 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const recordings=document.createElement('details');recordings.open=true;
   recordings.style.cssText='padding:10px 12px;border-bottom:1px solid var(--b1);background:var(--bg1);max-height:220px;overflow:auto';
   recordings.innerHTML='<summary style="cursor:pointer;font-weight:600">🎧 Записи IP-звонков</summary><div data-call-recordings style="padding-top:8px">Загрузка записей…</div>';
-  pane.before(recordings);
+  if(!admissions)pane.before(recordings);
   const loadCalls=async()=>{
+    if(admissions)return;
     if(recordings._loading)return;recordings._loading=true;
     try{
       const token=await fbAuth.currentUser.getIdToken();
@@ -12324,6 +12331,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   };
   const drawTabs = () => {
     tabs.replaceChildren();
+    if(admissions){tabs.textContent='ELC Astana · +7 707 466 58 60';return;}
     for (const state of states) {
       const button = document.createElement('button');
       button.className = 'tbtn tbtn-sm';
@@ -12344,6 +12352,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     if(discovery){const hint=document.createElement('small');hint.style.cssText='flex-basis:100%;color:var(--t3)';hint.textContent=groupsError||(discovery.errors?'Часть групп недоступна. Повторим проверку.':!discovery.catalogReady?'Поиск групп поставлен в очередь.':discovery.checked<discovery.total?'Проверено групп: '+discovery.checked+' из '+discovery.total:'Показаны группы, доступные рабочим номерам WhatsApp.');tabs.appendChild(hint);}
   };
   const loadGroups = async (force=false) => {
+    if(admissions)return;
     if(force){refreshing=true;drawTabs();}
     try {
       const token = await fbAuth.currentUser.getIdToken();
@@ -12366,13 +12375,13 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     else drawTabs();
   };
   if (digits) {
-    const state = {rawChatId:`${digits}@c.us`,canonicalChatId:null,phone:digits,instanceId:null,contactName,isGroup:false};
+    const state = {rawChatId:`${digits}@c.us`,canonicalChatId:null,phone:digits,instanceId:admissions?'720122810934':null,contactName,isGroup:false};
     try {
       const token = await fbAuth.currentUser.getIdToken();
       const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500&phone=${encodeURIComponent(digits)}`, {headers:{Authorization:`Bearer ${token}`}});
       if (!r.ok) throw new Error('Не удалось загрузить личную переписку');
       const list = await r.json();
-      const match = findWaRecipientChat(list.items, state.rawChatId);
+      const match = findWaRecipientChat(admissions?(list.items||[]).filter(c=>String(c.instanceId)==='720122810934'):list.items, state.rawChatId);
       if (match) { state.canonicalChatId = match.id; state.instanceId = match.instanceId; }
       states.push(state);
     } catch (e) { statusEl.textContent = e.message; }
@@ -13068,6 +13077,7 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
 // + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
 // title, выбранный stage и pipeline, контакт (поиск existing или создание).
 function openQuickAddDealModal(stageId) {
+  if(dealsState.activePipelineId===ASTANA)return astanaAdmissions.card(null,{stageId});
   document.getElementById('_qad-modal')?.remove();
   const stages = getStagesSorted();
   const stage = stages.find(s => s.statusId === stageId);
@@ -14546,6 +14556,12 @@ function openQualificationForm(dealId, deal, opts) {
   }
 }
 
+const astanaAdmissions=createAstana({
+ api:async(path,options={})=>{const token=await fbAuth.currentUser.getIdToken();const response=await fetch(WORKER_BASE_URL+'/api/astana/'+path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(options.body?{body:JSON.stringify(options.body)}:{})});const data=await response.json();if(!response.ok)throw Error(data.error||'Не удалось загрузить ELC Astana');return data;},
+ allowed:()=>!!window.currentUser&&isPipelineAllowed(ASTANA),closeCard:()=>window.closeDealCard(),mountWhatsapp:mountWhatsappPaneInDeal,
+ stages:()=>dealsState.pipelines?.[ASTANA]?.stages||{},navigate:()=>navigate('astana-calendar'),
+ onSaved:deal=>{for(const list of [dealsState.deals,dealsPagedState.items]){const i=(list||[]).findIndex(x=>getDealRecordId(x)===deal.id);if(i>=0)list[i]={...list[i],...deal};}invalidateDealsCacheForPipeline(ASTANA);if(document.getElementById('kanban-wrap'))renderDealsContent();}
+});
 async function openDealCard(dealKey) {
   const requestedPublicId = String(dealKey || '').replace(/^deal_/, '');
   const requestedRecordId = requestedPublicId ? `deal_${requestedPublicId}` : '';
@@ -14573,6 +14589,7 @@ async function openDealCard(dealKey) {
   const dealRecordId = getDealRecordId(deal);
   const dealPublicId = getDealPublicId(deal);
   if (!dealRecordId || !dealPublicId) return;
+  if(deal.pipelineId===ASTANA){if(location.hash!=='#deal/'+dealPublicId)history.pushState({},'','#deal/'+dealPublicId);return astanaAdmissions.card(deal);}
 
   // Обновляем URL для глубокой ссылки
   const newHash = `#deal/${dealPublicId}`;
