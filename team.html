@@ -32,7 +32,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-11-26.astana-operators-v7';
+  const TEAM_APP_BUILD = '2026-11-26.callback-calendar-v8';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -3409,6 +3409,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <div class="nav-item" data-page="calendar" style="padding-left:32px">
       <span class="nav-icon">📅</span><span>Календарь</span>
     </div>
+    <div class="nav-item" data-page="callback-calendar" style="padding-left:32px;display:none"><span class="nav-icon">☎</span><span>Звонки · Pllato Старт</span></div>
     <div class="nav-item" data-page="astana-calendar" style="padding-left:32px;display:none"><span class="nav-icon">📅</span><span>Пробные · Astana</span></div>
     <div class="nav-item" data-page="telephony" style="padding-left:32px">
       <span class="nav-icon">☎️</span><span>Телефония</span>
@@ -3467,6 +3468,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <script type="module">
 import {createAstana,ASTANA} from '/app/elc/astana.js?v=4';
 import {stagePalette} from '/app/elc/stage-colors.js';
+import {CALLBACK_PIPELINE,CALLBACK_MARK,callbackEvents} from '/app/elc/callbacks.js';
 function dealStageColor(stage,pipelineId=dealsState.activePipelineId){return pipelineId===ASTANA?stagePalette(stage).color:stage?.semantics==='S'?'#3fd88e':stage?.semantics==='F'?'#f05975':'#a87fff';}
 function stageBadgeStyle(stage){const p=stagePalette(stage);return `background:${p.color};color:${p.text};border:1px solid ${p.border};`;}
 import { openLeadDistribution } from './app/lead-distribution.js?v=20261010-pairs';
@@ -4185,6 +4187,7 @@ async function initApp(user) {
     return;
   }
 
+  document.querySelector('[data-page=callback-calendar]').style.display=isPipelineAllowed(CALLBACK_PIPELINE)?'':'none';
   document.querySelector('[data-page=astana-calendar]').style.display=isPipelineAllowed(ASTANA)?'':'none';
   // UI sidebar
   try {
@@ -4218,7 +4221,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'astana-calendar', 'telephony', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'callback-calendar', 'astana-calendar', 'telephony', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
@@ -4368,7 +4371,8 @@ function navigate(page) {
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'deeds') renderDeeds(main);
-  else if (page === 'calendar') renderCalendar(main);
+  else if(page==='calendar'){if(calendarState.kind==='callback'){calendarState.kind='general';calendarState.events=null;}renderCalendar(main);}
+  else if(page==='callback-calendar'){if(!isPipelineAllowed(CALLBACK_PIPELINE)){main.textContent='Нет доступа к Pllato Старт';return;}calendarState.kind='callback';calendarState.events=null;renderCalendar(main);}
   else if(page==='astana-calendar')astanaAdmissions.renderCalendar(main);
   else if (page === 'telephony') renderTelephony(main);
   else if (page === 'chats') renderChats(main);
@@ -12722,6 +12726,7 @@ function renderDeedRowHtml(t, opts = {}) {
     <div class="dc-deed-body">
       <div class="dc-deed-title">${escapeHtml(t.title || '(без названия)')}</div>
       <div class="dc-deed-meta">
+        ${t.mark===CALLBACK_MARK?'<span style="color:#0891b2">☎ Звонок-перезвон</span>':''}
         ${dlLabel ? `<span class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</span>` : ''}
         ${link}
       </div>
@@ -12935,6 +12940,7 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
               <input type="radio" name="ad-kind" value="demo" style="display:none">
               🖥 Показ демо
             </label>
+            ${deal.pipelineId===CALLBACK_PIPELINE?`<label class="ad-kind-pill" data-kind="callback" style="cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px;grid-column:1/-1"><input type="radio" name="ad-kind" value="callback" style="display:none">☎ Звонок-перезвон</label>`:''}
           </div>
           <div id="ad-kind-legend" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--t3)">
             <span><span style="display:inline-block;width:9px;height:9px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
@@ -12953,7 +12959,7 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
         <div id="ad-zoom-fields" style="display:none">
           <div style="display:flex;gap:10px">
             <div style="flex:2">
-              <div class="qad-label">Начало встречи *</div>
+              <div class="qad-label" id="ad-start-label">Начало встречи *</div>
               <input id="ad-zoom-start" class="qad-input" type="datetime-local" value="${zoomDefStr}">
             </div>
             <div style="flex:1">
@@ -13003,6 +13009,8 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
         p.style.borderColor = active ? 'var(--ac)' : 'var(--b1)';
         p.style.background = active ? 'var(--acbg)' : 'var(--bg3)';
       });
+      document.getElementById('ad-start-label').textContent=kind==='callback'?'Дата и время звонка *':'Начало встречи *';
+      document.querySelector('#ad-vis option[value=all]').textContent=kind==='callback'?'Все с доступом к Pllato Старт':'Все (общий календарь)';
       const isMeeting = kind !== 'task';
       taskFields.style.display = isMeeting ? 'none' : '';
       zoomFields.style.display = isMeeting ? '' : 'none';
@@ -13011,8 +13019,9 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
       const mk = calMeetingKind(CAL_MARK_BY_KEY[kind]);
       const hint = document.getElementById('ad-kind-hint');
       if (mk) {
-        hint.innerHTML = `📅 <b style="color:${mk.color}">${mk.emoji} ${escapeHtml(mk.label)}</b> — отобразится в общем календаре своим цветом и привяжется к сделке.`;
-        titleInput.placeholder = kind === 'zoom' ? 'Например: Zoom с клиентом по курсу A1'
+        hint.innerHTML = `<b style="color:${mk.color}">${mk.emoji} ${escapeHtml(mk.label)}</b> — ${kind==='callback'?'отобразится в отдельном календаре «Звонки · Pllato Старт»':'отобразится в общем календаре'} и привяжется к сделке.`;
+        if(kind==='callback')document.getElementById('ad-zoom-duration').value='15';
+        titleInput.placeholder = kind === 'callback' ? 'Например: Перезвонить и уточнить решение' : kind === 'zoom' ? 'Например: Zoom с клиентом по курсу A1'
           : kind === 'meet' ? 'Например: Встреча в офисе с клиентом'
           : 'Например: Показ демо клиенту';
       } else {
@@ -13021,6 +13030,7 @@ function openAddDeedModal(deal, onDone, initialKind = 'task') {
     });
   });
 
+  if(initialKind==='callback'&&deal.pipelineId===CALLBACK_PIPELINE)ov.querySelector('[data-kind=callback]').click();
   if (initialKind === 'zoom') {
     ov.querySelector('[data-kind="zoom"]').click();
     ov.querySelector('#ad-title').value = 'Zoom: ' + (deal.title || 'Встреча с клиентом');
@@ -17624,6 +17634,9 @@ function ensureCalendarStylesInjected() {
       gap: 1px; background: var(--b1); border: 1px solid var(--b1);
       border-radius: 8px; overflow: hidden;
     }
+    .cal-page[data-calendar-kind="callback"] .cal-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+    .cal-page[data-calendar-kind="callback"] .cal-day{min-width:0}
+    .cal-page[data-calendar-kind="callback"] .cal-event{max-width:100%}
     .cal-weekday {
       background: var(--bg3); padding: 8px; text-align: center;
       font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
@@ -17705,6 +17718,8 @@ function ensureCalendarStylesInjected() {
       border-left: 3px solid;
       min-height: 30px;  /* чтобы короткие 30-мин события не были обрезаны */
     }
+    .cal-event.cal-event-callback,.cal-event.callback,.cal-hourly-event.callback{background:rgba(8,145,178,.15);color:var(--t1);border-left:3px solid #0891b2}
+    [data-theme="dark"] .cal-event.cal-event-callback,[data-theme="dark"] .cal-event.callback,[data-theme="dark"] .cal-hourly-event.callback{color:#a5f3fc}
     .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
     .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
     .cal-hourly-event.trial { background: rgba(16,185,129,0.14); color: #047857; border-left-color: #10b981; }
@@ -17751,13 +17766,13 @@ async function renderCalendar(el) {
   calendarState.cursorYear = calendarState.cursorDate.getFullYear();
   calendarState.cursorMonth = calendarState.cursorDate.getMonth();
   el.innerHTML = `
-    <div class="cal-page">
+    <div class="cal-page" data-calendar-kind="${calendarState.kind}">
       <div class="page-head" style="margin-bottom:10px">
-        <h1 style="margin:0">${calendarState.kind === 'trial' ? '📚 Календарь пробных уроков' : '📅 Общий календарь'}</h1>
+        <h1 style="margin:0">${calendarState.kind==='callback'?'Звонки · Pllato Старт':calendarState.kind === 'trial' ? '📚 Календарь пробных уроков' : '📅 Общий календарь'}</h1>
       </div>
-      <div class="page-sub">${calendarState.kind === 'trial' ? 'Только даты пробных уроков из доступных воронок. Клик открывает сделку.' : 'Zoom-звонки, физические встречи и показы демо — каждый вид своим цветом, плюс задачи с дедлайном. Клик на событие открывает запись.'}</div>
+      <div class="page-sub">${calendarState.kind==='callback'?'Только дела «Звонок-перезвон» в Pllato Старт. Нажмите событие, чтобы изменить время или открыть сделку.':calendarState.kind === 'trial' ? 'Только даты пробных уроков из доступных воронок. Клик открывает сделку.' : 'Zoom-звонки, физические встречи и показы демо — каждый вид своим цветом, плюс задачи с дедлайном. Клик на событие открывает запись.'}</div>
       <div class="cal-toolbar">
-        <div class="cal-view-toggle" style="margin-right:4px">
+        <div class="cal-view-toggle" style="margin-right:4px;${calendarState.kind==='callback'?'display:none':''}">
           <button class="cal-view-btn ${calendarState.kind === 'general' ? 'active' : ''}" data-cal-kind="general">📅 Общий</button>
           ${hasTrialCalendar ? `<button class="cal-view-btn ${calendarState.kind === 'trial' ? 'active' : ''}" data-cal-kind="trial">📚 Пробные уроки</button>` : ''}
         </div>
@@ -17765,7 +17780,7 @@ async function renderCalendar(el) {
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
         <button class="btn btn-sm" id="cal-next">→</button>
         <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
-        ${calendarState.kind === 'general' ? '<button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>' : ''}
+        ${calendarState.kind==='callback'?'<button class="btn btn-sm" id="cal-add-event">＋ Звонок</button>':calendarState.kind === 'general' ? '<button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>' : ''}
         <span class="cal-month-label" id="cal-label"></span>
         <div class="cal-view-toggle">
           <button class="cal-view-btn ${calendarState.view === 'day' ? 'active' : ''}" data-cal-view="day">День</button>
@@ -17773,15 +17788,16 @@ async function renderCalendar(el) {
           <button class="cal-view-btn ${calendarState.view === 'month' ? 'active' : ''}" data-cal-view="month">Месяц</button>
         </div>
         ${calCanSeeAll() ? `<div class="cal-view-toggle" id="cal-scope-toggle" title="Показывать все встречи всех сотрудников или только свои">
-          <button class="cal-view-btn ${calendarState.showAll ? 'active' : ''}" data-cal-scope="all">Все встречи</button>
+          <button class="cal-view-btn ${calendarState.showAll ? 'active' : ''}" data-cal-scope="all">${calendarState.kind==='callback'?'Все звонки':'Все встречи'}</button>
           <button class="cal-view-btn ${!calendarState.showAll ? 'active' : ''}" data-cal-scope="mine">Мои</button>
         </div>` : ''}
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
-          ${calendarState.kind === 'trial'
+          ${calendarState.kind==='callback'?'<span style="color:#0891b2">☎ Звонок-перезвон</span>':calendarState.kind === 'trial'
             ? '<span><span style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px;vertical-align:middle"></span> Пробный урок</span>'
             : '<span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span><span><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;vertical-align:middle"></span> Встреча</span><span><span style="display:inline-block;width:10px;height:10px;background:#e11d48;border-radius:2px;vertical-align:middle"></span> Показ демо</span><span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>'}
         </span>
       </div>
+      ${calendarState.kind==='callback'?'<p id="cal-callback-note" style="font-size:12px;color:var(--t3)"></p>':''}
       <div id="cal-grid"><div class="empty" style="padding:30px;text-align:center;color:var(--t3)">⏳ Загружаем события…</div></div>
     </div>
   `;
@@ -17803,7 +17819,7 @@ async function renderCalendar(el) {
     renderCalendarView();
   };
   const addEventButton = document.getElementById('cal-add-event');
-  if (addEventButton && !document.getElementById('cal-zoom-settings')) {
+  if (calendarState.kind!=='callback' && addEventButton && !document.getElementById('cal-zoom-settings')) {
     const b = document.createElement('button'); b.id = 'cal-zoom-settings'; b.className = 'tbtn'; b.textContent = 'Zoom';
     b.onclick = () => crmZoom.settings(); addEventButton.after(b);
   }
@@ -17845,6 +17861,8 @@ async function renderCalendar(el) {
 
 // Dispatcher: выбирает renderer по текущему view
 function renderCalendarView() {
+  const note=document.getElementById('cal-callback-note');if(note)note.textContent=calendarState.truncated?'Показаны первые 500 звонков. Выберите более близкую дату.':'';
+  if(calendarState.kind==='callback'&&calendarState.error){const grid=document.getElementById('cal-grid');if(grid)grid.innerHTML='<div class="empty" role="alert">'+escapeHtml(calendarState.error)+' · нажмите обновить</div>';return;}
   if (calendarState.view === 'day') renderCalendarDayView();
   else if (calendarState.view === 'week') renderCalendarWeekView();
   else renderCalendarGrid();
@@ -17861,11 +17879,12 @@ const CAL_MEETING_KINDS = {
   zoom_meeting:    { key: 'zoom', label: 'Zoom-звонок',        emoji: '📹', color: '#2563eb' },
   offline_meeting: { key: 'meet', label: 'Физическая встреча', emoji: '🤝', color: '#d97706' },
   demo_meeting:    { key: 'demo', label: 'Показ демо',         emoji: '🖥', color: '#e11d48' },
+  callback_call: {key:'callback',label:'Звонок-перезвон',emoji:'☎',color:'#0891b2'},
 };
-const CAL_MARK_BY_KEY = { zoom: 'zoom_meeting', meet: 'offline_meeting', demo: 'demo_meeting' };
+const CAL_MARK_BY_KEY = { zoom: 'zoom_meeting', meet: 'offline_meeting', demo: 'demo_meeting', callback: CALLBACK_MARK };
 function calMeetingKind(mark) { return CAL_MEETING_KINDS[mark] || null; }
 function calKindOptionsHtml(selectedKey) {
-  return Object.values(CAL_MEETING_KINDS).map(k =>
+  return Object.values(CAL_MEETING_KINDS).filter(k=>selectedKey==='callback'?k.key==='callback':k.key!=='callback').map(k =>
     `<option value="${k.key}" ${k.key === selectedKey ? 'selected' : ''}>${k.emoji} ${k.label}</option>`).join('');
 }
 
@@ -17967,14 +17986,16 @@ function calendarShift(delta) {
 }
 
 async function loadCalendarEvents(opts = {}) {
-  // Защита от race: если уже идёт загрузка — ждём её, не запускаем новую.
-  if (calendarState.loadingPromise) {
-    if (!opts.force) return calendarState.loadingPromise;
-    // force=true — ждём текущую, потом запустим новую
-    try { await calendarState.loadingPromise; } catch {}
+  const requestKey=()=>calendarState.kind+':'+calendarState.showAll+':'+(calendarState.cursorDate?.getTime()||'');
+  const requestedKind=calendarState.kind,requestedKey=requestKey();
+  if(calendarState.loadingPromise){
+    try{await calendarState.loadingPromise;}catch{}
+    if(requestKey()!==requestedKey)return;
+    if(!opts.force&&calendarState.loadedKey===requestedKey)return;
   }
-  if (calendarState.loading) return;
-  calendarState.loading = true;
+  if(calendarState.loading)return;
+  const loadKind=calendarState.kind,loadKey=requestKey();
+  calendarState.loading=true;calendarState.error='';
   const promise = (async () => {
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
@@ -17987,6 +18008,12 @@ async function loadCalendarEvents(opts = {}) {
       const dlFrom = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 90);
       const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
       const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if(calendarState.kind==='callback'){
+       const params=new URLSearchParams({from:dlFrom.toISOString(),to:dlTo.toISOString(),scope:calendarState.showAll?'all':'mine'});
+       const response=await fetch(WORKER_BASE_URL+'/api/calendar/callbacks?'+params,{headers:{Authorization:'Bearer '+idToken}});
+       const data=await response.json();if(!response.ok)throw Error(data.error||'Не удалось загрузить звонки');
+       if(requestKey()!==loadKey)return;calendarState.events=callbackEvents(data.items||[],calCalendarUserLabel);calendarState.loadedKind=loadKind;calendarState.loadedKey=loadKey;calendarState.truncated=!!data.truncated;return;
+      }
       const allEventsParam = (calendarState.showAll && calCanSeeAll()) ? '&allEvents=1' : '';
       const tasksP = calendarState.kind === 'trial'
         ? Promise.resolve({ items: [] })
@@ -18021,6 +18048,7 @@ async function loadCalendarEvents(opts = {}) {
       const tasksR = await tasksP;
       const events = [];
     for (const t of (tasksR.items || [])) {
+      if(t.mark===CALLBACK_MARK)continue;
       const mk = calMeetingKind(t.mark);       // zoom · meet · demo или null для обычного дела
       const isZoom = !!mk;                      // «встреча» любого вида
       // Для встреч приоритет startDatePlan, для обычных — deadline.
@@ -18172,10 +18200,10 @@ async function loadCalendarEvents(opts = {}) {
           ev.dealTitle = missingById.get(id)?.title || `Сделка #${id}`;
         }
       }
-      calendarState.events = events;
+      if(requestKey()!==loadKey)return;calendarState.events = events;calendarState.loadedKind=loadKind;calendarState.loadedKey=loadKey;
     } catch (e) {
       console.error('loadCalendarEvents:', e);
-      calendarState.events = [];
+      if(requestKey()===loadKey){calendarState.events=[];calendarState.error=e.message;}
     } finally {
       calendarState.loading = false;
       calendarState.loadingPromise = null;
@@ -18237,10 +18265,11 @@ function renderCalendarGrid() {
     const overflow = dayEvents.length - visible.length;
     const eventsHtml = visible.map(ev => {
       const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
-      const cls = 'cal-event-' + (['trial', 'zoom', 'meet', 'demo'].includes(ev.type) ? ev.type : 'task');
+      const cls = 'cal-event-' + (['trial', 'zoom', 'meet', 'demo', 'callback'].includes(ev.type) ? ev.type : 'task');
       // Событие-встреча может быть из сделки (firstZoomAt → dealBitrixId)
       // или из задачи (mark = zoom_meeting · offline_meeting · demo_meeting → taskId + dealBitrixId через crmLinks).
       const parts = [];
+      if(ev.type==='callback'&&ev.uid)parts.push(`data-cal-uid="${escapeHtml(ev.uid)}"`);
       if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
       if (ev.dealBitrixId) {
         // Если это была задача-Zoom — кладём в linked-deal (не перезаписывая task)
@@ -18501,7 +18530,7 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     `width:calc(${widthPct}% - ${gap * 2}px)`,
     'right:auto',  // override default right:4px
   ];
-  const cls = ['trial', 'zoom', 'meet', 'demo'].includes(ev.type) ? ev.type : 'task';
+  const cls = ['trial', 'zoom', 'meet', 'demo', 'callback'].includes(ev.type) ? ev.type : 'task';
   const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
   const parts = [];
   if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
@@ -18631,11 +18660,11 @@ function openCalEventForm(prefillDate) {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.innerHTML = `<div style="background:var(--bg2);border-radius:14px;max-width:460px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden" onclick="event.stopPropagation()">
     <div style="padding:16px 18px;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center">
-      <b style="font-size:16px">➕ Новое событие</b><button id="ce-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
+      <b style="font-size:16px">${calendarState.kind==='callback'?'Новый звонок':'➕ Новое событие'}</b><button id="ce-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
     </div>
     <div style="padding:16px 18px;max-height:76vh;overflow:auto">
       <label style="font-size:12px;color:var(--t3)">Тип встречи</label>
-      <select id="ce-kind" style="width:100%;margin:5px 0 12px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">${calKindOptionsHtml('zoom')}</select>
+      <select id="ce-kind" style="width:100%;margin:5px 0 12px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">${calKindOptionsHtml(calendarState.kind==='callback'?'callback':'zoom')}</select>
       <label style="font-size:12px;color:var(--t3)">Название события</label>
       <input id="ce-title" placeholder="Напр. Zoom с клиентом" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
       <div style="display:flex;gap:10px;margin-bottom:12px">
@@ -18645,9 +18674,9 @@ function openCalEventForm(prefillDate) {
           <input id="ce-time" type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
         <div style="width:96px"><label style="font-size:12px;color:var(--t3)">Длит.</label>
           <select id="ce-dur" style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
-            <option value="30">30 мин</option><option value="60" selected>1 час</option><option value="90">1.5 ч</option><option value="120">2 ч</option></select></div>
+            <option value="15" ${calendarState.kind==='callback'?'selected':''}>15 мин</option><option value="30">30 мин</option><option value="60" ${calendarState.kind!=='callback'?'selected':''}>1 час</option><option value="90">1.5 ч</option><option value="120">2 ч</option></select></div>
       </div>
-      <label style="font-size:12px;color:var(--t3)">Сделка (необязательно)</label>
+      <label style="font-size:12px;color:var(--t3)">${calendarState.kind==='callback'?'Сделка Pllato Старт *':'Сделка (необязательно)'}</label>
       <input id="ce-deal-q" placeholder="Поиск сделки по названию…" autocomplete="off" style="width:100%;margin:5px 0 0;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
       <div id="ce-deal-sel" style="font-size:12.5px;color:var(--gn);margin-top:6px"></div>
       <div id="ce-deal-res" style="max-height:170px;overflow:auto;margin-top:6px"></div>
@@ -18655,7 +18684,7 @@ function openCalEventForm(prefillDate) {
       <select id="ce-vis" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
         <option value="me">Только я</option>
         <option value="people">Выбранные сотрудники</option>
-        <option value="all" selected>Все (общий календарь)</option>
+        <option value="all" selected>${calendarState.kind==='callback'?'Все с доступом к Pllato Старт':'Все (общий календарь)'}</option>
       </select>
       <select id="ce-people" multiple size="4" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:none">${evPeopleOpts}</select>
       <div id="ce-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
@@ -18684,6 +18713,7 @@ function openCalEventForm(prefillDate) {
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
         const params = new URLSearchParams({ pageSize: '15', q: term, auth: idToken, scope: effectiveScope() });
+        if(calendarState.kind==='callback')params.set('pipeline',CALLBACK_PIPELINE);
         const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
         const d = await r.json();
         const items = d.items || [];
@@ -18717,6 +18747,7 @@ function openCalEventForm(prefillDate) {
       startDatePlan: startDt.toISOString(), endDatePlan: endDt.toISOString(),
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
     };
+    if(kindKey==='callback'&&!pickedDeal){err.textContent='Выберите сделку Pllato Старт';return;}
     if (pickedDeal) {
       const linkedDealId = getDealRecordId(pickedDeal);
       if (!linkedDealId) { err.textContent = 'Не удалось определить ID выбранной сделки.'; return; }

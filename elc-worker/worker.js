@@ -1,3 +1,4 @@
+import {handleCallbackCalendar,validateCallbackTask,CALLBACK_MARK} from './callback-calendar.js';
 import {handleAstanaAdmissions,ASTANA_PIPELINE,astanaAllowed,astanaEditTargetAllowed} from './astana-admissions.js';
 import {handleCalendarUpcoming} from './calendar-upcoming.js';
 import { META_TEST, isMetaTestChat, handleMetaTest, sendMetaTest, ensureMetaTestSchema } from './wa-meta-test.js';
@@ -3098,6 +3099,7 @@ async function handleCreateTask(request, env) {
       .filter((value) => value && value !== 'deal_null' && value !== 'deal_undefined' && value !== 'deal_'))];
     if (normalizedLinks.length) crmLinks = JSON.stringify(normalizedLinks);
   }
+  if(mark===CALLBACK_MARK){const error=await validateCallbackTask(env,me,crmLinks?JSON.parse(crmLinks):[],startDatePlan,endDatePlan,dealAccessSql);if(error)return json({error},400,request);}
   if (mark === 'zoom_meeting' && crmLinks) {
     const access = dealAccessSql(me);
     for (const linkedId of JSON.parse(crmLinks)) {
@@ -12519,6 +12521,7 @@ export default {
     if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
 
     if(path.startsWith('/api/astana/'))return handleAstanaAdmissions(request,env,{json,requireAuthFlexible,resolveCanonicalUser,rowToCamel,auditLog,logStageEvent});
+    if(path==='/api/calendar/callbacks'&&request.method==='GET')return handleCallbackCalendar(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,rowToCamel});
     if(path==='/api/calendar/upcoming' && request.method==='GET'){
       return handleCalendarUpcoming(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,widgetDayBounds,widgetParseWhen,widgetLinkedDealId});
     }
