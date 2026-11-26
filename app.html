@@ -6426,7 +6426,7 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
-import {tasksForDay} from './app/day-tasks.js';
+import {tasksForDay} from './app/day-tasks.js?v=20261126-orders';
 import {scheduleValue,taskScheduleLabel,compareTaskSchedule} from './app/task-schedule.js';
 import {initTaskReminders} from './app/task-reminders.js';
 import {initTaskActionMenus} from './app/task-action-menu.js?v=20261123';
@@ -10458,13 +10458,12 @@ function renderCalendarDay(id,label,offset){
 
 function renderCalendarTaskColumn(id,label,offset){
  const box=document.getElementById(id);if(!box||!calCanSee()||!box.classList.contains('on'))return;
- const current=new Date(),localDay=new Date(current);localDay.setDate(localDay.getDate()+offset);
+ const current=new Date();
  const todayKey=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Almaty',year:'numeric',month:'2-digit',day:'2-digit'}).format(current);
  const fixedDay=new Date(todayKey+'T12:00:00+05:00');fixedDay.setUTCDate(fixedDay.getUTCDate()+offset);
  const key=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Almaty',year:'numeric',month:'2-digit',day:'2-digit'}).format(fixedDay);
- const appTasks=tasksForDay(FINANCE_WEEK_TASKS,key);
- const crmTasks=(CAL_EVENTS||[]).filter(e=>e.kind==='task'&&calDayKey(new Date(e.at))===calDayKey(localDay));
- const entries=[...crmTasks.map(task=>({task,app:false,time:calTimeLabel(task.at),sort:calTimeLabel(task.at)})),...appTasks.map(task=>({task,app:true,time:task.dueTime||'Без времени',sort:task.dueTime||''}))].sort((a,b)=>a.sort.localeCompare(b.sort));
+ const appTasks=tasksForDay(FINANCE_WEEK_TASKS,key,'orders');
+ const entries=appTasks.map(task=>({task,time:task.dueTime||'Без времени'}));
  const oldTop=box.dataset.taskScrollDate===key?(Number(box.dataset.taskScrollTop)||0):0;
  box.dataset.taskScrollDate=key;
  const columns=document.createElement('div');columns.className='cw-columns';
@@ -10472,14 +10471,13 @@ function renderCalendarTaskColumn(id,label,offset){
  while(box.firstChild)meetings.append(box.firstChild);
  const summary=meetings.querySelector('.cw-sub');if(summary)summary.title=summary.textContent;
  const tasks=document.createElement('section');tasks.className='cw-day-tasks';tasks.setAttribute('aria-label',label+': дела');
- tasks.innerHTML=`<div class="cw-head"><span class="cw-title">Дела${entries.length?' · '+entries.length:''}</span><span class="cw-sub">по сроку · Алматы</span></div><div class="cw-list cw-day-task-list"></div>`;
+ tasks.innerHTML=`<div class="cw-head"><span class="cw-title">Дела${entries.length?' · '+entries.length:''}</span><span class="cw-sub" title="Только дела под графиком «Количество новых заказов»">Новые заказы · Алматы</span></div><div class="cw-list cw-day-task-list"></div>`;
  const list=tasks.querySelector('.cw-list');
  for(const entry of entries){
-  const task=entry.task,row=document.createElement(entry.app?'button':'a');row.className='cw-chip task cw-dated-task'+(task.done?' done':'');
-  const title=entry.app?financeDemoTaskText(task):task.title;row.title=title+(entry.app&&FINANCE_CHART_META[task.kind]?' · '+FINANCE_CHART_META[task.kind].title:'');
+  const task=entry.task,row=document.createElement('button');row.className='cw-chip task cw-dated-task'+(task.done?' done':'');
+  const title=financeDemoTaskText(task);row.title=title+(FINANCE_CHART_META[task.kind]?' · '+FINANCE_CHART_META[task.kind].title:'');
   row.innerHTML=`<span class="t">${escapeHtml(entry.time)}</span><span class="n">${escapeHtml(title)}</span>${task.done?'<span class="cw-task-done">Готово</span>':''}`;
-  if(entry.app){row.type='button';row.dataset.appDayTask=task.id;row.onclick=()=>{const live=FINANCE_WEEK_TASKS.find(t=>t.id===task.id&&!t.deleted);if(live)openFinanceWeekTaskEditor(live.kind,live.start,live.end,live.id);};}
-  else{row.href=task.href;row.dataset.cw=String(crmTasks.indexOf(task));}
+  row.type='button';row.dataset.appDayTask=task.id;row.onclick=()=>{const live=FINANCE_WEEK_TASKS.find(t=>t.id===task.id&&!t.deleted);if(live)openFinanceWeekTaskEditor(live.kind,live.start,live.end,live.id);};
   list.append(row);
  }
  const note=document.createElement('p');note.className='cw-task-empty';
@@ -10488,7 +10486,6 @@ function renderCalendarTaskColumn(id,label,offset){
  else if(!entries.length){note.textContent='На этот день дел нет';list.append(note);}
  columns.append(meetings,tasks);box.append(columns);box.classList.add('cw-split');if(entries.length)box.classList.remove('empty');
  list.scrollTop=oldTop;list.onscroll=()=>{box.dataset.taskScrollTop=String(list.scrollTop);};
- calBindTips(tasks,crmTasks);
 }
 
 function renderTodayCalendar(){
