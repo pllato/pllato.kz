@@ -26,7 +26,7 @@ export function createAstana({api,closeCard,mountWhatsapp,stages,onSaved,navigat
    form.onsubmit=async e=>{e.preventDefault();const submit=form.querySelector('[type=submit]');if(submit.disabled)return;const data=Object.fromEntries(new FormData(form));
     if((data.trialDate&&!data.trialTime)||(!data.trialDate&&data.trialTime)){status.textContent='Для пробного укажите дату и время';return;}
     data.trialLessonAt=data.trialDate?data.trialDate+'T'+data.trialTime+':00+05:00':'';submit.disabled=true;
-    try{const saved=await api('deal'+(deal?'/'+encodeURIComponent(deal.id):''),{method:deal?'PUT':'POST',body:data});onSaved(saved.deal);closeCard();history.pushState({},'','#deal/'+(saved.item.bitrixId||saved.item.id.slice(5)));await card(saved.deal);if(calendarRoot?.isConnected)renderCalendar(calendarRoot);}catch(error){status.textContent=error.message;}finally{submit.disabled=false;}
+    try{const saved=await api('deal'+(deal?'/'+encodeURIComponent(deal.id):''),{method:deal?'PUT':'POST',body:data});onSaved(saved.deal);closeCard();history.pushState({},'','#deal/'+(saved.item.bitrixId||saved.item.id.slice(5)));await card(saved.deal);if(calendarRoot?.querySelector('.astana-calendar'))renderCalendar(calendarRoot);}catch(error){status.textContent=error.message;}finally{submit.disabled=false;}
    };
   }catch(error){if(root.isConnected)root.querySelector('.astana-loading').textContent=error.message;}
  }
@@ -39,6 +39,7 @@ export function createAstana({api,closeCard,mountWhatsapp,stages,onSaved,navigat
   const label=view==='month'?format(cursor,{month:'long',year:'numeric'}):view==='day'?format(cursor,{day:'numeric',month:'long',year:'numeric'}):format(from,{day:'numeric',month:'short'})+' — '+format(end,{day:'numeric',month:'short',year:'numeric'});
   let selected=day(cursor),items=[];
   el.innerHTML=`<div class="astana-calendar" data-calendar-view="${view}"><header><div class="astana-calendar-heading"><small>ELC Astana · время Алматы</small><h1>Пробные уроки</h1></div><div class="astana-calendar-actions"><button type="button" class="astana-cal-button" data-access>Списки и доступ</button><button type="button" class="astana-cal-button primary" data-new><span aria-hidden="true">＋</span> Записать на пробный</button></div></header><div class="astana-calendar-tools"><div class="astana-calendar-nav"><button type="button" class="astana-cal-button icon" data-prev aria-label="Предыдущий период">‹</button><button type="button" class="astana-cal-button" data-today>Сегодня</button><button type="button" class="astana-cal-button icon" data-next aria-label="Следующий период">›</button></div><h2>${esc(label)}</h2><div class="astana-calendar-views" role="group" aria-label="Вид календаря">${['day','week','month'].map((v,i)=>`<button type="button" class="astana-cal-button" data-view="${v}" aria-pressed="${view===v}">${['День','Неделя','Месяц'][i]}</button>`).join('')}</div></div><div class="astana-calendar-status"><p data-cal-status role="status">Загружаем пробные уроки…</p><button type="button" class="astana-cal-button" data-retry hidden>Повторить</button></div>${view==='month'?'<div class="astana-weekdays" aria-hidden="true">'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>'<span>'+d+'</span>').join('')+'</div>':''}<div class="astana-calendar-grid ${view==='day'?'single':''}" aria-label="${esc(label)}"></div><section class="astana-day-agenda" hidden aria-label="Записи на выбранную дату"></section></div>`;
+  const calendarPage=el.querySelector('.astana-calendar');
   const grid=el.querySelector('.astana-calendar-grid'),agenda=el.querySelector('.astana-day-agenda');
   function appointment(item){const b=document.createElement('button');b.type='button';b.className='astana-appointment';b.title=item.name+' · '+item.phone+' · '+item.trialLessonAt.slice(11,16);b.innerHTML=`<time>${esc(item.trialLessonAt.slice(11,16))}</time><span><strong>${esc(item.name)}</strong><small>${esc(item.phone)}</small></span>`;b.onclick=()=>card({id:item.id});return b;}
   function selectDate(key){selected=key;const selectedDay=new Date(key+'T12:00:00');grid.querySelectorAll('[data-date]').forEach(cell=>{cell.classList.toggle('selected',cell.dataset.date===key);cell.querySelector('.astana-day-button').setAttribute('aria-pressed',String(cell.dataset.date===key));});
@@ -57,14 +58,14 @@ export function createAstana({api,closeCard,mountWhatsapp,stages,onSaved,navigat
   el.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{cursor=new Date(selected+'T12:00:00');view=b.dataset.view;renderCalendar(el);});
   const step=direction=>{if(view==='month')cursor=new Date(cursor.getFullYear(),cursor.getMonth()+direction,1);else cursor.setDate(cursor.getDate()+direction*days);renderCalendar(el);};el.querySelector('[data-prev]').onclick=()=>step(-1);el.querySelector('[data-next]').onclick=()=>step(1);el.querySelector('[data-today]').onclick=()=>{cursor=new Date(today()+'T12:00:00');renderCalendar(el);};
   el.querySelector('[data-retry]').onclick=()=>renderCalendar(el);
-  try{const data=await api('calendar?from='+day(from)+'&to='+day(to));if(sequence!==requestNo||!el.isConnected)return;items=data.items;
+  try{const data=await api('calendar?from='+day(from)+'&to='+day(to));if(sequence!==requestNo||!calendarPage.isConnected)return;items=data.items;
    el.querySelector('[data-cal-status]').textContent=data.truncated?'Показано 500 записей — выберите день или неделю':items.length?'Записей за период: '+items.length:'На этот период записей нет';
    for(const cell of grid.children){const list=items.filter(x=>x.trialLessonAt.startsWith(cell.dataset.date));cell.classList.toggle('has-appointments',list.length>0);if(list.length){const count=document.createElement('span');count.className='astana-cell-count';count.textContent=String(list.length);count.setAttribute('aria-label','Записей: '+list.length);cell.querySelector('.astana-cell-head').append(count);}
     const events=cell.querySelector('.astana-cell-events');for(const item of list)events.append(appointment(item));
     if(!list.length&&view==='day'){const empty=document.createElement('p');empty.className='astana-agenda-empty';empty.textContent='Пробных уроков пока нет. Нажмите «Записать на пробный».';events.append(empty);}
    }
    selectDate(selected);
-  }catch(error){if(sequence===requestNo&&el.isConnected){el.querySelector('[data-cal-status]').textContent=error.message;el.querySelector('[data-retry]').hidden=false;}}
+  }catch(error){if(sequence===requestNo&&calendarPage.isConnected){el.querySelector('[data-cal-status]').textContent=error.message;el.querySelector('[data-retry]').hidden=false;}}
  }
  return {card,renderCalendar,settings};
 }
