@@ -1422,6 +1422,25 @@ body {
 #taskRemindersButton.has-unread{background:var(--bronze-tint);color:var(--bronze-deep);font-weight:750;}
 .task-inbox{width:min(620px,calc(100vw - 24px));max-height:85dvh;padding:20px;border:1px solid var(--line-2);border-radius:14px;background:var(--surface);color:var(--text);overflow:auto;}
 .task-inbox::backdrop{background:#0a162866;}.task-inbox header{display:flex;align-items:center;justify-content:space-between;gap:12px;}.task-inbox h2{font-size:19px;margin:0 0 16px;}.task-inbox button{font:inherit;cursor:pointer;}.task-inbox nav,.task-inbox-tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}.task-inbox nav button,.task-inbox-tools button,.task-inbox>[data-more]{border:1px solid var(--line-2);padding:7px 10px;border-radius:7px;background:transparent;color:inherit;font-size:12px;}.task-inbox nav button[aria-pressed=true]{background:var(--navy);color:#fff;}.task-inbox-row{display:flex;flex-direction:column;gap:5px;text-align:left;width:100%;padding:12px 10px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:inherit;}.task-inbox-row.unread{border-left:3px solid var(--bronze);background:var(--bronze-tint);}.task-inbox-row strong{font-size:13px;}.task-inbox-row small,.task-inbox-row time{font-size:11px;color:var(--text-3);}.task-inbox-row span{font-size:12px;}.task-inbox-empty,.task-inbox [data-status]{font-size:12px;color:var(--text-3);}.task-chat .task-mention-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}.task-mention-controls select{max-width:220px;padding:5px;font:inherit;}.task-mention-controls button{font-size:11px;}
+
+/* Встречи и дела одного дня: два самостоятельных списка без роста карточки. */
+.cal-widget.on.cw-split{display:block;min-width:0;}
+.cw-columns{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;min-width:0;}
+.cw-meetings,.cw-day-tasks{display:grid;grid-template-rows:40px 118px;gap:7px;min-width:0;}
+.cw-day-tasks{padding-left:14px;border-left:1px solid var(--line-2);}
+.cw-meetings .cw-list,.cw-day-tasks .cw-list{height:118px;max-height:118px;}
+.cw-meetings .cw-head,.cw-day-tasks .cw-head{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:18px 18px;align-content:start;gap:3px;overflow:hidden;}.cw-columns .cw-title,.cw-columns .cw-sub{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.cw-columns .cw-head .cw-retry{position:absolute;right:0;top:0;min-height:22px;padding:2px 5px;}.cw-columns .cw-head:has(.cw-retry) .cw-title{padding-right:65px;}
+.cw-meetings .cw-chip{max-width:none;}
+.cw-meetings .cw-zoom{font-size:0;padding:6px 8px;}
+.cw-meetings .cw-zoom::after{content:'Войти ↗';font-size:10px;}
+.cw-day-task-list .cw-dated-task{width:100%;max-width:none;min-height:32px;margin:0;border-radius:7px;box-sizing:border-box;text-align:left;cursor:pointer;font-family:inherit;flex:none;}
+.cw-dated-task .t{font-size:10px;min-width:35px;}
+.cw-dated-task .n{font-size:11px;}
+.cw-dated-task.done{opacity:.6;}.cw-dated-task.done .n{text-decoration:line-through;}
+.cw-task-done{font-size:9px;color:var(--text-3);margin-left:auto;white-space:nowrap;}
+.cw-task-empty{font-size:11px;line-height:1.5;color:var(--text-3);padding:8px 0;margin:0;}
+@media(max-width:1100px){.cal-days{grid-template-columns:minmax(0,1fr);}.cw-columns{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);}}
+@media(max-width:560px){.cw-columns{grid-template-columns:minmax(0,1fr);gap:10px;}.cw-day-tasks{padding:10px 0 0;border-left:0;border-top:1px solid var(--line-2);}.cw-meetings,.cw-day-tasks{grid-template-rows:40px 118px;}.cw-meetings .cw-zoom{width:auto;margin:0;}.cal-widget.on.cw-split{padding:12px;}}
 </style>
 <link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
@@ -6393,6 +6412,7 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
+import {tasksForDay} from './app/day-tasks.js';
 import {scheduleValue,taskScheduleLabel,compareTaskSchedule} from './app/task-schedule.js';
 import {initTaskReminders} from './app/task-reminders.js';
 import {initTaskActionMenus} from './app/task-action-menu.js?v=20261123';
@@ -8526,6 +8546,7 @@ function taskDueLabel(task){if(!task.dueDate)return '';return `<time class="fc-t
 const taskReminders=initTaskReminders({api:apiFetch,getEmail:()=>CURRENT?.email,getTasks:()=>FINANCE_WEEK_TASKS,kindTitle:kind=>FINANCE_CHART_META[kind]?.title||kind,openTask:task=>{const i=FINANCE_WEEK_TASKS.findIndex(t=>t.id===task.id);if(i<0)FINANCE_WEEK_TASKS.push(task);else FINANCE_WEEK_TASKS[i]=task;openFinanceWeekTaskEditor(task.kind,task.start,task.end,task.id);}});
 function openTaskAssignee(event,button){taskAssignees.open(event,button);}
 let FINANCE_WEEK_TASKS_LOADED = false;
+let FINANCE_WEEK_TASKS_PROMISE=null,FINANCE_WEEK_TASKS_ERROR=false;
 let taskLinkOpened=false;
 async function openTaskReminderLink(){const id=new URLSearchParams(location.search).get('task');if(!id||taskLinkOpened)return;taskLinkOpened=true;try{const {task}=await apiFetch('/project-finance/tasks/'+encodeURIComponent(id));if(!FINANCE_WEEK_TASKS.some(t=>t.id===id))FINANCE_WEEK_TASKS.push(task);openFinanceWeekTaskEditor(task.kind,task.start,task.end,id);}catch{taskLinkOpened=false;alert('Дело не найдено или доступ к нему изменился.');}}
 
@@ -8595,12 +8616,23 @@ async function loadFinanceChartComments(){
   FINANCE_CHART_COMMENTS_LOADED=true;
 }
 async function loadFinanceWeekTasks(){
-  if(FINANCE_WEEK_TASKS_LOADED) return;
+  if(FINANCE_WEEK_TASKS_LOADED)return;
+  if(FINANCE_WEEK_TASKS_PROMISE)return FINANCE_WEEK_TASKS_PROMISE;
+  const owner=CURRENT?.email;
   FINANCE_WEEK_TASKS=[];
-  const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_week_tasks'],limitPerCollection:10000}});
-  FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
-  FINANCE_WEEK_TASKS_LOADED=true;
+  FINANCE_WEEK_TASKS_ERROR=false;
+  FINANCE_WEEK_TASKS_PROMISE=(async()=>{
+    try{
+      const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_week_tasks'],limitPerCollection:10000}});
+      if(owner!==CURRENT?.email)return;
+      FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
+      FINANCE_WEEK_TASKS_LOADED=true;
+    }catch(error){if(owner===CURRENT?.email)FINANCE_WEEK_TASKS_ERROR=true;throw error;}
+    finally{FINANCE_WEEK_TASKS_PROMISE=null;renderTodayCalendar();}
+  })();
+  return FINANCE_WEEK_TASKS_PROMISE;
 }
+
 function demoOrderTaskTitle(record){
   const name=String(record.contactName||'').trim();
   const project=String(record.title||record.crmDealTitle||record.projectId||'').trim();
@@ -9211,6 +9243,7 @@ function refreshFinanceWeekTaskBlock(kind){
     current.replaceWith(replacement);
     restoreFinanceChartPosition(replacement,position);
   });
+  renderTodayCalendar();
 }
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
@@ -10352,7 +10385,7 @@ function calPositionList(box,events,now,previous){
 function renderCalendarDay(id,label,offset){
   const box=document.getElementById(id);
   const day=new Date(); day.setDate(day.getDate()+offset);
-  const items=CAL_EVENTS===null?null:CAL_EVENTS.filter(e=>calDayKey(new Date(e.at))===calDayKey(day));
+  const items=CAL_EVENTS===null?null:CAL_EVENTS.filter(e=>e.kind!=='task'&&calDayKey(new Date(e.at))===calDayKey(day));
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
   if(CAL_ERROR && !items?.length){
@@ -10408,9 +10441,46 @@ function renderCalendarDay(id,label,offset){
   calPositionList(box,items,now,previous);
 }
 
+function renderCalendarTaskColumn(id,label,offset){
+ const box=document.getElementById(id);if(!box||!calCanSee()||!box.classList.contains('on'))return;
+ const current=new Date(),localDay=new Date(current);localDay.setDate(localDay.getDate()+offset);
+ const todayKey=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Almaty',year:'numeric',month:'2-digit',day:'2-digit'}).format(current);
+ const fixedDay=new Date(todayKey+'T12:00:00+05:00');fixedDay.setUTCDate(fixedDay.getUTCDate()+offset);
+ const key=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Almaty',year:'numeric',month:'2-digit',day:'2-digit'}).format(fixedDay);
+ const appTasks=tasksForDay(FINANCE_WEEK_TASKS,key);
+ const crmTasks=(CAL_EVENTS||[]).filter(e=>e.kind==='task'&&calDayKey(new Date(e.at))===calDayKey(localDay));
+ const entries=[...crmTasks.map(task=>({task,app:false,time:calTimeLabel(task.at),sort:calTimeLabel(task.at)})),...appTasks.map(task=>({task,app:true,time:task.dueTime||'Без времени',sort:task.dueTime||''}))].sort((a,b)=>a.sort.localeCompare(b.sort));
+ const oldTop=box.dataset.taskScrollDate===key?(Number(box.dataset.taskScrollTop)||0):0;
+ box.dataset.taskScrollDate=key;
+ const columns=document.createElement('div');columns.className='cw-columns';
+ const meetings=document.createElement('section');meetings.className='cw-meetings';meetings.setAttribute('aria-label',label+': встречи');
+ while(box.firstChild)meetings.append(box.firstChild);
+ const summary=meetings.querySelector('.cw-sub');if(summary)summary.title=summary.textContent;
+ const tasks=document.createElement('section');tasks.className='cw-day-tasks';tasks.setAttribute('aria-label',label+': дела');
+ tasks.innerHTML=`<div class="cw-head"><span class="cw-title">Дела${entries.length?' · '+entries.length:''}</span><span class="cw-sub">по сроку · Алматы</span></div><div class="cw-list cw-day-task-list"></div>`;
+ const list=tasks.querySelector('.cw-list');
+ for(const entry of entries){
+  const task=entry.task,row=document.createElement(entry.app?'button':'a');row.className='cw-chip task cw-dated-task'+(task.done?' done':'');
+  const title=entry.app?financeDemoTaskText(task):task.title;row.title=title+(entry.app&&FINANCE_CHART_META[task.kind]?' · '+FINANCE_CHART_META[task.kind].title:'');
+  row.innerHTML=`<span class="t">${escapeHtml(entry.time)}</span><span class="n">${escapeHtml(title)}</span>${task.done?'<span class="cw-task-done">Готово</span>':''}`;
+  if(entry.app){row.type='button';row.dataset.appDayTask=task.id;row.onclick=()=>{const live=FINANCE_WEEK_TASKS.find(t=>t.id===task.id&&!t.deleted);if(live)openFinanceWeekTaskEditor(live.kind,live.start,live.end,live.id);};}
+  else{row.href=task.href;row.dataset.cw=String(crmTasks.indexOf(task));}
+  list.append(row);
+ }
+ const note=document.createElement('p');note.className='cw-task-empty';
+ if(FINANCE_WEEK_TASKS_ERROR){note.textContent=appTasks.length?'Не удалось обновить дела App · сохранённый список':'Не удалось загрузить дела App';const retry=document.createElement('button');retry.type='button';retry.className='cw-retry';retry.textContent='Повторить';retry.onclick=()=>loadFinanceWeekTasks().catch(()=>{});note.append(' ',retry);list.append(note);}
+ else if(!FINANCE_WEEK_TASKS_LOADED){note.textContent='Загружаю дела App…';list.append(note);}
+ else if(!entries.length){note.textContent='На этот день дел нет';list.append(note);}
+ columns.append(meetings,tasks);box.append(columns);box.classList.add('cw-split');if(entries.length)box.classList.remove('empty');
+ list.scrollTop=oldTop;list.onscroll=()=>{box.dataset.taskScrollTop=String(list.scrollTop);};
+ calBindTips(tasks,crmTasks);
+}
+
 function renderTodayCalendar(){
   renderCalendarDay('calWidget','Сегодня',0);
+  renderCalendarTaskColumn('calWidget','Сегодня',0);
   renderCalendarDay('calTomorrowWidget','Завтра',1);
+  renderCalendarTaskColumn('calTomorrowWidget','Завтра',1);
 }
 
 /* Карточка встречи при наведении: полное название, воронка, стадия и сумма —
@@ -10505,6 +10575,7 @@ async function loadTodayCalendar(){
     return;
   }
   CAL_LOADING=true;
+  void loadFinanceWeekTasks().catch(()=>{});
   clearTimeout(CAL_TIMER);
   const cached=calReadCache();
   if(CAL_EVENTS===null && cached) CAL_EVENTS=cached;

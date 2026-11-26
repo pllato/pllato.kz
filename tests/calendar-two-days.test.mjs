@@ -7,7 +7,7 @@ const extract=n=>{const i=source.indexOf('function '+n+'(');return source.slice(
 function setup(events){
  const boxes=Object.fromEntries(['calWidget','calTomorrowWidget'].map(id=>[id,{querySelector:()=>null,classList:{remove(){}},innerHTML:''}]));
  const bound=[];
- const c=vm.createContext({Date,CAL_EVENTS:events,document:{getElementById:id=>boxes[id]},calCanSee:()=>true,calCanSeeWidget:()=>false,calDayKey:d=>d.toDateString(),escapeHtml:s=>s,calZoomUrl:s=>s||'',calBindTips:(box,items)=>bound.push(items),calPositionList:()=>{}});
+ const c=vm.createContext({Date,URLSearchParams,CAL_ERROR:false,renderCalendarTaskColumn:()=>{},CAL_EVENTS:events,document:{getElementById:id=>boxes[id]},calCanSee:()=>true,calCanSeeWidget:()=>false,calDayKey:d=>d.toDateString(),escapeHtml:s=>s,calZoomUrl:s=>s||'',calBindTips:(box,items)=>bound.push(items),calPositionList:()=>{}});
  vm.runInContext(['calTimeLabel','renderCalendarDay','renderTodayCalendar'].map(extract).join('\n'),c);
  return {c,boxes,bound};
 }
@@ -23,10 +23,9 @@ test('tomorrow displays explicit empty and loading states',()=>{
  let state=setup([]);state.c.renderTodayCalendar();assert.match(state.boxes.calTomorrowWidget.innerHTML,/Завтра встреч нет/);
  state=setup(null);state.c.renderTodayCalendar();assert.match(state.boxes.calTomorrowWidget.innerHTML,/Завтра.*загружаю встречи/);
 });
-test('single fetch includes tomorrow but excludes other days',async()=>{
- const {c}=setup([]);c.getSession=()=>({token:'test'});c.CAL_WORKER='https://example.test';
- c.calLinkedDealId=()=>null;c.calDealRecordId=d=>d.id;
- c.calFetch=async url=>({ok:true,json:async()=>url.includes('pipelines')?{}:{items:[0,1,2,-1].map(n=>({id:String(n),mark:'zoom_meeting',title:'day '+n,startDatePlan:new Date(event(n,'').at).toISOString()}))}});
+test('fetch uses one shared upcoming endpoint for today and tomorrow',async()=>{
+ const {c}=setup([]),calls=[];c.getSession=()=>({token:'test'});c.CAL_WORKER='https://example.test';
+ c.calFetch=async(url,timeout,options)=>{calls.push({url,options});return {ok:true,json:async()=>({ok:true,items:[event(0,'day 0'),event(1,'day 1')]})};};
  vm.runInContext('async '+extract('calFetchToday'),c);
- const items=await c.calFetchToday();assert.deepEqual(Array.from(items,e=>e.title),['day 0','day 1']);
+ const items=await c.calFetchToday();assert.deepEqual(Array.from(items,e=>e.title),['day 0','day 1']);assert.equal(calls.length,1);assert.match(calls[0].url,/api\/calendar\/upcoming/);assert.equal(calls[0].options.headers.Authorization,'Bearer test');
 });
