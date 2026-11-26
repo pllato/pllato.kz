@@ -149,3 +149,46 @@ test('явное отключение сохраняет обычные прав
  const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[],all_admins:false},'deals/deal_1');const previous=globalThis.fetch;globalThis.fetch=f.fetch;
  try{await processStageGroups(f.env);assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM wa_group_admin_policy').get().n,0);}finally{globalThis.fetch=previous;}
 });
+
+test('технический номер: обязательные Ирина и Платон добавляются и становятся админами даже при all_admins=false',async()=>{
+ const f=await fixture();
+ f.db.exec("UPDATE wa_channels SET id_instance='770022696546'");
+ const r=await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[],all_admins:false},'deals/deal_1');assert.equal(r.status,202);
+ const old=globalThis.fetch;
+ globalThis.fetch=async(url,opt)=>{
+  const method=new URL(url).pathname.split('/')[2],body=JSON.parse(opt.body);
+  if(method==='createGroup')for(const id of body.chatIds)f.members.add(id);
+  return f.fetch(url,opt);
+ };
+ try{
+  await processStageGroups(f.env);
+  const creation=f.calls.find(c=>c.method==='createGroup');
+  assert.ok(creation.body.chatIds.includes('77064261516@c.us'));
+  assert.ok(creation.body.chatIds.includes('77011239999@c.us'));
+  assert.deepEqual([...f.admins].sort(),['77011239999@c.us','77064261516@c.us']);
+  assert.equal(f.db.prepare('SELECT status FROM wa_manual_group_jobs').get().status,'done');
+  assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'active');
+  assert.equal(f.calls.filter(c=>c.method==='createGroup').length,1);
+  await processStageGroups(f.env);
+  assert.equal(f.calls.filter(c=>c.method==='createGroup').length,1);
+ }finally{globalThis.fetch=old;}
+});
+
+test('обязательные администраторы в автоматической группе распознаются по WhatsApp LID',async()=>{
+ const f=await fixture();f.db.exec("UPDATE wa_channels SET id_instance='770022696546'");
+ await f.request('PUT',{rules:[{...f.rules[0],all_admins:false}]});f.stage();
+ const aliases={'77064261516@c.us':'100000000001@lid','77011239999@c.us':'100000000002@lid'};
+ const old=globalThis.fetch;
+ globalThis.fetch=async(url,opt)=>{
+  const method=new URL(url).pathname.split('/')[2],body=JSON.parse(opt.body);
+  if(method==='checkWhatsapp')return Response.json({existsWhatsapp:true,chatId:aliases[body.chatId]||body.chatId});
+  if(method==='createGroup')for(const id of body.chatIds)f.members.add(aliases[id]||id);
+  return f.fetch(url,opt);
+ };
+ try{
+  await processStageGroups(f.env);
+  assert.deepEqual([...f.admins].sort(),Object.values(aliases).sort());
+  assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'active');
+  assert.equal(f.db.prepare('SELECT status FROM wa_stage_group_jobs').get().status,'done');
+ }finally{globalThis.fetch=old;}
+});

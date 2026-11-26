@@ -1,4 +1,5 @@
 import { greenApiHost } from './green-api-host.js';
+import { requiredGroupAdmins } from './wa-channel-policy.js';
 import {clientGroupSchema,clientGroupPhones,readClientGroups,requestClientGroupRefresh} from './wa-client-groups.js';
 export const groupWelcome = 'Добро пожаловать в Pllato! 👋\nМы — студия разработки программного обеспечения. Создаём CRM-системы, сайты и приложения для бизнеса.\n\nВ этом чате будем обсуждать ваш проект, согласовывать задачи и материалы, делиться результатами и решать рабочие вопросы.\n\nРады сотрудничеству!';
 const parse=(s,fallback)=>{try{return JSON.parse(s)||fallback;}catch{return fallback;}};
@@ -56,6 +57,8 @@ async function processJob(env,job,rule){
  const channelId=group?.channel_id||rule.channel_id;
  const channel=await env.DB.prepare('SELECT * FROM wa_channels WHERE id=? AND active=1').bind(channelId).first();
  if(!channel)throw new Error('Рабочий WhatsApp-номер отключён');
+ const requiredAdmins=requiredGroupAdmins(channel);
+ for(const person of requiredAdmins)if(!people.some(p=>p.chatId===person.chatId))people.push({...person});
  for(const person of people){
   const found=await provider(channel,'checkWhatsapp',{chatId:person.chatId});
   if(found.existsWhatsapp!==true)throw new Error(person.label+': номер не найден в WhatsApp');
@@ -76,7 +79,7 @@ async function processJob(env,job,rule){
   await env.DB.prepare("UPDATE wa_deal_groups SET status='creating',name=?,created_at=? WHERE deal_id=?").bind(group.name,Date.now(),deal.id).run();
   const optionId=job.event_id?adminOptionKey(job.pipeline_id,job.stage_id):JSON.stringify(['manual',deal.id]);
   const adminOption=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(optionId).first();
-  if(!adminOption||adminOption.enabled)await env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_policy(deal_id) VALUES(?)').bind(deal.id).run();
+  if(requiredAdmins.length||!adminOption||adminOption.enabled)await env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_policy(deal_id) VALUES(?)').bind(deal.id).run();
   const result=await provider(channel,'createGroup',{groupName:group.name,chatIds:people.map(x=>x.chatId)});
   if(!result.created||!/^\d[\d-]*@g\.us$/.test(result.chatId||''))throw new Error('WhatsApp не подтвердил создание. Проверьте группу перед повторной попыткой.');
   group.group_id=result.chatId;group.invite_link=inviteUrl(result.groupInviteLink);
@@ -281,8 +284,24 @@ export async function reconcileGroupAdmins(env){
   if(!channel)throw Error('Рабочий WhatsApp-номер отключён');
   const data=await provider(channel,'getGroupData',{groupId:group.group_id});
   if(!Array.isArray(data.participants))throw Error('Не удалось проверить администраторов');
-  const pending=data.participants.filter(p=>!p.isAdmin&&!p.isSuperAdmin);
-  const issues=[];
+  const required=requiredGroupAdmins(channel).map(a=>({...a,ids:[a.chatId]}));
+  const matches=(p,a)=>[p.id,p.chatId,p.phoneNumber,p.lid].filter(Boolean).some(id=>a.ids.includes(id)||(!String(id).endsWith('@lid')&&groupPhone(String(id).split('@')[0])===groupPhone(a.chatId.split('@')[0])));
+  // WhatsApp иногда возвращает только LID: сопоставляем его с обязательным номером.
+  for(const admin of required)if(!data.participants.some(p=>matches(p,admin))){
+   const found=await provider(channel,'checkWhatsapp',{chatId:admin.chatId});
+   if(found.chatId)admin.ids.push(found.chatId);
+  }
+  const optionId=JSON.stringify(['manual',group.deal_id]);
+  // Отключение «все администраторы» не отменяет обязательных администраторов номера.
+  let promoteAll=true;
+  if(required.length){
+   const manual=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(optionId).first();
+   const stage=manual?null:await env.DB.prepare('SELECT pipeline_id,stage_id FROM wa_stage_group_jobs WHERE deal_id=? ORDER BY event_id DESC LIMIT 1').bind(group.deal_id).first();
+   const option=manual||(stage?await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(adminOptionKey(stage.pipeline_id,stage.stage_id)).first():null);
+   promoteAll=option?.enabled!==0;
+  }
+  const pending=data.participants.filter(p=>!p.isAdmin&&!p.isSuperAdmin&&(promoteAll||required.some(a=>matches(p,a))));
+  const issues=required.filter(a=>!data.participants.some(p=>matches(p,a))).map(a=>a.label+': ожидаем вступления в группу');
   for(const person of pending.slice(0,10)){
    const id=person.id||person.chatId||person.phoneNumber||person.lid;
    if(!id){issues.push('Не получен ID участника');continue;}
