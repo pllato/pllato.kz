@@ -1,7 +1,15 @@
 export const ASTANA_PIPELINE='pipeline_2zttlx';
 const CONFIG_KEY='pipeline:astana:admissions';
 const defaults={sources:['WhatsApp','Instagram','Facebook','Рекомендация','Другое'],levels:['Не определён','Beginner','Elementary','Pre-Intermediate','Intermediate','Upper-Intermediate','Advanced']};
-export function astanaAllowed(me){if(me?.userRecord?.active===0||me?.userRecord?.active===false)return false;return me?.email==='uurraa@gmail.com'||(me?.orgPerms?.pipelineIds==null&&me?.role==='admin')||me?.orgPerms?.pipelineIds?.includes(ASTANA_PIPELINE);}
+export function astanaAllowed(me){if(me?.userRecord?.active===0||me?.userRecord?.active===false)return false;return me?.email==='uurraa@gmail.com'||(me?.orgPerms?.pipelineIds==null&&(me?.role==='admin'||me?.orgPerms?.pipelineIds===null))||me?.orgPerms?.pipelineIds?.includes(ASTANA_PIPELINE);}
+// Участие в Astana даёт работу со всеми её заявками; перенос в другую
+// воронку не является частью этого разрешения.
+export function astanaEditTargetAllowed(me,source,target){
+ if(source!==ASTANA_PIPELINE)return true;
+ if(!astanaAllowed(me))return false;
+ if(!target||target===ASTANA_PIPELINE)return true;
+ return me.email==='uurraa@gmail.com'||(me.role==='admin'&&(!Array.isArray(me.orgPerms?.pipelineIds)||me.orgPerms.pipelineIds.includes(target)));
+}
 function parse(s,f={}){try{return JSON.parse(s)||f;}catch{return f;}}
 export function validateAdmissions(body,config){
  const name=String(body.name||'').trim(),phone=String(body.phone||'').replace(/[^\d+]/g,'');
