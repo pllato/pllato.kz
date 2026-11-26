@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {ASTANA_PIPELINE as PID,astanaAllowed,validateAdmissions,handleAstanaAdmissions} from '../elc-worker/astana-admissions.js';
 function fixture(){const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE kv(k TEXT PRIMARY KEY,v TEXT);CREATE TABLE users(uid TEXT PRIMARY KEY,name TEXT,last_name TEXT,email TEXT,active INTEGER);CREATE TABLE pipelines(id TEXT PRIMARY KEY,stages TEXT);CREATE TABLE contacts(id TEXT PRIMARY KEY,name TEXT,last_name TEXT,phones TEXT);CREATE TABLE deals(id TEXT PRIMARY KEY,bitrix_id TEXT,title TEXT,pipeline_id TEXT,stage_id TEXT,responsible_uid TEXT,created_by_uid TEXT,modify_by_uid TEXT,contact_id TEXT,custom_fields TEXT,comments TEXT,source_description TEXT,bitrix_date_create TEXT,bitrix_date_modify TEXT,closed INTEGER DEFAULT 0);`);
  db.prepare('INSERT INTO pipelines VALUES(?,?)').run(PID,JSON.stringify({NEW:{name:'Новая заявка',sort:10},LOST:{name:'Отказ',semantics:'F'}}));db.exec(`INSERT INTO users VALUES('u','Employee','','e@x.kz',1),('root','Owner','','uurraa@gmail.com',1);INSERT INTO kv VALUES('org:fieldConfig','{"other":{"accessMode":"restricted","hidden":["keep"]},"pipeline_2zttlx":{"accessMemberUids":["u"],"showFirstZoom":false}}');`);
- const env={DB:{prepare(sql){return {bind(...args){return {first:async()=>db.prepare(sql).get(...args)||null,all:async()=>({results:db.prepare(sql).all(...args)}),run:async()=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}})};}};}}};
+ const env={DB:{prepare(sql){let args=[];return {bind(...a){args=a;return this;},first:async()=>db.prepare(sql).get(...args)||null,all:async()=>({results:db.prepare(sql).all(...args)}),run:async()=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}}),exec(){const stmt=db.prepare(sql);return stmt.columns().length?{results:stmt.all(...args).map(r=>({...r}))}:{results:[],meta:stmt.run(...args)};}};},async batch(stmts){db.exec('BEGIN');try{const r=stmts.map(s=>s.exec());db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}}}};
  let me={email:'e@x.kz',canonicalUid:'u',role:'agent',orgPerms:{pipelineIds:[PID]}};
  const deps={json:(data,status)=>new Response(JSON.stringify(data),{status}),requireAuthFlexible:async()=>({claims:{}}),resolveCanonicalUser:async()=>me,rowToCamel:r=>r,auditLog:async()=>{},logStageEvent:async()=>{}};
  return {db,env,setMe:x=>me=x,call:async(path,method='GET',body)=>handleAstanaAdmissions(new Request('https://x/api/astana/'+path,{method,...(body?{body:JSON.stringify(body)}:{})}),env,deps)};
@@ -11,3 +11,25 @@ test('validates trial date/time, phone, and editable dictionary values',()=>{con
 test('member grants preserve other pipelines and keep the owner',async()=>{const f=fixture();const r=await f.call('members','PUT',{memberUids:['u']});assert.equal(r.status,200);const config=JSON.parse(f.db.prepare("SELECT v FROM kv WHERE k='org:fieldConfig'").get().v);assert.deepEqual(config.other,{accessMode:'restricted',hidden:['keep']});assert.equal(config[PID].showFirstZoom,false);assert.deepEqual(config[PID].accessMemberUids,['u','root']);assert.equal(config[PID].accessMode,'restricted');});
 test('create/edit/calendar use only Astana and keep unrelated custom fields',async()=>{const f=fixture();const body={name:'A',phone:'+77071234567',source:'WhatsApp',level:'Beginner',trialLessonAt:'2026-11-26T15:30:00+05:00',note:'Note'};let r=await f.call('deal','POST',body);assert.equal(r.status,200);const created=await r.json();const id=created.item.id;let c=await f.call('calendar?from=2026-11-01&to=2026-12-01');assert.equal((await c.json()).items.length,1);f.db.prepare('UPDATE deals SET custom_fields=json_set(custom_fields,\'$.keep\',true) WHERE id=?').run(id);r=await f.call('deal/'+id,'PUT',{...body,name:'B',stageId:'LOST'});assert.equal(r.status,200);assert.equal(JSON.parse(f.db.prepare('SELECT custom_fields FROM deals WHERE id=?').get(id).custom_fields).keep,1);assert.equal(f.db.prepare('SELECT closed FROM deals WHERE id=?').get(id).closed,1);f.db.prepare('UPDATE deals SET pipeline_id=? WHERE id=?').run('other',id);assert.equal((await f.call('deal/'+id)).status,404);});
 test('staff without Astana cannot read or edit its data or access list',async()=>{const f=fixture();f.setMe({role:'admin',orgPerms:{pipelineIds:['other']}});for(const path of ['members','settings','calendar?from=2026-11-01&to=2026-12-01','deal/x'])assert.equal((await f.call(path)).status,403);assert.equal((await f.call('members','PUT',{memberUids:['u']})).status,403);});
+
+test('card can change responsible only to an active Astana participant; omitted value preserves choice',async()=>{
+ const f=fixture();f.db.exec("INSERT INTO users VALUES('other','Other','','other@x.kz',1),('off','Off','','off@x.kz',0)");
+ const body={name:'A',phone:'+77071234567',responsibleUid:'root'};
+ const created=await(await f.call('deal','POST',body)).json();const id=created.item.id;
+ assert.equal(created.item.responsibleUid,'root');
+ let result=await f.call('deal/'+id,'PUT',{name:'B',phone:body.phone,responsibleUid:'u'});assert.equal(result.status,200);
+ assert.equal((await result.json()).item.responsibleUid,'u');
+ for(const responsibleUid of ['other','off','missing'])assert.equal((await f.call('deal/'+id,'PUT',{...body,responsibleUid})).status,400);
+ await f.call('deal/'+id,'PUT',{name:'C',phone:body.phone});assert.equal(f.db.prepare('SELECT responsible_uid FROM deals WHERE id=?').get(id).responsible_uid,'u');
+ const detail=await(await f.call('deal/'+id)).json();assert.deepEqual(detail.assignees.filter(x=>x.assignable).map(x=>x.uid).sort(),['root','u']);
+});
+test('Astana manual creation without selected operator uses the same alternating queue and edits do not advance it',async()=>{
+ const f=fixture();const {ensureLeadDistribution}=await import('../elc-worker/lead-distribution.js');await ensureLeadDistribution(f.env);
+ const config={enabled:true,stageId:'NEW',mode:'equal',rows:[{leadUid:'u',kepUid:null,weight:1},{leadUid:'root',kepUid:null,weight:1}]};
+ f.db.prepare('INSERT INTO lead_distribution VALUES(?,?,?,?,?,0)').run(PID,'NEW',1,JSON.stringify(config),JSON.stringify(config.rows));
+ const actual=[];let id;
+ for(let i=0;i<4;i++){const r=await f.call('deal','POST',{name:'Queue '+i,phone:'+77071234567',responsibleUid:''});assert.equal(r.status,200);const d=await r.json();actual.push(d.item.responsibleUid);id=d.item.id;}
+ assert.deepEqual(actual,['u','root','u','root']);assert.equal(f.db.prepare('SELECT cursor FROM lead_distribution').get().cursor,4);
+ await f.call('deal/'+id,'PUT',{name:'Updated',phone:'+77071234567',responsibleUid:'u'});assert.equal(f.db.prepare('SELECT cursor FROM lead_distribution').get().cursor,4);
+ await f.call('deal','POST',{name:'Explicit',phone:'+77071234567',responsibleUid:'root'});assert.equal(f.db.prepare('SELECT cursor FROM lead_distribution').get().cursor,4);
+});
