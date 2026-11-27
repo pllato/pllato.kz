@@ -5,6 +5,7 @@ const ready=new WeakSet();
 export async function ensureMessageTools(db){
  if(ready.has(db))return;
  await db.prepare(`CREATE TABLE IF NOT EXISTS wa_message_tools(message_id TEXT PRIMARY KEY,quote_json TEXT,edited_at INTEGER NOT NULL DEFAULT 0)`).run();
+ await db.prepare('CREATE INDEX IF NOT EXISTS wa_tools_edits ON wa_message_tools(edited_at)').run();
  ready.add(db);
 }
 export async function saveQuote(db,id,quote){

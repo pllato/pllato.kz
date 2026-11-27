@@ -6331,10 +6331,12 @@ async function handleWaListMessages(request, env) {
   // q — поиск по всей истории чата (текст + подпись к медиа), не только по
   // загруженным сообщениям. Используется строкой поиска в окне переписки.
   if (q) { where.push("(text LIKE ? OR caption LIKE ?)"); params.push('%' + q + '%', '%' + q + '%'); }
-  const { results } = await env.DB.prepare(`
-    SELECT m.*,t.quote_json,t.edited_at FROM wa_messages m LEFT JOIN wa_message_tools t ON t.message_id=m.id WHERE ${where.join(" AND ")}
-    ORDER BY m.ts DESC LIMIT ?
-  `).bind(...params, limit).all();
+  // Две индексируемые ветки вместо обхода всей переписки при каждом delta-poll.
+  const editedDelta=since>0&&updatedSince>0&&!before&&!q;
+  const sql=editedDelta?`SELECT m.*,t.quote_json,t.edited_at FROM wa_messages m LEFT JOIN wa_message_tools t ON t.message_id=m.id WHERE m.chat_id=? AND m.ts>?
+    UNION SELECT m.*,t.quote_json,t.edited_at FROM wa_message_tools t JOIN wa_messages m ON m.id=t.message_id WHERE t.edited_at>? AND m.chat_id=?
+    ORDER BY ts DESC LIMIT ?`:`SELECT m.*,t.quote_json,t.edited_at FROM wa_messages m LEFT JOIN wa_message_tools t ON t.message_id=m.id WHERE ${where.join(" AND ")} ORDER BY m.ts DESC LIMIT ?`;
+  const {results}=await env.DB.prepare(sql).bind(...(editedDelta?[chatId,since,updatedSince,chatId]:params),limit).all();
   // Возвращаем в хронологическом порядке (старые → новые)
   const items = results.reverse().map(r => ({
     id: r.id, chatId: r.chat_id, waMessageId: r.wa_message_id,
