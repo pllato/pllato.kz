@@ -1466,6 +1466,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <link rel="stylesheet" href="./app/financial-planning.css?v=20261012-notes-hover">
 <script src="/app/production-activity.js?v=11"></script>
 <link rel="stylesheet" href="./app/project-cards.css?v=20261110-task-link">
+<link rel="stylesheet" href="app/admin-scale.css?v=20261127">
 </head>
 <body>
 
@@ -6163,6 +6164,11 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     </div></div>
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
+      <div class="tool-card" data-app-id="admin_scale" data-created="2026-11-27" data-updated="2026-11-27">
+        <div class="tool-icon color-bronze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h12M8 12h12M8 19h12M3 5h.01M3 12h.01M3 19h.01"/></svg></div>
+        <h3>Админ Шкала</h3><p>Рабочая шкала: цели, правила, планы, программы и результаты. Дополняйте пункты и возвращайтесь к ним каждый день.</p>
+        <button type="button" class="tool-cta" onclick="openAdminScalePanel()" style="border:0;background:none;text-align:left;cursor:pointer">Открыть шкалу →</button>
+      </div>
       <a href="app/client-state-scale.html" class="tool-card" data-app-id="client_state_scale" data-created="2026-11-27" data-updated="2026-11-27">
         <div class="tool-icon color-bronze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 9h13M4 13h10M4 17h7M4 21h4"/></svg></div>
         <h3>Шкала состояния клиента</h3>
@@ -6495,6 +6501,7 @@ document.getElementById('openZoomArchive').addEventListener('click', async () =>
   } catch(error) { archive.textContent='Не удалось загрузить архив. Закройте и откройте его снова.'; }
 });
 
+import {initAdminScale} from './app/admin-scale.js?v=20261127';
 import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-notes-hover';
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
@@ -6635,6 +6642,7 @@ const APPS_CATALOG = [
   { id: "pllato_zoom_archive", label: "Архив Zoom — записи и транскрипты" },
   { id: "pllato_briefs", label: "Анкета для ТЗ клиента — ссылка и заявки" },
   { id: "client_state_scale", label: "Шкала состояния клиента" },
+  { id: "admin_scale", label: "Админ Шкала — редактирование целей и планов" },
   { id: "ukolova_call_trainer", label: "Тренажёр звонков · база LANDPR" },
   { id: "esmotors",         label: "ES Motors · CRM отдела продаж автосалона — Демо + КП" },
   { id: "kazmeddez",        label: "Казахстан-Мед Дез · Единый портал вместо Битрикса — Демо" },
@@ -7323,6 +7331,7 @@ function applyPermissionsAndAdminUI() {
   syncProjectMoneyVisibility();
   initProjectPayouts({api:apiFetch,current:()=>CURRENT});
   setTimeout(()=>{taskReminders.refresh();openTaskReminderLink();},1000);
+  ensureAdminScalePanel();
   initFinancialPlanning({api:apiFetch,refresh:()=>{buildProjectTabs();applyProjectFilters();}});
   applyProjectFilters();
 }
@@ -7621,6 +7630,7 @@ function initProjectGroups(){
   const charts=ensureFinanceCharts();
   if(charts&&!charts.innerHTML)charts.innerHTML=financeChartsHeader();
   applyFinanceChartsFold();
+  ensureAdminScalePanel();
   injectMoney();
   restoreWorkspace();
   // Виджет встреч запускаем ПОСЛЕ того, как портал отрисовал свои данные:
@@ -9587,11 +9597,28 @@ function toggleFinanceCharts(){
   FINANCE_DISCLOSURE_OPEN=!FINANCE_DISCLOSURE_OPEN;
   applyFinanceChartsFold();
 }
+let adminScaleController=null,adminScaleUser='';
+function adminScaleAllowed(){return Boolean(CURRENT&&(CURRENT.isAdmin||CURRENT.isSuperAdmin||CURRENT.email==='uurraa@gmail.com'||CURRENT.apps?.admin_scale));}
+function syncAdminScaleButtons(){
+  const actions=document.querySelector('#financeCharts .fc-head-actions');
+  if(actions&&adminScaleAllowed()&&!actions.querySelector('[data-admin-scale-toggle]'))actions.insertAdjacentHTML('beforeend',adminScaleToggleHtml());
+  document.querySelectorAll('[data-admin-scale-toggle]').forEach(b=>{b.hidden=!adminScaleAllowed();const open=adminScaleController?.isOpen()||false;b.textContent='Админ Шкала · '+(open?'Свернуть':'Развернуть');b.setAttribute('aria-expanded',String(open));});
+}
+function adminScaleToggleHtml(){return adminScaleAllowed()?`<button type="button" class="fc-toggle" data-admin-scale-toggle aria-controls="adminScaleHost" aria-expanded="${adminScaleController?.isOpen()||false}" onclick="toggleAdminScalePanel()">Админ Шкала · ${adminScaleController?.isOpen()?'Свернуть':'Развернуть'}</button>`:'';}
+function ensureAdminScalePanel(){
+  const user=String(CURRENT?.email||'').toLowerCase();
+  if(!adminScaleAllowed()||adminScaleUser!==user){adminScaleController?.destroy();adminScaleController=null;adminScaleUser=user;}
+  if(adminScaleAllowed()&&!adminScaleController){const charts=document.getElementById('financeCharts');if(!charts)return;const host=document.createElement('section');host.id='adminScaleHost';charts.insertAdjacentElement('afterend',host);adminScaleController=initAdminScale({host,api:apiFetch,userKey:user,onToggle:()=>queueMicrotask(syncAdminScaleButtons)});}
+  syncAdminScaleButtons();
+}
+window.toggleAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.toggle();if(adminScaleController?.isOpen())document.getElementById('adminScaleHost')?.scrollIntoView({behavior:'smooth',block:'start'});};
+window.openAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.open();document.getElementById('adminScaleHost')?.scrollIntoView({behavior:'smooth',block:'start'});};
+
 function financeChartsHeader(){
   const meta=financeChartPeriodMeta();
   const periods=Object.entries(FINANCE_CHART_PERIOD_META).map(([key,item])=>`<button type="button" class="${key===FINANCE_CHART_PERIOD?'active':''}" onclick="setFinanceChartPeriod('${key}')" aria-pressed="${key===FINANCE_CHART_PERIOD}">${item.label}</button>`).join('');
   const toggle=financeChartsPinnedOpen()?'':`<button class="fc-toggle" title="Развернуть / свернуть графики · F / А" aria-keyshortcuts="f а" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
-  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
+  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${adminScaleToggleHtml()}${toggle}</div></div>`;
 }
 // Capture immediately before replacing DOM, after pending requests finish.
 function captureFinanceChartPosition(root){

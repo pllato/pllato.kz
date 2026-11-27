@@ -1,3 +1,4 @@
+import {ADMIN_SCALE_COLLECTION,handleAdminScale} from './admin-scale.js';
 import {notifyTask,taskRecipients,validateTaskSchedule,handleTaskReminders} from './chart-task-reminders.js';
 import {TASK_COMMENTS_COLLECTION,handleTaskDiscussion,handleTaskDiscussionSummaries,sharedTaskEditable} from './chart-task-discussion.js';
 import {insertChartTaskIfAbsent} from './chart-task-create.js';
@@ -870,6 +871,7 @@ async function handleStorePull(request, env, actor) {
   const collections = normalizeCollectionList(body.collections || []);
   if(collections.includes(PRODUCTION_COLLECTION))throw new HttpError(403,"Используйте график активности");
   if(collections.includes(SOCIAL_COLLECTION))throw new HttpError(403,"Используйте график публикаций");
+  if(collections.includes(ADMIN_SCALE_COLLECTION))throw new HttpError(403,"Используйте Админ Шкалу");
   if(collections.includes(PLAN_COLLECTION))throw new HttpError(403,"Используйте финансовое планирование");
   if(collections.includes(PAYOUT_COLLECTION))throw new HttpError(403,"Используйте раздел выплат проекта");
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
@@ -917,6 +919,7 @@ async function handleStorePush(request, env, actor, ctx) {
     if(collection===TASK_COMMENTS_COLLECTION)throw new HttpError(403,"Используйте обсуждение дела");
     if(collection === PRODUCTION_COLLECTION)throw new HttpError(403,"Используйте график активности");
     if(collection === SOCIAL_COLLECTION)throw new HttpError(403,"Используйте график публикаций");
+    if(collection === ADMIN_SCALE_COLLECTION)throw new HttpError(403,"Используйте Админ Шкалу");
     if(collection === PLAN_COLLECTION)throw new HttpError(403,"Используйте финансовое планирование");
     if(collection === PAYOUT_COLLECTION)throw new HttpError(403,"Используйте раздел выплат проекта");
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
@@ -9012,6 +9015,17 @@ export default {
       if (request.method === "PUT" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
+      }
+
+      if(path==='/admin-scale'){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        const result=await handleAdminScale(request,env,actor,{get:d1GetDoc,HttpError,save:async(env,doc,revision)=>{
+          await ensureD1Schema(env);
+          const out=await requireStoreDb(env).prepare("INSERT INTO store(team_id,collection,id,data,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(team_id,collection,id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at WHERE json_extract(store.data,'$.revision')=?")
+            .bind(TEAM_ID,ADMIN_SCALE_COLLECTION,'scale',JSON.stringify(doc),doc.updatedAt,doc.updatedAt,revision).run();
+          return out.meta.changes>0;
+        }});
+        const response=json(request,env,result);response.headers.set('Cache-Control','private, no-store');return response;
       }
 
       if (path === "/financial-planning" || path === "/financial-planning/access" || path === "/financial-planning/comments") {
