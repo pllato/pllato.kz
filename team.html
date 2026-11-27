@@ -3964,11 +3964,32 @@ function attachScopeToggle(_rootEl, _onChange) { /* noop */ }
 // Выбор персистится. Для менеджеров/агентов scope корректный по их правам
 // (effectiveScope), а фильтр по сотруднику работает client-side (их срез мал).
 const ADMIN_KANBAN_FILTER_LS = 'elc:adminKanbanFilter';
+function astanaFilterKey(){return 'elc:astanaAssignee:'+String(window.currentUser?.canonicalUid||'');}
+function astanaAssigneeScope(){const value=getAdminKanbanFilter();return {scope:'all',assignee:value==='all'?'':value==='mine'?(window.currentUser?.canonicalUid||'__unlinked__'):value};}
+const astanaManagerCache={uid:'',at:0,items:[]};
+async function loadAstanaFilterManagers(){
+ if(dealsState.activePipelineId!==ASTANA)return;
+ const uid=window.currentUser?.canonicalUid||'';
+ if(astanaManagerCache.uid!==uid){delete dealsState.dealsByPipeline[ASTANA];dealsState.loaded=false;}
+ if(astanaManagerCache.uid===uid&&Date.now()-astanaManagerCache.at<60000)return;
+ try{
+  const token=await fbAuth.currentUser.getIdToken();const response=await fetch(WORKER_BASE_URL+'/api/astana/assignees',{headers:{Authorization:'Bearer '+token}});
+  if(!response.ok)throw Error('Не удалось загрузить ответственных ELC Astana');
+  const data=await response.json();astanaManagerCache.items=(data.assignees||[]).map(u=>({uid:u.uid,fullName:u.name}));astanaManagerCache.uid=uid;astanaManagerCache.at=Date.now();
+  const value=getAdminKanbanFilter();if(value!=='all'&&value!=='mine'&&!astanaManagerCache.items.some(u=>u.uid===value)){setAdminKanbanFilter('all');delete dealsState.dealsByPipeline[ASTANA];dealsState.loaded=false;}
+ }catch(error){astanaManagerCache.items=[];showToast(error.message);}
+}
+function astanaResponsibleFilterHtml(){
+ const value=getAdminKanbanFilter();return `<select class="tb-select" id="resp-filter" aria-label="Ответственный ELC Astana"><option value="__all__" ${value==='all'?'selected':''}>Все сделки</option><option value="__mine__" ${value==='mine'?'selected':''}>Мои сделки</option><optgroup label="По ответственному">${getUsersForFilter().map(u=>`<option value="${escapeHtml(u.uid)}" ${value===u.uid?'selected':''}>${escapeHtml(u.fullName)}</option>`).join('')}</optgroup></select>`;
+}
 function getAdminKanbanFilter() {
+  if(dealsState.activePipelineId===ASTANA){try{return localStorage.getItem(astanaFilterKey())||'all';}catch{return 'all';}}
+
   try { return localStorage.getItem(ADMIN_KANBAN_FILTER_LS) || 'mine'; }
   catch { return 'mine'; }
 }
 function setAdminKanbanFilter(v) {
+  if(dealsState.activePipelineId===ASTANA){try{localStorage.setItem(astanaFilterKey(),v||'all');}catch{}return;}
   try { localStorage.setItem(ADMIN_KANBAN_FILTER_LS, v || 'mine'); } catch {}
 }
 // Назад-совместимость на случай старых вызовов.
@@ -9138,6 +9159,7 @@ async function renderDeals(el) {
 
   // Meta (pipeline/customSchema/users) — лёгкие, нужны и для list и для kanban.
   await loadDealsMeta();
+  await loadAstanaFilterManagers();
   ensureRefListsLoaded();
 
   if (dealsState.view === 'kanban') {
@@ -9726,9 +9748,9 @@ async function loadDealsPage(page) {
     });
     if (dealsState.search) params.set('q', dealsState.search);
     if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
-    if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
+    if(dealsState.activePipelineId===ASTANA){const slice=astanaAssigneeScope();if(slice.assignee)params.set('assignee',slice.assignee);}else if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
     if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
-    params.set('scope', effectiveScope());
+    params.set('scope', dealsState.activePipelineId===ASTANA?'all':effectiveScope());
 
     const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -9766,6 +9788,7 @@ async function loadDealsData() {
 // ?scope=all в URL форсит «все». Менеджеры/агенты — effectiveScope() + assignee
 // из responsibleFilter (server-side).
 function computeKanbanScope() {
+  if(dealsState.activePipelineId===ASTANA)return astanaAssigneeScope();
   const isAdmin = window.currentUser?.role === 'admin';
   const urlScope = new URLSearchParams(location.search).get('scope');
   let scope, assignee = '';
@@ -9802,6 +9825,7 @@ async function loadDealsStageCounts(pipelineId, idToken) {
     finally { clearTimeout(to); }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
+    if(pipelineId===ASTANA&&JSON.stringify({scope,assignee})!==JSON.stringify(computeKanbanScope()))return;
     dealsState.stageCountsByPipeline[pipelineId] = {
       counts: data.counts || {},
       total: data.total || 0,
@@ -9827,10 +9851,11 @@ async function loadDealsStageCounts(pipelineId, idToken) {
 //   повторный заход на ту же воронку — instant из памяти.
 // - Anti-race: если уже идёт загрузка — возвращает существующий promise.
 async function loadDealsForPipeline(pipelineId, opts = {}) {
+  const astanaSlice=pipelineId===ASTANA?JSON.stringify(computeKanbanScope()):'';
   const force = opts.force === true;
 
   // Кеш в памяти — мгновенно
-  if (!force && dealsState.dealsByPipeline[pipelineId]) {
+  if (!force && dealsState.dealsByPipeline[pipelineId] && (pipelineId!==ASTANA||dealsState.dealsByPipeline[pipelineId].__assigneeSlice===astanaSlice)) {
     dealsState.deals = dealsState.dealsByPipeline[pipelineId];
     dealsState.loaded = true;
     // Фоновое обновление если воронка показывается > 60s
@@ -9850,7 +9875,8 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
 
   // Anti-race
   if (dealsState.pipelineLoading[pipelineId]) {
-    return dealsState.pipelineLoading[pipelineId];
+    if(pipelineId!==ASTANA)return dealsState.pipelineLoading[pipelineId];
+    await dealsState.pipelineLoading[pipelineId];return loadDealsForPipeline(pipelineId,opts);
   }
 
   const promise = (async () => {
@@ -9909,6 +9935,7 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
           console.warn(`loadDealsForPipeline page ${page} failed:`, e && e.message);
           break; // не теряем уже загруженное — покажем что успели
         }
+        if(pipelineId===ASTANA&&astanaSlice!==JSON.stringify(computeKanbanScope()))return;
         const items = data.items || [];
         all.push(...items);
         // Инкрементальный показ — только первичная загрузка (не force-refresh,
@@ -9948,6 +9975,7 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // визуально упорядоченным — последние созданные сверху.
       all.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
       all.__loadedAt = Date.now();
+      if(pipelineId===ASTANA)all.__assigneeSlice=astanaSlice;
       // Не кешируем полностью пустой результат, полученный из-за ошибки сети —
       // иначе следующий заход покажет пустую воронку из кеша вместо ретрая.
       if (!(pageErr && all.length === 0)) {
@@ -10375,10 +10403,10 @@ function renderDealsLayoutPaged(el) {
         <option value="">Все стадии</option>
         ${getStagesSorted().map(s => `<option value="${escapeHtml(s.statusId)}" ${s.statusId === dealsState.stageFilter ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
       </select>
-      <select class="tb-select" id="resp-filter">
+${dealsState.activePipelineId===ASTANA?astanaResponsibleFilterHtml():`      <select class="tb-select" id="resp-filter">
         <option value="">Все ответственные</option>
         ${getUsersForFilter().map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === dealsState.responsibleFilter ? 'selected' : ''}>${escapeHtml(u.fullName)}</option>`).join('')}
-      </select>
+      </select>`}
     </div>
 
     <button class="tb-select" id="deal-list-columns" style="margin-bottom:10px">Настройки списка</button>
@@ -10415,11 +10443,13 @@ function renderDealsLayoutPaged(el) {
     renderDealsPagedPager();
   });
   document.getElementById('resp-filter').addEventListener('change', async e => {
-    dealsState.responsibleFilter = e.target.value;
+    if(dealsState.activePipelineId===ASTANA)e.target.disabled=true;
+    if(dealsState.activePipelineId===ASTANA)setAdminKanbanFilter(e.target.value==='__all__'?'all':e.target.value==='__mine__'?'mine':e.target.value);else dealsState.responsibleFilter = e.target.value;
     clearDealsBulkSelection();
     await loadDealsPage(1);
     renderDealsPagedTable();
     renderDealsPagedPager();
+    e.target.disabled=false;
   });
 
   // Переключение режима — kanban лениво грузит full deals[]
@@ -10736,6 +10766,7 @@ function renderDealsLayout(el) {
         // Единый фильтр справа. Для admin: «Мои / Все / по сотруднику» — выбор
         // сотрудника грузит его срез server-side (быстро). Для остальных —
         // обычный «Все ответственные» + сотрудники (client-side, их срез мал).
+        if(dealsState.activePipelineId===ASTANA)return astanaResponsibleFilterHtml();
         if (window.currentUser?.role === 'admin') {
           const kf = getAdminKanbanFilter();
           const empOpts = getUsersForFilter().map(u =>
@@ -10784,19 +10815,20 @@ function renderDealsLayout(el) {
   document.getElementById('resp-filter').addEventListener('change', async e => {
     const v = e.target.value;
     clearDealsBulkSelection();
-    if (window.currentUser?.role === 'admin') {
+    if (window.currentUser?.role === 'admin'||dealsState.activePipelineId===ASTANA) {
       // admin: «Мои / Все / сотрудник» → перезагрузка воронки с нужным
       // scope/assignee (server-side, force в обход кеша).
       const kf = v === '__mine__' ? 'mine' : v === '__all__' ? 'all' : v;
       if (kf === getAdminKanbanFilter()) return;
       setAdminKanbanFilter(kf);
+      e.target.disabled=true;
       const pid = dealsState.activePipelineId;
       const content = document.getElementById('deals-content');
       if (content) content.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)">⏳ Загрузка сделок…</div>';
       if (pid) {
         // Фильтр глобальный (localStorage) — сбрасываем кеш всех воронок,
         // чтобы при переключении вкладок данные соответствовали выбору.
-        dealsState.dealsByPipeline = {};
+        if(pid===ASTANA){delete dealsState.dealsByPipeline[pid];delete dealsState.stageCountsByPipeline[pid];}else dealsState.dealsByPipeline = {};
         await loadDealsForPipeline(pid, { force: true });
         renderDealsLayout(el);
       }
@@ -10876,7 +10908,8 @@ function getFilteredDeals() {
   }
   // Для admin фильтр по сотруднику применяется server-side (assignee=uid) при
   // загрузке воронки — не дублируем client-side. Для остальных — client-side.
-  if (dealsState.responsibleFilter && window.currentUser?.role !== 'admin') {
+  if(dealsState.activePipelineId===ASTANA){const assignee=astanaAssigneeScope().assignee;if(assignee)arr=arr.filter(d=>d.responsibleUid===assignee);}
+  if (dealsState.activePipelineId!==ASTANA && dealsState.responsibleFilter && window.currentUser?.role !== 'admin') {
     arr = arr.filter(d => d.responsibleUid === dealsState.responsibleFilter);
   }
   return arr;
@@ -10887,7 +10920,9 @@ function getFilteredDeals() {
 async function serverPhoneSearchDeals(query) {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const params = new URLSearchParams({ pageSize: '300', q: query, auth: idToken, scope: effectiveScope() });
+    const slice=dealsState.activePipelineId===ASTANA?astanaAssigneeScope():null;
+    const params = new URLSearchParams({ pageSize: '300', q: query, auth: idToken, scope: slice?.scope||effectiveScope() });
+    if(slice?.assignee)params.set('assignee',slice.assignee);
     if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
     const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
     if (!r.ok) { dealsState._phoneMatchIds = null; return; }
@@ -14186,6 +14221,7 @@ function getStagesSorted() {
 }
 
 function getUsersForFilter() {
+  if(dealsState.activePipelineId===ASTANA)return astanaManagerCache.items;
   // Только те юзеры что реально упомянуты в сделках как ответственные
   const seen = new Set();
   for (const d of dealsState.deals) {

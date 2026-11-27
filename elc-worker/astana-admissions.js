@@ -1,3 +1,4 @@
+import {astanaAssignees} from './astana-assignees.js';
 import {assignLeadManagers} from './lead-distribution.js';
 export const ASTANA_PIPELINE='pipeline_2zttlx';
 const CONFIG_KEY='pipeline:astana:admissions';
@@ -23,18 +24,14 @@ export function validateAdmissions(body,config){
 function lists(input){const result={};for(const key of ['sources','levels']){if(!Array.isArray(input[key])||input[key].length>100)throw Error('Список должен содержать до 100 значений');result[key]=[...new Set(input[key].map(s=>String(s).trim()).filter(Boolean))];if(!result[key].length||result[key].some(s=>s.length>100))throw Error('Укажите непустой список, до 100 символов в значении');}return result;}
 async function configFor(env){const row=await env.DB.prepare('SELECT v FROM kv WHERE k=?').bind(CONFIG_KEY).first();return {...defaults,...parse(row?.v)};}
 function admission(row){const cf=parse(row.custom_fields),contactPhones=parse(row.contact_phones,[]);return {id:row.id,bitrixId:row.bitrix_id,pipelineId:row.pipeline_id,stageId:row.stage_id,responsibleUid:row.responsible_uid,contactId:row.contact_id,customFields:cf,name:cf.astanaName||[row.contact_last_name,row.contact_name].filter(Boolean).join(' ')||row.title,phone:cf.astanaPhone||contactPhones[0]?.value||'',trialLessonAt:cf.trialLessonAt||'',source:(!cf.astanaSourceManual&&row.source_id==='META_AD')?'Instagram':cf.astanaSource||(/^WhatsApp/.test(row.source_description||'')?'WhatsApp':/^Instagram/.test(row.source_description||'')?'Instagram':row.source_description||''),level:cf.astanaLevel||'',note:cf.astanaNote??row.comments??'',channelId:cf.astanaChannelId||null};}
-async function assigneesFor(env,me,currentUid){
- const row=await env.DB.prepare("SELECT v FROM kv WHERE k='org:fieldConfig'").first(),cfg=parse(row?.v)[ASTANA_PIPELINE]||{};
- const ids=[...new Set([...(cfg.accessMemberUids||[]),me.canonicalUid].filter(Boolean))];
- const {results}=await env.DB.prepare(`SELECT uid,name,last_name,email,active FROM users WHERE (active=1 AND (uid IN (${ids.map(()=>'?').join(',')||"''"}) OR lower(email)='uurraa@gmail.com')) OR uid=? ORDER BY name LIMIT 500`).bind(...ids,currentUid||'').all();
- return results.map(u=>({uid:u.uid,name:[u.name,u.last_name].filter(Boolean).join(' ')||u.email,assignable:u.active===1&&(ids.includes(u.uid)||u.email==='uurraa@gmail.com')}));
-}
+const assigneesFor=astanaAssignees;
 const SELECT=`SELECT d.*,c.name AS contact_name,c.last_name AS contact_last_name,c.phones AS contact_phones FROM deals d LEFT JOIN contacts c ON c.id=d.contact_id`;
 export async function handleAstanaAdmissions(request,env,deps){
  const {json,requireAuthFlexible,resolveCanonicalUser,rowToCamel,auditLog,logStageEvent}=deps;
  const auth=await requireAuthFlexible(request,env);if(auth.error)return json({error:auth.error},auth.status,request);
  const me=await resolveCanonicalUser(env,auth.claims);if(!astanaAllowed(me))return json({error:'Нет доступа к ELC Astana'},403,request);
  const url=new URL(request.url),tail=url.pathname.replace('/api/astana/',''),method=request.method;
+ if(tail==='assignees'&&method==='GET')return json({ok:true,assignees:(await assigneesFor(env,me)).filter(u=>u.assignable)},200,request);
  const config=await configFor(env);
  try{
   if(tail==='settings'){
