@@ -6503,7 +6503,7 @@ document.getElementById('openZoomArchive').addEventListener('click', async () =>
   } catch(error) { archive.textContent='Не удалось загрузить архив. Закройте и откройте его снова.'; }
 });
 
-import {initAdminScale} from './app/admin-scale.js?v=20261127-overview';
+import {initAdminScale} from './app/admin-scale.js?v=20261127-statistics-toggle';
 import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-notes-hover';
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
@@ -9485,9 +9485,6 @@ async function deleteFinanceWeekTask(taskId){
   }catch(error){ alert('Не удалось удалить дело: '+error.message); }
 }
 let FINANCE_DISCLOSURE_OPEN=false;
-function financeChartsPinnedOpen(){
-  return ACTIVE_TAB==='g:Инструменты для продаж';
-}
 function salesQuickLinkKey(){
   return 'pllato_sales_quick_link_v1:' + String(CURRENT?.email||'guest').toLowerCase();
 }
@@ -9562,7 +9559,6 @@ function copySalesQuickLink(button){
   }).catch(()=>alert('Не удалось скопировать ссылку'));
 }
 function financeChartsAreOpen(){
-  if(financeChartsPinnedOpen()) return true;
   // Финансовые данные открываются только на время текущего просмотра.
   // После перезагрузки страницы снова включается приватный режим.
   return FINANCE_DISCLOSURE_OPEN;
@@ -9588,39 +9584,33 @@ function applyFinanceChartsFold(){
     analyticsSlot.classList.toggle('finance-folded',!open);
     analyticsSlot.setAttribute('aria-hidden',String(!open));
   }
-  const btn=el?.querySelector('.fc-toggle');
+  adminScaleController?.setOpen(open);
+  const btn=el?.querySelector('[data-statistics-toggle]');
   if(btn){
-    btn.textContent=open?'Свернуть':'Развернуть';
+    btn.textContent='Статистики · '+(open?'Свернуть':'Развернуть');
     btn.setAttribute('aria-expanded',String(open));
   }
 }
 function toggleFinanceCharts(){
-  if(financeChartsPinnedOpen()) return;
   FINANCE_DISCLOSURE_OPEN=!FINANCE_DISCLOSURE_OPEN;
   applyFinanceChartsFold();
 }
 let adminScaleController=null,adminScaleUser='';
 function adminScaleAllowed(){return Boolean(CURRENT&&(CURRENT.isAdmin||CURRENT.isSuperAdmin||CURRENT.email==='uurraa@gmail.com'||CURRENT.apps?.admin_scale));}
-function syncAdminScaleButtons(){
-  const actions=document.querySelector('#financeCharts .fc-head-actions');
-  if(actions&&adminScaleAllowed()&&!actions.querySelector('[data-admin-scale-toggle]'))actions.insertAdjacentHTML('beforeend',adminScaleToggleHtml());
-  document.querySelectorAll('[data-admin-scale-toggle]').forEach(b=>{b.hidden=!adminScaleAllowed();const open=adminScaleController?.isOpen()||false;b.textContent='Админ Шкала · '+(open?'Свернуть':'Развернуть');b.setAttribute('aria-expanded',String(open));});
-}
-function adminScaleToggleHtml(){return adminScaleAllowed()?`<button type="button" class="fc-toggle" data-admin-scale-toggle aria-controls="adminScaleHost" aria-expanded="${adminScaleController?.isOpen()||false}" onclick="toggleAdminScalePanel()">Админ Шкала · ${adminScaleController?.isOpen()?'Свернуть':'Развернуть'}</button>`:'';}
 function ensureAdminScalePanel(){
   const user=String(CURRENT?.email||'').toLowerCase();
   if(!adminScaleAllowed()||adminScaleUser!==user){adminScaleController?.destroy();adminScaleController=null;adminScaleUser=user;}
-  if(adminScaleAllowed()&&!adminScaleController){const charts=document.getElementById('financeCharts');if(!charts)return;const host=document.createElement('section');host.id='adminScaleHost';charts.insertAdjacentElement('afterend',host);adminScaleController=initAdminScale({host,api:apiFetch,userKey:user,onToggle:()=>queueMicrotask(syncAdminScaleButtons)});}
-  syncAdminScaleButtons();
+  if(adminScaleAllowed()&&!adminScaleController){const charts=document.getElementById('financeCharts');if(!charts)return;const host=document.createElement('section');host.id='adminScaleHost';charts.insertAdjacentElement('afterend',host);adminScaleController=initAdminScale({host,api:apiFetch,userKey:user,initialOpen:financeChartsAreOpen(),onFoldRequest:()=>{FINANCE_DISCLOSURE_OPEN=false;applyFinanceChartsFold();document.querySelector('[data-statistics-toggle]')?.focus({preventScroll:true});}});}
+  adminScaleController?.setOpen(financeChartsAreOpen());
 }
-window.toggleAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.toggle();if(adminScaleController?.isOpen()){const host=document.getElementById('adminScaleHost');host?.scrollIntoView({behavior:'smooth',block:'start'});host?.focus({preventScroll:true});}};
-window.openAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.open();const host=document.getElementById('adminScaleHost');host?.scrollIntoView({behavior:'smooth',block:'start'});host?.focus({preventScroll:true});};
+window.toggleAdminScalePanel=()=>toggleFinanceCharts();
+window.openAdminScalePanel=()=>{ensureAdminScalePanel();FINANCE_DISCLOSURE_OPEN=true;applyFinanceChartsFold();const host=document.getElementById('adminScaleHost');host?.scrollIntoView({behavior:'smooth',block:'start'});host?.focus({preventScroll:true});};
 
 function financeChartsHeader(){
   const meta=financeChartPeriodMeta();
   const periods=Object.entries(FINANCE_CHART_PERIOD_META).map(([key,item])=>`<button type="button" class="${key===FINANCE_CHART_PERIOD?'active':''}" onclick="setFinanceChartPeriod('${key}')" aria-pressed="${key===FINANCE_CHART_PERIOD}">${item.label}</button>`).join('');
-  const toggle=financeChartsPinnedOpen()?'':`<button class="fc-toggle" title="Развернуть / свернуть графики · F / А" aria-keyshortcuts="f а" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
-  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${adminScaleToggleHtml()}${toggle}</div></div>`;
+  const toggle=`<button type="button" class="fc-toggle" data-statistics-toggle aria-controls="financeCharts adminScaleHost" title="Развернуть / свернуть статистики и Админ Шкалу · F / А" aria-keyshortcuts="f а" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">Статистики · ${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
+  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
 }
 // Capture immediately before replacing DOM, after pending requests finish.
 function captureFinanceChartPosition(root){
