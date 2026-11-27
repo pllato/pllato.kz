@@ -4127,6 +4127,7 @@ async function initApp(user) {
     }).then(r => {if(!r.ok)throw new Error('Не удалось проверить доступ');return r.json();});
     if (me && me.ok) {
       window.currentUser = me;
+      if(me.readOnly && me.viewerUrl==='/astana-view.html'){location.replace(me.viewerUrl);return;}
       console.log('[initApp] role:', me.role, 'canonicalUid:', me.canonicalUid, 'linked:', me.isLinked);
       if (!me.isLinked) {
         console.warn('[initApp] юзер НЕ связан с записью в D1 (email не найден). Будет видеть пусто. Платон должен либо добавить юзера в users-таблицу либо явно admin-ом сделать.');

@@ -1,3 +1,4 @@
+import {restrictedViewer,viewerRequestAllowed,handleAstanaViewer} from './astana-viewer.js';
 import {handleCallbackCalendar,validateCallbackTask,CALLBACK_MARK} from './callback-calendar.js';
 import {handleAstanaAdmissions,ASTANA_PIPELINE,astanaAllowed,astanaEditTargetAllowed} from './astana-admissions.js';
 import {handleCalendarUpcoming} from './calendar-upcoming.js';
@@ -166,12 +167,19 @@ async function verifySupportedToken(token, env) {
   }
 }
 
+const VERIFIED_REQUEST_CLAIMS = new WeakMap();
+async function requestClaims(request,token,env){
+  if(VERIFIED_REQUEST_CLAIMS.has(request))return VERIFIED_REQUEST_CLAIMS.get(request);
+  const claims=await verifySupportedToken(token,env);
+  VERIFIED_REQUEST_CLAIMS.set(request,claims);return claims;
+}
+
 async function requireAuth(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return { error: "missing Bearer token", status: 401 };
   try {
-    const claims = await verifySupportedToken(token, env);
+    const claims = await requestClaims(request, token, env);
     return { uid: claims.user_id || claims.sub, email: claims.email, claims };
   } catch (e) {
     return { error: `invalid token: ${e.message}`, status: 401 };
@@ -511,7 +519,7 @@ async function requireAuthFlexible(request, env) {
   }
   if (!token) return { error: "missing auth token", status: 401 };
   try {
-    const claims = await verifySupportedToken(token, env);
+    const claims = await requestClaims(request, token, env);
     return { uid: claims.user_id || claims.sub, email: claims.email, claims };
   } catch (e) {
     return { error: `invalid token: ${e.message}`, status: 401 };
@@ -12457,6 +12465,24 @@ export default {
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из createNotification
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // Ограниченный наблюдатель: deny-by-default ДО всех API/WS роутов.
+    // Клиентские кнопки и оргструктура не могут расширить это разрешение.
+    if(path.startsWith('/api/')&&request.method!=='OPTIONS'){
+      const bearer=request.headers.get('Authorization')||'';
+      const token=(bearer.startsWith('Bearer ')?bearer.slice(7):null)||url.searchParams.get('auth')||(path==='/api/ws/user'?url.searchParams.get('token'):null);
+      if(token){
+        let claims;
+        try{claims=await requestClaims(request,token,env);}catch{return json({error:'invalid auth token'},401,request);}
+        let viewer;
+        try{viewer=await restrictedViewer(env,claims.email);}catch{return json({error:'Не удалось проверить ограничения доступа'},503,request);}
+        if(viewer){
+          if(!viewerRequestAllowed(request))return json({error:'Доступ только на просмотр ELC Astana'},403,request);
+          return handleAstanaViewer(request,env,claims,viewer,json);
+        }
+      }
+      if(path==='/api/astana-view')return json({error:'Нет доступа к режиму наблюдателя'},403,request);
+    }
 
     // Чистые публичные адреса персональных CRM:
     // https://demo.pllato.kz/company-name
