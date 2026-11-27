@@ -1,3 +1,4 @@
+import {saveQuote} from './wa-message-tools.js';
 import { greenApiHost } from './green-api-host.js';
 // Восстановление истории не должно повторно создавать лиды, менять стадии
 // или рассылать уведомления. Только сообщения уже существующего чата.
@@ -32,6 +33,7 @@ export function historyMessage(message, chat) {
     mediaUrl: message.downloadUrl || null, fileName: message.fileName || null,
     mimeType: message.mimeType || null, caption: message.caption || null,
     senderName: chat.is_group && message.type === 'incoming' ? message.senderName || null : null,
+    quote:message.quotedMessage?.stanzaId?{id:String(message.quotedMessage.stanzaId),text:String(message.quotedMessage.textMessage||message.quotedMessage.caption||'Вложение').slice(0,1000),author:message.quotedMessage.participant||'Сообщение'}:null,
     ad, ts,
   };
 }
@@ -94,6 +96,7 @@ export async function syncWaHistory(db, chatId, fetcher = fetch, now = Date.now(
     imported += result.reduce((sum, r) => sum + Number(r.meta.changes || 0), 0);
   }
   if (messages.length) {
+    for(const m of messages)if(m.quote)await saveQuote(db,m.id,m.quote);
     const latest = messages[messages.length - 1];
     // Shell time is time of discovery, not time of the missing message.
     // Never replace a newer real message or touch read/unread counters.

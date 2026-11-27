@@ -3332,6 +3332,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code -->
 <link rel="stylesheet" href="./app/deal-card-focus.css?v=20261006-chat">
 <link rel="stylesheet" href="/app/team-mobile.css?v=20261008-1">
+<link rel="stylesheet" href="/app/deal-workspace.css?v=20261127">
 </head>
 <body>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M5N2WR2B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -3466,6 +3467,9 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <!-- Firebase SDK -->
 <link rel="stylesheet" href="/app/elc/astana.css?v=4">
 <script type="module">
+import {compactAstanaCard,fitAstanaBoard} from '/app/astana-kanban.js?v=20261127';
+import {bindDealWaTools,messageToolsHtml} from '/app/deal-wa-tools.js?v=20261127';
+let astanaCompact=true;try{astanaCompact=localStorage.getItem('pllato:astana-density')!=='comfortable';}catch{}
 import {createAstana,ASTANA} from '/app/elc/astana.js?v=4';
 import {stagePalette} from '/app/elc/stage-colors.js';
 import {CALLBACK_PIPELINE,CALLBACK_MARK,callbackEvents} from '/app/elc/callbacks.js';
@@ -11125,7 +11129,8 @@ function renderDealsKanban(c, arr) {
       html += `<div class="kanban-empty-hint">📭 В воронке «${escapeHtml(curName)}» пока нет сделок. Если ждёте сделки — выберите другую воронку во вкладках выше ↑ (доступно ещё ${others.length}).</div>`;
     }
   }
-  html += `<div class="kanban-wrap" id="kanban-wrap">`;
+  if(dealsState.activePipelineId===ASTANA)html+=`<div class="astana-density"><span>Вид карточек</span><button type="button" data-astana-density="compact" aria-pressed="${astanaCompact}">Компактный</button><button type="button" data-astana-density="comfortable" aria-pressed="${!astanaCompact}">Подробный</button></div>`;
+  html += `<div class="kanban-wrap${dealsState.activePipelineId===ASTANA?' astana-board':''}" id="kanban-wrap">`;
   const MAX_PER_COL = 100;
 
   for (const s of stages) {
@@ -11167,6 +11172,7 @@ function renderDealsKanban(c, arr) {
   html += `</div>`;
 
   c.innerHTML = html;
+  if(dealsState.activePipelineId===ASTANA){fitAstanaBoard(c.querySelector('#kanban-wrap'));c.querySelectorAll('[data-astana-density]').forEach(b=>b.onclick=()=>{astanaCompact=b.dataset.astanaDensity==='compact';try{localStorage.setItem('pllato:astana-density',b.dataset.astanaDensity);}catch{}renderDealsKanban(c,arr);});}
 
   c.querySelectorAll('[data-lead-distribution]').forEach(button=>button.onclick=()=>openLeadDistribution({pipelineId:dealsState.activePipelineId,stageId:button.dataset.leadDistribution,stageName:stages.find(s=>s.statusId===button.dataset.leadDistribution)?.name||'Новая',users:dealsState.users,baseUrl:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()}));
   c.querySelectorAll('[data-select-stage]').forEach(cb=>{cb.checked=!!dealsPagedState.stageSelections?.[cb.dataset.selectStage];cb.disabled=dealsPagedState.bulkBusy;cb.onchange=()=>selectAllFilteredDeals(cb.dataset.selectStage,cb.checked);});
@@ -12288,6 +12294,7 @@ async function mountDealSourceSelect(modal, deal) {
 }
 
 function renderWaMessageHtml(m, isGroup) {
+  const tools=messageToolsHtml(m);
   const cls = m.direction === 'in' ? 'in' : 'out';
   const messageDate = waMessageDate(m.ts);
   const ts = messageDate ? messageDate.toLocaleString('ru-RU', {timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}) : 'Дата не указана';
@@ -12317,12 +12324,13 @@ function renderWaMessageHtml(m, isGroup) {
   }
   const text = m.text || m.caption || '';
   const tick = cls === 'out' ? '<span class="wa-tick" style="color:#8a8a8a" title="Отправлено в сервис WhatsApp; доставка не подтверждена">✓</span>' : '';
-  return `<div class="wa-msg ${cls}">
+  return `<div class="wa-msg ${cls}" data-wa-message="${escapeHtml(m.waMessageId||'')}">
+    ${tools.quote}
     ${senderHtml}
     ${renderMetaAdAttributionHtml(m.metaAdAttribution, { adId: m.metaAdId, compact: true })}
     ${mediaHtml}
     ${text ? escapeHtml(text).replace(/\n/g, '<br>') : (!mediaHtml ? '<span class="wa-content-unavailable">Содержимое сообщения пока недоступно</span>' : '')}
-    <span class="wa-ts" title="Время Алматы">${ts} ${tick}</span>
+    <span class="wa-ts" title="Время Алматы">${ts}${tools.edited} ${tick}</span>${tools.actions}
   </div>`;
 }
 
@@ -12343,6 +12351,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const statusEl = modal.querySelector('#dc-wa-status');
   const tabs = modal.querySelector('#dc-wa-tabs');
   if (!pane || !body) return;
+  const tools=bindDealWaTools({pane,input,sendBtn,laterBtn,getState:()=>pane._waState,status:statusEl,refresh:()=>renderDealWaMessages(pane),request:async(path,payload)=>{const token=await fbAuth.currentUser.getIdToken();const r=await fetch(WORKER_BASE_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw Error(data.error||'Не удалось изменить сообщение');return data;}});
   const recordings=document.createElement('details');recordings.open=true;
   recordings.style.cssText='padding:10px 12px;border-bottom:1px solid var(--b1);background:var(--bg1);max-height:220px;overflow:auto';
   recordings.innerHTML='<summary style="cursor:pointer;font-weight:600">🎧 Записи IP-звонков</summary><div data-call-recordings style="padding-top:8px">Загрузка записей…</div>';
@@ -12371,10 +12380,10 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const states = [];
   let groupsError = '', discovery=null, refreshing=false;
   const select = (state) => {
-    if (pane._waState) pane._waState.draft = input.value;
+    if (pane._waState){if(pane._waState.edit)pane._waState.editDraft=input.value;else pane._waState.draft=input.value;}
     pane._waState = state;
     pane._waGeneration = (pane._waGeneration || 0) + 1;
-    input.value = state?.draft || '';
+    input.value = state?.edit?(state.editDraft??state.edit.text):state?.draft || '';
     input.placeholder = state?.isGroup ? 'Написать в группу…' : 'Написать клиенту лично…';
     controls.forEach(el => { if (el) el.disabled = !state; });
     sendBtn.disabled = !state || !!state.sending;
@@ -12384,6 +12393,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     statusEl.textContent = '';
     const queue=pane.querySelector('#dc-wa-scheduled');queue.hidden=true;queue.dataset.sig='';
     drawFile();
+    tools.draw();
     drawTabs();
     if(state)loadDealWaScheduled(pane);
     if (state) renderDealWaMessages(pane);
@@ -12454,6 +12464,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   let ticks = 0, loadingGroups = false;
   window.__dcWaPollTimer = setInterval(() => {
     if (!pane.isConnected) { clearInterval(window.__dcWaPollTimer); window.__dcWaPollTimer = null; return; }
+    if(document.hidden||pane.closest('[hidden]'))return;
     renderDealWaMessages(pane, { silent: true });
     loadDealWaScheduled(pane);
     if(ticks % 5===0)loadCalls();
@@ -12466,7 +12477,9 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   // Handlers
   if (sendBtn && input) {
     const send = async (mediaUrl, fileName) => {
+      if(await tools.submitEdit())return;
       const state = pane._waState;
+      const reply=state?.reply;
       const draft = input.value;
       const text = draft.trim();
       const file=state?.file;
@@ -12484,11 +12497,12 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
             chatId: state.canonicalChatId || state.rawChatId,
             phone: state.phone,
             instanceId: state.instanceId,
-            text, mediaUrl, fileName,
+            text, mediaUrl, fileName,quotedMessageId:reply?.id,
           }),
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        if(state.reply===reply)tools.clearReply(state);
         if (state.draft === draft) state.draft = '';
         if(state.file===file)state.file=null;
         if (data.chatId) state.canonicalChatId = data.chatId;
@@ -12504,6 +12518,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
         state.sending = false;
         sendBtn.disabled = !pane._waState || !!pane._waState.sending;
         laterBtn.disabled = sendBtn.disabled;
+        if(pane._waState===state)tools.draw();
       }
     };
     sendBtn.onclick = () => send('', '');
@@ -12559,22 +12574,26 @@ async function renderDealWaMessages(pane, opts = {}) {
     // На full render — все 200 last messages.
     const lastTs = parseInt(body.dataset.lastTs || '0', 10);
     let url = `${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(requestChatId)}&limit=200`;
-    if (opts.silent && lastTs > 0) url += `&since=${lastTs}`;
+    if (opts.silent && lastTs > 0) url += `&since=${lastTs}&updatedSince=${state.lastToolsSync||0}`;
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (!current()) return;
     if (opts.silent && data.historySync?.imported > 0) return renderDealWaMessages(pane);
     const items = data.items || [];
+    state.lastToolsSync=data.syncAt||Date.now();
+    if(!opts.silent||!state.messages)state.messages=new Map();
+    for(const m of items)state.messages.set(m.waMessageId,m);
     if(items.length)state.canonicalChatId=requestChatId;
-    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:requestChatId})}).catch(() => {});
+    if(!opts.silent||items.some(m=>m.direction==='in'&&Number(m.ts)>lastTs))fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:requestChatId})}).catch(() => {});
 
     if (opts.silent && lastTs > 0) {
       // Delta-режим — добавляем только новые в конец
       if (!items.length) return;  // нет новых, тихо
       const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
-      body.insertAdjacentHTML('beforeend', renderWaTimeline(items, state.isGroup, lastTs));
-      const newLastTs = items[items.length - 1].ts;
+      const fresh=[];for(const m of items){const bubble=body.querySelector(`[data-wa-message="${CSS.escape(m.waMessageId||'')}"]`);if(bubble)bubble.outerHTML=renderWaMessageHtml(m,state.isGroup);else fresh.push(m);}
+      if(fresh.length)body.insertAdjacentHTML('beforeend', renderWaTimeline(fresh, state.isGroup, lastTs));
+      const newLastTs = Math.max(lastTs,...items.map(m=>Number(m.ts)||0));
       if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
       if (wasAtBottom) body.scrollTop = body.scrollHeight;
       // Звуковой/визуальный signal новых входящих
@@ -13491,6 +13510,8 @@ function buildDealCard(d, stageColor) {
     // dealsState.contactPhones — кэш телефонов контактов (см. ниже buildDealCard cache)
     phone = dealsState.contactPhones?.[d.contactId] || '';
   }
+
+  if(dealsState.activePipelineId===ASTANA&&astanaCompact)return compactAstanaCard(d,{phone,responsible:respName,stageColor,comment:dealsState.commentsByDeal?.[d.id]?.[0],unread:getDealActivity(d.bitrixId||d.id).unread,missed:getDealActivity(d.bitrixId||d.id).missed});
 
   // Дата последнего изменения — для маркера "новая активность" и метки stale
   const lastDate = d.bitrixDateModify || d.bitrixDateCreate;
