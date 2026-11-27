@@ -6,11 +6,11 @@ export function initAdminScale({host,api,userKey,onToggle=()=>{}}){
  const key='pllato:admin-scale:'+userKey,foldKey=key+':open',sectionsKey=key+':sections';
  let doc=null,dirty=false,busy=false,conflict=false,disposed=false,timer,version=0,archive=false,loading=false,fullscreen=null,lastSync=0;
  let open=pref(foldKey)==='true',expanded=new Set();try{expanded=new Set(JSON.parse(pref(sectionsKey,'[]')));}catch{}
- host.className='adm-host';host.hidden=!open;
+ host.className='adm-host';host.tabIndex=-1;host.setAttribute('aria-label','Админ Шкала');host.hidden=!open;
  host.innerHTML='<section class="adm-panel"><header class="adm-head"><div><h2>Админ Шкала</h2><p>Цели, планы и действия в одном месте</p></div><div class="adm-actions"><button type="button" data-action="fullscreen">На весь экран</button><button type="button" data-action="fold">Свернуть</button></div></header><div class="adm-toolbar"><span data-status role="status" aria-live="polite">Откройте шкалу для работы</span><div class="adm-actions"><button type="button" data-action="refresh">Обновить</button><button type="button" data-action="save" class="adm-primary">Сохранить</button></div></div><div class="adm-warning" data-warning hidden></div><div class="adm-body"><div class="adm-tools"><button type="button" data-action="add-section">+ Раздел</button><button type="button" data-action="expand-all">Развернуть разделы</button><button type="button" data-action="collapse-all">Свернуть разделы</button><button type="button" data-action="archive" aria-pressed="false">Архив</button></div><div class="adm-grid" data-grid></div></div></section>';
  const panel=host.firstElementChild,$=s=>panel.querySelector(s),grid=$('[data-grid]');
  function status(text,kind=''){if(disposed)return;$('[data-status]').textContent=text;$('[data-status]').dataset.kind=kind;}
- function draft(){if(!doc)return;try{localStorage.setItem(key,JSON.stringify({base:doc.revision,sections:doc.sections,at:Date.now()}));}catch{status('Не удалось сохранить черновик на устройстве. Нажмите «Сохранить».','error');}}
+ function draft(){if(!doc)return false;try{localStorage.setItem(key,JSON.stringify({base:doc.revision,sections:doc.sections,at:Date.now()}));return true;}catch{return false;}}
  function warning(text){const el=$('[data-warning]');el.hidden=!text;el.innerHTML=text?'<span>'+escape(text)+'</span><div class="adm-actions"><button type="button" data-action="export">Скачать черновик</button><button type="button" data-action="reload">Загрузить с сервера</button></div>':'';}
  function count(s){return s.items.filter(i=>!i.archived).length;}
  function render(focus){
@@ -25,15 +25,15 @@ export function initAdminScale({host,api,userKey,onToggle=()=>{}}){
   if(focus)grid.querySelector(`[data-item="${CSS.escape(focus)}"] textarea,[data-section="${CSS.escape(focus)}"] input`)?.focus();
  }
  function resize(el){el.style.height='auto';el.style.height=Math.min(420,Math.max(68,el.scrollHeight+2))+'px';}
- function changed(){dirty=true;version++;draft();status('Есть изменения…');clearTimeout(timer);if(!conflict)timer=setTimeout(save,1400);}
+ function changed(){dirty=true;version++;if(!draft())warning('На устройстве не удалось записать черновик. Оставьте окно открытым до сохранения на сервере или скачайте черновик.');status('Есть изменения…');clearTimeout(timer);if(!conflict)timer=setTimeout(save,1400);}
  async function save(){
   clearTimeout(timer);if(!doc||!dirty||busy||conflict||disposed)return;
-  if(doc.sections.some(s=>!s.title.trim())){status('Заполните названия разделов. Черновик сохранён.','error');return;}
+  if(doc.sections.some(s=>!s.title.trim())){status('Заполните названия разделов для сохранения на сервере.','error');return;}
   busy=true;status('Сохраняем…');const v=version,body={revision:doc.revision,sections:structuredClone(doc.sections)};
   try{const result=await api('/admin-scale',{method:'PUT',body});if(disposed)return;lastSync=Date.now();doc.revision=result.revision;doc.updatedAt=result.updatedAt;doc.updatedBy=result.updatedBy;
    if(v===version){dirty=false;remember(key,null);status('Сохранено · '+new Date(result.updatedAt).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}));warning('');}
    else{draft();status('Сохраняем новые изменения…');}
-  }catch(e){if(disposed)return;draft();if(e.status===409){conflict=true;warning('Шкала изменена в другом окне. Ваш текст сохранён как черновик на этом устройстве. Скачайте его перед загрузкой серверной версии.');}status(e.status===409?'Нужно сравнить версии':([400,413].includes(e.status)?e.message:'Не сохранено на сервере. Черновик оставлен на устройстве.'),'error');}
+  }catch(e){if(disposed)return;const localSaved=draft();if(e.status===409){conflict=true;warning(localSaved?'Шкала изменена в другом окне. Ваш текст сохранён как черновик на этом устройстве. Скачайте его перед загрузкой серверной версии.':'Шкала изменена в другом окне. Черновик не удалось записать на устройство: скачайте его, прежде чем закрывать окно.');}else if(!localSaved)warning('Сервер и локальное хранилище недоступны. Текст пока есть только в этом окне — скачайте черновик перед выходом.');status(e.status===409?'Нужно сравнить версии':([400,413].includes(e.status)?e.message:(localSaved?'Не сохранено на сервере. Черновик оставлен на устройстве.':'Не сохранено. Скачайте черновик, пока окно открыто.')),'error');}
   finally{busy=false;if(dirty&&!conflict&&!disposed&&v!==version)timer=setTimeout(save,1400);}
  }
  async function load(discard=false){
@@ -58,7 +58,7 @@ export function initAdminScale({host,api,userKey,onToggle=()=>{}}){
  panel.addEventListener('input',e=>{if(!doc)return;const s=doc.sections.find(s=>s.id===e.target.closest('[data-section]')?.dataset.section);if(!s)return;if(e.target.matches('[data-title]'))s.title=e.target.value;else if(e.target.matches('[data-text]')){const item=s.items.find(i=>i.id===e.target.closest('[data-item]').dataset.item);item.text=e.target.value;resize(e.target);}else return;changed();});
  panel.addEventListener('click',e=>{
   const b=e.target.closest('button[data-action]');if(!b)return;const action=b.dataset.action;
-  if(action==='fold'){if(fullscreen)fullscreen.close();fold(false);return;}if(action==='fullscreen'){enterFullscreen();return;}if(action==='save'){save();return;}if(action==='refresh'){load();return;}if(action==='reload'){if(confirm('Загрузить серверную версию? Для сохранения своего текста сначала скачайте черновик.')){clearTimeout(timer);load(true);}return;}if(action==='export'){exportDraft();return;}
+  if(action==='fold'){if(fullscreen)fullscreen.close();fold(false);document.querySelector('[data-admin-scale-toggle]')?.focus({preventScroll:true});return;}if(action==='fullscreen'){enterFullscreen();return;}if(action==='save'){save();return;}if(action==='refresh'){load();return;}if(action==='reload'){if(confirm('Загрузить серверную версию? Для сохранения своего текста сначала скачайте черновик.')){clearTimeout(timer);load(true);}return;}if(action==='export'){exportDraft();return;}
   if(!doc)return;if(action==='archive'){archive=!archive;render();return;}
   if(action==='expand-all'||action==='collapse-all'){expanded=action==='expand-all'?new Set(doc.sections.map(s=>s.id)):new Set();remember(sectionsKey,JSON.stringify([...expanded]));render();return;}
   if(action==='add-section'){if(doc.sections.length>=40){status('До 40 разделов, включая архив.','error');return;}const s={id:id(),title:'Новый раздел',archived:false,items:[]};doc.sections.push(s);expanded.add(s.id);archive=false;changed();render(s.id);return;}

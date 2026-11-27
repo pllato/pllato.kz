@@ -6501,7 +6501,7 @@ document.getElementById('openZoomArchive').addEventListener('click', async () =>
   } catch(error) { archive.textContent='Не удалось загрузить архив. Закройте и откройте его снова.'; }
 });
 
-import {initAdminScale} from './app/admin-scale.js?v=20261127';
+import {initAdminScale} from './app/admin-scale.js?v=20261127-draft';
 import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-notes-hover';
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
@@ -9611,8 +9611,8 @@ function ensureAdminScalePanel(){
   if(adminScaleAllowed()&&!adminScaleController){const charts=document.getElementById('financeCharts');if(!charts)return;const host=document.createElement('section');host.id='adminScaleHost';charts.insertAdjacentElement('afterend',host);adminScaleController=initAdminScale({host,api:apiFetch,userKey:user,onToggle:()=>queueMicrotask(syncAdminScaleButtons)});}
   syncAdminScaleButtons();
 }
-window.toggleAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.toggle();if(adminScaleController?.isOpen())document.getElementById('adminScaleHost')?.scrollIntoView({behavior:'smooth',block:'start'});};
-window.openAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.open();document.getElementById('adminScaleHost')?.scrollIntoView({behavior:'smooth',block:'start'});};
+window.toggleAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.toggle();if(adminScaleController?.isOpen()){const host=document.getElementById('adminScaleHost');host?.scrollIntoView({behavior:'smooth',block:'start'});host?.focus({preventScroll:true});}};
+window.openAdminScalePanel=()=>{ensureAdminScalePanel();adminScaleController?.open();const host=document.getElementById('adminScaleHost');host?.scrollIntoView({behavior:'smooth',block:'start'});host?.focus({preventScroll:true});};
 
 function financeChartsHeader(){
   const meta=financeChartPeriodMeta();
