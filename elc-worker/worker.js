@@ -1,3 +1,4 @@
+import {ensureMessageTools,saveQuote,resolveQuote,handleEditMessage,applyMessageEdit} from './wa-message-tools.js';
 import {restrictedViewer,viewerRequestAllowed,handleAstanaViewer} from './astana-viewer.js';
 import {handleCallbackCalendar,validateCallbackTask,CALLBACK_MARK} from './callback-calendar.js';
 import {handleAstanaAdmissions,ASTANA_PIPELINE,astanaAllowed,astanaEditTargetAllowed} from './astana-admissions.js';
@@ -5523,6 +5524,7 @@ async function handleWaWebhook(request, env) {
     return json({ error: "invalid webhook token" }, 401, request);
   }
   if (!channel.active) return json({ ok: true, ignored: true, reason: "channel inactive" }, 200, request);
+  if(body.messageData?.typeMessage==='editedMessage'){await applyMessageEdit(env.DB,evt,body.messageData.editedMessageData);return json({ok:true,edited:true},200,request);}
   // Повторная доставка или история, восстановленная до webhook: не увеличивать
   // непрочитанные повторно и не возвращать старую сделку в начало воронки.
   if (evt.waMessageId) {
@@ -5599,6 +5601,9 @@ async function handleWaWebhook(request, env) {
     ).run();
   }
 
+  const quoted=body.messageData?.quotedMessage;
+  if(quoted?.stanzaId&&evt.waMessageId)await saveQuote(env.DB,waMessageDocId(evt.instanceId,evt.waMessageId),{id:String(quoted.stanzaId),text:String(quoted.textMessage||quoted.caption||quoted.fileName||'Вложение').slice(0,1000),author:quoted.participant||'Сообщение'});
+
   // Поднять сделку в канбане — обновим bitrix_date_modify (renderDeals
   // сортирует по нему, плюс это "свежая" сделка наверху списка).
   if (dealId) {
@@ -5664,7 +5669,7 @@ async function handleWaWebhook(request, env) {
 // Общий код для живой отправки (handleWaSend) и отложенной (cron scheduled()).
 // Бросает Error при сбое Green-API, чтобы вызывающий мог пометить failed.
 // Возвращает { idMessage, chatDocId }.
-async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName }) {
+async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName, quotedMessageId }) {
   const baseUrl = `${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}`;
   const apiToken = channel.api_token_instance;
   text = (text || '').trim();
@@ -5676,14 +5681,14 @@ async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName
   if (mediaUrl) {
     const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
-      body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
+      body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined, ...(quotedMessageId?{quotedMessageId}:{}) }),
     });
     providerStatus = r.status;
     providerText = (await r.text()).slice(0, 500);
   } else if (text) {
     const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
-      body: JSON.stringify({ chatId, message: text }),
+      body: JSON.stringify({ chatId, message: text, ...(quotedMessageId?{quotedMessageId}:{}) }),
     });
     providerStatus = r.status;
     providerText = (await r.text()).slice(0, 500);
@@ -5728,6 +5733,16 @@ async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName
   return { idMessage: waMessageId, chatDocId };
 }
 
+async function canEditWaChat(env,me,chat){
+ if(me.role==='viewer')return false;
+ if(chat.deal_id)return canEditRecord(env,me,'deals',chat.deal_id);
+ if(me.role==='admin')return true;
+ if(!chat.contact_id)return false;
+ const access=dealAccessSql(me);
+ const {results}=await env.DB.prepare('SELECT id FROM deals WHERE contact_id=?'+access.where+' LIMIT 30').bind(chat.contact_id,...access.params).all();
+ for(const deal of results)if(await canEditRecord(env,me,'deals',deal.id))return true;
+ return false;
+}
 async function handleWaSend(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -5802,13 +5817,21 @@ async function handleWaSend(request, env) {
   if (!channel.active) return json({ error: 'Выбранный канал WhatsApp отключён.' }, 503, request);
   if (instanceId && String(channel.id_instance) !== instanceId) return json({ error: 'Канал не совпадает с выбранным чатом.' }, 409, request);
 
+  let quote=null;
+  if(body.quotedMessageId){
+    const chat=await env.DB.prepare('SELECT * FROM wa_chats WHERE id=?').bind(waChatDocId(channel.id_instance,chatId)).first();
+    if(!chat||!await canEditWaChat(env,me,chat))return json({error:'Нет доступа к этой переписке'},403,request);
+    try{quote=await resolveQuote(env.DB,chat.id,body.quotedMessageId);}catch(e){return json({error:e.message},400,request);}
+    await ensureMessageTools(env.DB);
+  }
   let result;
   try {
-    result = await deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName });
+    result = await deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName, quotedMessageId:quote?.id });
   } catch (e) {
     return json({ error: "green-api send failed: " + e.message }, 502, request);
   }
 
+  if(quote)await saveQuote(env.DB,waMessageDocId(channel.id_instance,result.idMessage),quote);
   await auditLog(env, me, "wa_send", "wa_chat", result.chatDocId, { hasMedia: !!mediaUrl });
   return json({ ok: true, idMessage: result.idMessage, chatId: result.chatDocId, status: "pending" }, 200, request);
 }
@@ -6299,16 +6322,18 @@ async function handleWaListMessages(request, env) {
   const since = parseInt(url.searchParams.get("since") || "0", 10) || 0;
   const q = (url.searchParams.get("q") || "").trim();
 
-  const where = ["chat_id = ?"];
+  await ensureMessageTools(env.DB);
+  const syncAt=Date.now(),updatedSince=Math.max(0,Number(url.searchParams.get("updatedSince"))||0);
+  const where = ["m.chat_id = ?"];
   const params = [chatId];
-  if (before > 0) { where.push("ts < ?"); params.push(before); }
-  if (since > 0) { where.push("ts > ?"); params.push(since); }
+  if (before > 0) { where.push("m.ts < ?"); params.push(before); }
+  if (since > 0) { where.push(updatedSince ? "(m.ts > ? OR t.edited_at > ?)" : "m.ts > ?"); params.push(since);if(updatedSince)params.push(updatedSince); }
   // q — поиск по всей истории чата (текст + подпись к медиа), не только по
   // загруженным сообщениям. Используется строкой поиска в окне переписки.
   if (q) { where.push("(text LIKE ? OR caption LIKE ?)"); params.push('%' + q + '%', '%' + q + '%'); }
   const { results } = await env.DB.prepare(`
-    SELECT * FROM wa_messages WHERE ${where.join(" AND ")}
-    ORDER BY ts DESC LIMIT ?
+    SELECT m.*,t.quote_json,t.edited_at FROM wa_messages m LEFT JOIN wa_message_tools t ON t.message_id=m.id WHERE ${where.join(" AND ")}
+    ORDER BY m.ts DESC LIMIT ?
   `).bind(...params, limit).all();
   // Возвращаем в хронологическом порядке (старые → новые)
   const items = results.reverse().map(r => ({
@@ -6319,9 +6344,10 @@ async function handleWaListMessages(request, env) {
     caption: r.caption, senderName: r.sender_name || null,
     metaAdId: r.meta_ad_id || null,
     metaAdAttribution: r.meta_ad_attribution ? tryParseJson(r.meta_ad_attribution) : null,
+    quote:r.quote_json?tryParseJson(r.quote_json):null,editedAt:r.edited_at||null,
     ts: r.ts,
   }));
-  return json({ items, total: items.length, chatId, historySync }, 200, request);
+  return json({ items, total: items.length, chatId, historySync, syncAt }, 200, request);
 }
 
 // POST /api/wa/mark-read { chatId }
@@ -12939,6 +12965,7 @@ export default {
     if (path === "/api/wa/delivery-status" && request.method === "GET") {
       return handleWaDeliveryStatus(request, env);
     }
+    if(path==='/api/wa/edit'&&request.method==='POST')return handleEditMessage(request,env,{json,requireAuthFlexible,resolveCanonicalUser,canEditChat:canEditWaChat,auditLog});
     if (path === "/api/wa/send" && request.method === "POST") {
       return handleWaSend(request, env);
     }

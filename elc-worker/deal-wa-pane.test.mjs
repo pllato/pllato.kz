@@ -7,11 +7,11 @@ const code=html.slice(html.indexOf('async function mountWhatsappPaneInDeal'),htm
 const deferred=()=>{let resolve;return {promise:new Promise(r=>resolve=r),resolve};};
 function fixture({phone='77010000001',fetchHook}={}){
  const elements={};
- const element=()=>({style:{},dataset:{},value:'',children:[],isConnected:true,innerHTML:'',textContent:'',scrollHeight:0,scrollTop:0,clientHeight:0,replaceChildren(){this.children=[];},appendChild(c){this.children.push(c);},setAttribute(){},addEventListener(){},insertAdjacentHTML(_,s){this.innerHTML+=s;}});
- for(const id of ['pane','body','input','send','attach','voice','status','tabs'])elements['#dc-wa-'+id]=element();
+ const element=()=>({style:{},dataset:{},value:'',children:[],isConnected:true,innerHTML:'',textContent:'',scrollHeight:0,scrollTop:0,clientHeight:0,replaceChildren(){this.children=[];},appendChild(c){this.children.push(c);},append(...c){this.children.push(...c);},before(){},querySelector(){return element();},querySelectorAll(){return [];},closest(){return null;},setAttribute(){},addEventListener(){},insertAdjacentHTML(_,s){this.innerHTML+=s;}});
+ for(const id of ['pane','body','input','send','attach','voice','status','tabs','later','scheduled','draft-file'])elements['#dc-wa-'+id]=element();
  const modal={querySelector:id=>elements[id]},pane=elements['#dc-wa-pane'];pane.querySelector=modal.querySelector;
  const requests=[];
- const context=vm.createContext({console,encodeURIComponent,Date,JSON,parseInt,document:{createElement:element,getElementById:id=>elements['#'+id]},window:{},setInterval:()=>1,clearInterval(){},setTimeout(){},alert(){},WORKER_BASE_URL:'https://test',fbAuth:{currentUser:{getIdToken:async()=>'test'}},getDealRecordId:()=> 'deal_1',findWaRecipientChat:items=>items?.[0],escapeHtml:s=>s,renderWaMessageHtml:(m,group)=>`${group?'group:':'private:'}${m.text}`,bindWaVoiceButton(){},bindWaAttachButton(){},fetch:async(url,opts)=>{
+ const context=vm.createContext({console,ASTANA:"astana",WORKER_CALL_URL:"https://calls",loadDealWaScheduled(){},CSS:{escape:s=>s},bindDealWaTools:()=>({draw(){},reply(){},clearReply(){},submitEdit:async()=>false}),renderWaTimeline:(items,group)=>items.map(m=>`${group?"group:":"private:"}${m.text}`).join(""),encodeURIComponent,Date,JSON,parseInt,document:{createElement:element,getElementById:id=>elements['#'+id]},window:{},setInterval:()=>1,clearInterval(){},setTimeout(){},alert(){},WORKER_BASE_URL:'https://test',fbAuth:{currentUser:{getIdToken:async()=>'test'}},getDealRecordId:()=> 'deal_1',findWaRecipientChat:items=>items?.[0],escapeHtml:s=>s,renderWaMessageHtml:(m,group)=>`${group?'group:':'private:'}${m.text}`,bindWaVoiceButton(){},bindWaAttachButton(){},fetch:async(url,opts)=>{
    requests.push({url,body:opts?.body&&JSON.parse(opts.body)});
    const hook=fetchHook?.(url,opts);if(hook)return hook;
    if(url.includes('/chats?'))return Response.json({items:[{id:'wa:11:77010000001@c.us',instanceId:'11'}]});
