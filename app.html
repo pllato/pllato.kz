@@ -6163,6 +6163,12 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     </div></div>
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
+      <a href="app/client-state-scale.html" class="tool-card" data-app-id="client_state_scale" data-created="2026-11-27" data-updated="2026-11-27">
+        <div class="tool-icon color-bronze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 9h13M4 13h10M4 17h7M4 21h4"/></svg></div>
+        <h3>Шкала состояния клиента</h3>
+        <p>Семь состояний: от подтверждённых действий по покупке до отсутствия подтверждённой потребности.</p>
+        <span class="tool-cta">Открыть шкалу →</span>
+      </a>
       <div class="tool-card" data-app-id="pllato_briefs">
         <div class="tool-icon" style="background:#1f6b55;color:#fff;font-size:12px;font-weight:900;letter-spacing:.04em">ТЗ</div>
         <h3>Анкета для ТЗ клиента</h3>
@@ -6628,6 +6634,7 @@ const APPS_CATALOG = [
   { id: "pllato_shared_calendar", label: "Общий календарь Pllato" },
   { id: "pllato_zoom_archive", label: "Архив Zoom — записи и транскрипты" },
   { id: "pllato_briefs", label: "Анкета для ТЗ клиента — ссылка и заявки" },
+  { id: "client_state_scale", label: "Шкала состояния клиента" },
   { id: "ukolova_call_trainer", label: "Тренажёр звонков · база LANDPR" },
   { id: "esmotors",         label: "ES Motors · CRM отдела продаж автосалона — Демо + КП" },
   { id: "kazmeddez",        label: "Казахстан-Мед Дез · Единый портал вместо Битрикса — Демо" },
@@ -7408,7 +7415,7 @@ function cardAllowed(card){
   const id = card.dataset.appId;
   if(id === 'financial_planning') return card.dataset.allowed === 'true';
   // Общие фирменные материалы доступны каждому авторизованному сотруднику App.
-  if(id === 'pllato_brand_materials') return true;
+  if(id === 'pllato_brand_materials' || id === 'client_state_scale') return true;
   if(id === 'hr_personality' && CURRENT?.apps?.hr_hiring) return true;
   return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]);
 }
