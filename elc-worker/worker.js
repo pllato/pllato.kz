@@ -12496,7 +12496,10 @@ export default {
 
     // Ограниченный наблюдатель: deny-by-default ДО всех API/WS роутов.
     // Клиентские кнопки и оргструктура не могут расширить это разрешение.
-    if(path.startsWith('/api/')&&request.method!=='OPTIONS'){
+    // Skills использует собственный shared secret, а не Firebase/App JWT.
+    // Его обработчик ниже сам проверяет SKILLS_INGEST_SECRET до любых записей.
+    const skillsIngest=path==='/api/skills/report'&&request.method==='POST';
+    if(path.startsWith('/api/')&&request.method!=='OPTIONS'&&!skillsIngest){
       const bearer=request.headers.get('Authorization')||'';
       const token=(bearer.startsWith('Bearer ')?bearer.slice(7):null)||url.searchParams.get('auth')||(path==='/api/ws/user'?url.searchParams.get('token'):null);
       if(token){

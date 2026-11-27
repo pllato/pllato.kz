@@ -39,7 +39,7 @@ test('profile config cache is DB-isolated and does not query D1 per ordinary req
  const other={DB:{prepare(){return{bind(){return{first:async()=>null}}}}}};assert.equal(await restrictedViewer(other,claims.email),null);
 });
 test('production dispatch blocks observer before any API/WS route and preserves ordinary routing',async()=>{
- const s=fs.readFileSync(new URL('./worker.js',import.meta.url),'utf8');const start=s.indexOf("    if(path.startsWith('/api/')&&request.method!=='OPTIONS')");const end=s.indexOf('    // Чистые публичные адреса',start);assert.ok(start<s.indexOf('if (path === "/api/ws/user")'));
+ const s=fs.readFileSync(new URL('./worker.js',import.meta.url),'utf8');const start=s.indexOf("    // Ограниченный наблюдатель");const end=s.indexOf('    // Чистые публичные адреса',start);assert.ok(start<s.indexOf('if (path === "/api/ws/user")'));
  const ctx=vm.createContext({URL,Response,json,restrictedViewer:async(env,email)=>email===claims.email?profile:null,viewerRequestAllowed,requestClaims:async()=>claims,handleAstanaViewer:async()=>new Response('viewer')});vm.runInContext('async function guard(request,env){const url=new URL(request.url),path=url.pathname;'+s.slice(start,end)+'return new Response("normal");}',ctx);
  for(const path of ['/api/wa/send','/api/ws/user?token=x','/api/rtdb/pipelines.json'])assert.equal((await ctx.guard(new Request('https://test'+path,{headers:{Authorization:'Bearer signed'}}),{})).status,403);
  assert.equal(await(await ctx.guard(new Request('https://test/api/astana-view',{headers:{Authorization:'Bearer signed'}}),{})).text(),'viewer');
